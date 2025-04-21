@@ -1,3 +1,4 @@
+import {PencilLine} from 'lucide-react';
 import {useState} from 'react';
 
 import {Button} from '@/components/ui/button';
@@ -19,9 +20,9 @@ import {
 } from '@/components/ui/drawer';
 import {useMediaQuery} from '@/hooks/use-media-query';
 
-import {BankAccountAddForm} from './bank-account-add-form';
+import {PasswordChangeForm} from './password-change-form';
 
-export function BankAccountAddDialog() {
+export function PasswordChangeDialog() {
   const [open, setOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
@@ -29,13 +30,16 @@ export function BankAccountAddDialog() {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button>Add bank account</Button>
+          <Button variant='outline' className='mt-4 w-full sm:mt-0 sm:w-fit'>
+            <PencilLine />
+            Change password
+          </Button>
         </DialogTrigger>
-        <DialogContent className='max-w-96' aria-describedby='Add bank account'>
+        <DialogContent className='w-[26rem]' aria-describedby='Change password'>
           <DialogHeader>
-            <DialogTitle>Add bank account</DialogTitle>
+            <DialogTitle className='mb-1'>Change password</DialogTitle>
           </DialogHeader>
-          <BankAccountAddForm setOpen={setOpen} />
+          <PasswordChangeForm setOpen={setOpen} />
         </DialogContent>
       </Dialog>
     );
@@ -44,13 +48,16 @@ export function BankAccountAddDialog() {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <Button>Add bank account</Button>
+        <Button variant='outline' className='mt-4 w-full sm:mt-0 sm:w-fit'>
+          <PencilLine />
+          Change password
+        </Button>
       </DrawerTrigger>
-      <DrawerContent aria-describedby='Add bank account'>
+      <DrawerContent aria-describedby='Change password'>
         <DrawerHeader className='text-left'>
-          <DrawerTitle>Add bank account</DrawerTitle>
+          <DrawerTitle className='mb-1'>Change password</DrawerTitle>
         </DrawerHeader>
-        <BankAccountAddForm setOpen={setOpen} />
+        <PasswordChangeForm setOpen={setOpen} />
         <DrawerFooter className='pt-4'>
           <DrawerClose asChild>
             <Button variant='outline'>Cancel</Button>
