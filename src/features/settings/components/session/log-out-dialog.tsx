@@ -22,25 +22,21 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
+import {useLogOut} from '@/hooks/use-logout';
 import {useMediaQuery} from '@/hooks/use-media-query';
 
-import {useRevokeSession} from '../../api/use-revoke-session';
-import {Session} from '../../types/session';
-
-type SessionRevokeDialogProps = {
-  session: Session;
+type LogOutDialogProps = {
   triggerVariant?: ButtonProps['variant'];
 };
 
-export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: SessionRevokeDialogProps) {
+export function LogOutDialog({triggerVariant = 'ghost'}: LogOutDialogProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const [isOpen, setIsOpen] = useState(false);
 
-  const {revokeSession, isPending} = useRevokeSession();
+  const {logOut, isPending} = useLogOut();
 
-  const handleRevoke = async () => {
-    await revokeSession({id: session.id});
-    setIsOpen(false);
+  const handleLogOut = async () => {
+    await logOut();
   };
 
   if (isDesktop) {
@@ -48,15 +44,14 @@ export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: Session
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
           <Button variant={triggerVariant} className='w-full text-foreground sm:w-fit' size='sm'>
-            Revoke access
+            Log out
           </Button>
         </DialogTrigger>
-        <DialogContent aria-describedby='Revoke access' className='max-w-[33rem]'>
+        <DialogContent aria-describedby='Log out' className='max-w-[33rem]'>
           <DialogHeader>
-            <DialogTitle>Revoke access</DialogTitle>
+            <DialogTitle>Log out?</DialogTitle>
             <DialogDescription className='pt-2'>
-              Revoke <span className='text-foreground'>{session.clientDescription}</span>? This
-              cannot be undone.
+              You will be logged out from this session.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className='flex gap-2'>
@@ -65,20 +60,14 @@ export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: Session
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              type='submit'
-              disabled={isPending}
-              className='text-foreground'
-              variant='destructive'
-              onClick={handleRevoke}
-            >
+            <Button type='submit' disabled={isPending} onClick={handleLogOut}>
               {isPending ? (
                 <>
-                  <span>Revoking...</span>
+                  <span>Logging out...</span>
                   <Loader className='ml-2 h-4 w-4 animate-slow-spin' />
                 </>
               ) : (
-                <span>Revoke</span>
+                <span>Log out</span>
               )}
             </Button>
           </DialogFooter>
@@ -91,32 +80,25 @@ export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: Session
     <Drawer open={isOpen} onOpenChange={setIsOpen}>
       <DrawerTrigger asChild>
         <Button variant={triggerVariant} className='w-full text-foreground sm:w-fit' size='sm'>
-          Revoke
+          Log out
         </Button>
       </DrawerTrigger>
-      <DrawerContent aria-describedby='Revoke access'>
+      <DrawerContent aria-describedby='Log out'>
         <DrawerHeader className='text-left'>
-          <DrawerTitle>Revoke access</DrawerTitle>
+          <DrawerTitle>Log out?</DrawerTitle>
           <DrawerDescription className='pt-2'>
-            Revoke <span className='text-foreground'>{session.clientDescription}</span>? This cannot
-            be undone.
+            You will be logged out from this session.
           </DrawerDescription>
         </DrawerHeader>
         <DrawerFooter className='pt-4'>
-          <Button
-            type='submit'
-            disabled={isPending}
-            className='w-full text-foreground'
-            variant='destructive'
-            onClick={handleRevoke}
-          >
+          <Button type='submit' disabled={isPending} className='w-full' onClick={handleLogOut}>
             {isPending ? (
               <>
-                <span>Revoking...</span>
+                <span>Logging out...</span>
                 <Loader className='ml-2 h-4 w-4 animate-slow-spin' />
               </>
             ) : (
-              <span>Revoke</span>
+              <span>Log out</span>
             )}
           </Button>
           <DrawerClose asChild>

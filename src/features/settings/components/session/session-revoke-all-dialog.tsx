@@ -1,7 +1,7 @@
 import {Loader} from 'lucide-react';
 import {useState} from 'react';
 
-import {Button, ButtonProps} from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -24,22 +24,16 @@ import {
 } from '@/components/ui/drawer';
 import {useMediaQuery} from '@/hooks/use-media-query';
 
-import {useRevokeSession} from '../../api/use-revoke-session';
-import {Session} from '../../types/session';
+import {useRevokeAllSessions} from '../../api/use-revoke-all-sessions';
 
-type SessionRevokeDialogProps = {
-  session: Session;
-  triggerVariant?: ButtonProps['variant'];
-};
-
-export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: SessionRevokeDialogProps) {
+export function SessionRevokeAllDialog() {
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const [isOpen, setIsOpen] = useState(false);
 
-  const {revokeSession, isPending} = useRevokeSession();
+  const {revokeAllSessions, isPending} = useRevokeAllSessions();
 
   const handleRevoke = async () => {
-    await revokeSession({id: session.id});
+    await revokeAllSessions();
     setIsOpen(false);
   };
 
@@ -47,16 +41,15 @@ export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: Session
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant={triggerVariant} className='w-full text-foreground sm:w-fit' size='sm'>
-            Revoke access
+          <Button variant='ghost' className='w-full text-foreground sm:w-fit' size='sm'>
+            Revoke all
           </Button>
         </DialogTrigger>
         <DialogContent aria-describedby='Revoke access' className='max-w-[33rem]'>
           <DialogHeader>
             <DialogTitle>Revoke access</DialogTitle>
             <DialogDescription className='pt-2'>
-              Revoke <span className='text-foreground'>{session.clientDescription}</span>? This
-              cannot be undone.
+              Revoke all other sessions? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className='flex gap-2'>
@@ -90,16 +83,15 @@ export function SessionRevokeDialog({session, triggerVariant = 'ghost'}: Session
   return (
     <Drawer open={isOpen} onOpenChange={setIsOpen}>
       <DrawerTrigger asChild>
-        <Button variant={triggerVariant} className='w-full text-foreground sm:w-fit' size='sm'>
-          Revoke
+        <Button variant='ghost' className='w-full text-foreground sm:w-fit' size='sm'>
+          Revoke all
         </Button>
       </DrawerTrigger>
       <DrawerContent aria-describedby='Revoke access'>
         <DrawerHeader className='text-left'>
           <DrawerTitle>Revoke access</DrawerTitle>
           <DrawerDescription className='pt-2'>
-            Revoke <span className='text-foreground'>{session.clientDescription}</span>? This cannot
-            be undone.
+            Revoke all other sessions? This cannot be undone.
           </DrawerDescription>
         </DrawerHeader>
         <DrawerFooter className='pt-4'>
