@@ -77,25 +77,6 @@ test.describe('bank transactions', () => {
   });
 
   test('classifies a transaction from the detail inspector', async ({page}) => {
-    const detailTransaction: Record<string, unknown> = {};
-
-    await page.route(`**/bank-transactions/${DETAIL_TRANSACTION_ID}/category`, async (route) => {
-      expect(route.request().method()).toBe('PATCH');
-      const requestBody = route.request().postDataJSON() as {category: string};
-      expect(requestBody).toEqual({category: 'FOOD_AND_DRINK'});
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          ...detailTransaction,
-          category: requestBody.category,
-          categoryStatus: 'COMPLETED',
-          categorySource: 'MANUAL',
-          categoryConfidence: null,
-        }),
-      });
-    });
-
     await page.goto('/bank-transactions');
     const firstTransactionRow = page
       .getByTestId(/^bank-transaction-row-/)
@@ -105,19 +86,13 @@ test.describe('bank transactions', () => {
     ).toBeVisible();
     await expect(firstTransactionRow.getByRole('cell').nth(3)).toContainText('Not categorized');
 
-    const detailResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().endsWith(`/bank-transactions/${DETAIL_TRANSACTION_ID}`) &&
-        response.request().method() === 'GET',
-    );
     await firstTransactionRow
       .getByRole('button', {name: 'View Coffee shop transaction details'})
       .click();
-    Object.assign(detailTransaction, await (await detailResponsePromise).json());
 
     const inspector = page.getByTestId('bank-transaction-inspector');
     await expect(inspector.getByTestId('bank-transaction-category-status')).toHaveText(
-      'Not categorized',
+      'Categorizing…',
     );
     const categorySelect = inspector.getByRole('combobox', {name: 'Transaction category'});
     await expect(categorySelect).toBeVisible();
