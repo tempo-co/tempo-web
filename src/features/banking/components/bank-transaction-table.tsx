@@ -35,6 +35,7 @@ import {
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
 import {BankTransactionAccountFilter} from './bank-transaction-account-filter';
+import {BankTransactionCategoryFilter} from './bank-transaction-category-filter';
 import {BankTransactionDateFilter} from './bank-transaction-date-filter';
 import {bankTransactionTableColumns} from './bank-transaction-table-columns';
 
@@ -72,7 +73,10 @@ export function BankTransactionTable({
   const navigate = useNavigate({from: '/bank-transactions/'});
   const [searchInput, setSearchInput] = useState(filters.search || '');
   const isFilteringApplied =
-    !!filters.bookingDate || (filters.bankAccountIds?.length ?? 0) > 0 || !!filters.search?.trim();
+    !!filters.bookingDate ||
+    (filters.bankAccountIds?.length ?? 0) > 0 ||
+    (filters.categories?.length ?? 0) > 0 ||
+    !!filters.search?.trim();
 
   useEffect(() => {
     setSearchInput(filters.search || '');
@@ -134,11 +138,12 @@ export function BankTransactionTable({
         ...prev,
         bookingDate: undefined,
         bankAccountIds: undefined,
+        categories: undefined,
         search: undefined,
         pageIndex: 0,
       }),
     });
-    setFilters({bookingDate: undefined, bankAccountIds: [], search: undefined});
+    setFilters({bookingDate: undefined, bankAccountIds: [], categories: [], search: undefined});
   };
 
   if (isPending) {
@@ -184,8 +189,13 @@ export function BankTransactionTable({
             data-testid='bank-transactions-search'
           />
         </div>
-        <div className='flex w-full gap-2 md:contents'>
+        <div className='flex w-full flex-col gap-2 md:contents'>
           <BankTransactionDateFilter
+            filters={filters}
+            setFilters={setFilters}
+            className='max-md:min-w-0 max-md:flex-1'
+          />
+          <BankTransactionCategoryFilter
             filters={filters}
             setFilters={setFilters}
             className='max-md:min-w-0 max-md:flex-1'

@@ -475,6 +475,58 @@ test.describe('bank transactions', () => {
     await expect(page.getByText('Provider purchase')).not.toBeVisible();
   });
 
+  test('filters transactions by one or multiple categories', async ({page}) => {
+    await page.route('**/bank-transactions?*', async (route) => {
+      const requestUrl = new URL(route.request().url());
+      const categoryValues = requestUrl.searchParams.getAll('filter[categories][]');
+      requestUrl.searchParams.delete('filter[categories][]');
+      const response = await route.fetch({url: requestUrl.toString()});
+      const payload = (await response.json()) as {
+        transactions: Array<Record<string, unknown>>;
+        total: number;
+      };
+      const categorizedTransactions = payload.transactions.map((transaction, index) => ({
+        ...transaction,
+        category: index === 0 ? 'FOOD_AND_DRINK' : index === 1 ? 'SHOPPING' : null,
+        categoryStatus: index < 2 ? 'COMPLETED' : 'PENDING',
+        categorySource: null,
+      }));
+      const transactions =
+        categoryValues.length > 0
+          ? categorizedTransactions.filter((transaction) =>
+              categoryValues.includes(String(transaction.category)),
+            )
+          : categorizedTransactions;
+
+      await route.fulfill({response, json: {...payload, transactions, total: transactions.length}});
+    });
+    await page.goto('/bank-transactions');
+
+    const categoryFilter = page.getByRole('button', {name: 'Categories', exact: true});
+    await expect(categoryFilter).toBeVisible();
+    await categoryFilter.click();
+    await expect(page.getByRole('option')).toHaveCount(19);
+    await page.getByRole('option', {name: 'Food and drink', exact: true}).click();
+
+    const singleCategoryParam = new URL(page.url()).searchParams.get('categories');
+    expect(singleCategoryParam).not.toBeNull();
+    expect(JSON.parse(singleCategoryParam!)).toEqual(['FOOD_AND_DRINK']);
+    await expect(page.getByText('Coffee shop', {exact: true})).toBeVisible();
+    await expect(page.getByText('Salary', {exact: true})).not.toBeVisible();
+
+    const shoppingOption = page.getByRole('option', {name: 'Shopping', exact: true});
+    await expect(shoppingOption).toHaveAttribute('aria-selected', 'false');
+    await shoppingOption.click();
+
+    const multipleCategoryParam = new URL(page.url()).searchParams.get('categories');
+    expect(multipleCategoryParam).not.toBeNull();
+    expect(JSON.parse(multipleCategoryParam!)).toEqual(['FOOD_AND_DRINK', 'SHOPPING']);
+    await expect(page.getByText('Coffee shop', {exact: true})).toBeVisible();
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Salary'}),
+    ).toBeVisible();
+  });
+
   test('reflows transaction records for a phone viewport', async ({page}) => {
     await page.setViewportSize({width: 393, height: 852});
     await page.goto('/bank-transactions');
