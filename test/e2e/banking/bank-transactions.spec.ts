@@ -119,13 +119,23 @@ test.describe('bank transactions', () => {
       'Transfer out',
       'Other',
     ]);
+    await expect(page.getByRole('option').locator('svg')).toHaveCount(19);
+    await expect(
+      page.getByRole('option', {name: 'Food and drink', exact: true}).locator('svg').locator('..'),
+    ).toHaveClass(/text-category-food-and-drink/);
     await page.getByRole('option', {name: 'Food and drink', exact: true}).click();
 
     await expect(categorySelect).toHaveText('Food and drink');
+    await expect(categorySelect.locator('svg.lucide-utensils').locator('..')).toHaveClass(
+      /text-category-food-and-drink/,
+    );
     await expect(inspector.getByText('Manual', {exact: true})).toBeVisible();
 
     await inspector.getByRole('button', {name: 'Close transaction details'}).click();
     await expect(inspector).toBeHidden();
+    await expect(
+      firstTransactionRow.getByRole('cell').nth(3).locator('svg').locator('..'),
+    ).toHaveClass(/text-category-food-and-drink/);
     await firstTransactionRow
       .getByRole('button', {name: 'View Coffee shop transaction details'})
       .click();

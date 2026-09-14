@@ -9,15 +9,17 @@ import {
 import {useUpdateBankTransactionCategory} from '../api/use-update-bank-transaction-category';
 import {
   BANK_TRANSACTION_CATEGORIES,
-  BANK_TRANSACTION_CATEGORY_LABELS,
   BankTransaction,
+  BankTransactionCategory,
 } from '../types/bank-transaction';
+import {BANK_TRANSACTION_CATEGORY_META} from '../utils/bank-transaction-category-meta';
 import {
   formatBankTransactionCategory,
   formatBankTransactionCategorySource,
   formatBankTransactionCategoryStatus,
   isBankTransactionCategory,
 } from '../utils/formatters';
+import {BankTransactionCategoryIcon} from './bank-transaction-category-icon';
 
 type BankTransactionCategorySelectProps = {
   transaction: BankTransaction;
@@ -52,12 +54,14 @@ export function BankTransactionCategorySelect({transaction}: BankTransactionCate
             aria-describedby={statusId}
             className='max-w-md'
           >
-            <SelectValue placeholder={formatBankTransactionCategory(transaction.category)} />
+            <SelectValue placeholder={formatBankTransactionCategory(transaction.category)}>
+              {selectedCategory && <BankTransactionCategoryOption category={selectedCategory} />}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {BANK_TRANSACTION_CATEGORIES.map((category) => (
               <SelectItem key={category} value={category}>
-                {BANK_TRANSACTION_CATEGORY_LABELS[category]}
+                <BankTransactionCategoryOption category={category} />
               </SelectItem>
             ))}
           </SelectContent>
@@ -79,5 +83,14 @@ export function BankTransactionCategorySelect({transaction}: BankTransactionCate
         )}
       </dd>
     </div>
+  );
+}
+
+function BankTransactionCategoryOption({category}: {category: BankTransactionCategory}) {
+  return (
+    <span className='inline-flex min-w-0 items-center gap-2'>
+      <BankTransactionCategoryIcon category={category} />
+      <span className='truncate'>{BANK_TRANSACTION_CATEGORY_META[category].label}</span>
+    </span>
   );
 }
