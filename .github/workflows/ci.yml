@@ -67,24 +67,13 @@ jobs:
       - name: Checkout web repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Checkout API categorization branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: tempo-co/tempo-api
-          ref: feat/ai-transaction-categorization-api
-          path: tempo-api
-
-      - name: Build API E2E image
-        run: docker build --tag tempo-api-e2e ./tempo-api
-
       - name: Export environment variables
         run: |
           echo '${{ toJson(vars) }}' | jq -c '.' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
 
       - name: Setup Docker E2E environment
         run: |
-          cp docker-compose.e2e.yml docker-compose.yml
-          TEMPO_API_E2E_IMAGE=tempo-api-e2e docker compose -f docker-compose.e2e.yml up -d
+          docker compose -f docker-compose.e2e.yml up -d
           npm run db:seed:e2e
 
       - name: Setup Node.js
