@@ -46,7 +46,7 @@ export function BankTransactionDetails({transaction}: BankTransactionDetailsProp
           </div>
           <div
             data-testid='bank-transaction-detail-status'
-            className='flex shrink-0 items-center gap-2 pb-1'
+            className='flex shrink-0 flex-col items-end gap-1 pb-1'
           >
             <Badge variant='outline' className='shrink-0'>
               {formatBankTransactionStatus(transaction.transactionStatus)}

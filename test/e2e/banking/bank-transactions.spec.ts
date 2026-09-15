@@ -387,8 +387,21 @@ test.describe('bank transactions', () => {
       expect(statusBox!.x).toBeGreaterThan(amountBox!.x + amountBox!.width);
       expect(statusBox!.y).toBeLessThan(amountBox!.y + amountBox!.height);
       expect(statusBox!.y + statusBox!.height).toBeGreaterThan(amountBox!.y);
-      await expect(amountSection.getByText('Booked', {exact: true})).toBeVisible();
-      await expect(amountSection.getByText('EUR', {exact: true})).toBeVisible();
+      await expect(status).toHaveCSS('flex-direction', 'column');
+      const booked = amountSection.getByText('Booked', {exact: true});
+      const currency = amountSection.getByText('EUR', {exact: true});
+      await expect(booked).toBeVisible();
+      await expect(currency).toBeVisible();
+      const [bookedBox, currencyBox] = await Promise.all([
+        booked.boundingBox(),
+        currency.boundingBox(),
+      ]);
+      expect(bookedBox).not.toBeNull();
+      expect(currencyBox).not.toBeNull();
+      expect(currencyBox!.y).toBeGreaterThan(bookedBox!.y + bookedBox!.height);
+      expect(
+        Math.abs(bookedBox!.x + bookedBox!.width - (currencyBox!.x + currencyBox!.width)),
+      ).toBeLessThanOrEqual(1);
 
       if (viewport.width < 768) {
         const detailGrid = inspector
