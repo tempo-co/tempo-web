@@ -194,6 +194,49 @@ test.describe('bank connections', () => {
     await expect(connectedCard).toHaveCount(0);
   });
 
+  test('lets the user choose a supported bank before authorization', async ({page}) => {
+    let authorizationRequest: {aspspName: string; aspspCountry: string} | undefined;
+
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {name: 'ABN AMRO', country: 'NL'},
+          {name: 'Nordea', country: 'FI'},
+          {name: 'Revolut', country: 'NL'},
+        ]),
+      });
+    });
+    await page.route('**/bank-connections/authorize', async (route) => {
+      authorizationRequest = JSON.parse(route.request().postData() || '{}') as {
+        aspspName: string;
+        aspspCountry: string;
+      };
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({authorizationUrl: 'https://auth.example.test/revolut'}),
+      });
+    });
+    await page.route('https://auth.example.test/revolut', async (route) => {
+      await route.fulfill({status: 200, contentType: 'text/html', body: '<p>Enable Banking authorization</p>'});
+    });
+
+    await page.goto('/bank-connections');
+    await page.getByRole('button', {name: 'Connect a bank'}).click();
+
+    const picker = page.getByRole('dialog');
+    await expect(picker).toBeVisible();
+    await picker.getByPlaceholder('Search banks by name or country').fill('Revolut');
+    const revolut = picker.getByRole('option', {name: /Revolut.*NL/});
+    await expect(revolut).toBeVisible();
+    await revolut.click();
+
+    await expect.poll(() => authorizationRequest).toEqual({aspspName: 'Revolut', aspspCountry: 'NL'});
+    await expect(page).toHaveURL('https://auth.example.test/revolut');
+  });
+
   test('reopens a connection transaction inspector from its shareable URL', async ({page}) => {
     await page.goto('/bank-connections');
 
@@ -216,6 +259,13 @@ test.describe('bank connections', () => {
     await page.goto('/bank-connections');
     const authorizationUrl = 'https://bank.example.test/mock-bank-authorization';
     const callbackUrl = new URL('./bank-connections?result=connected', page.url()).toString();
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{name: 'Mock ASPSP', country: 'NL'}]),
+      });
+    });
     await page.route('**/bank-connections/authorize', async (route) => {
       await route.fulfill({
         status: 201,
@@ -232,7 +282,8 @@ test.describe('bank connections', () => {
       popupOpened = true;
     });
 
-    await page.getByTestId('connect-abn-amro-button').click();
+    await page.getByRole('button', {name: 'Connect a bank'}).click();
+    await page.getByRole('dialog').getByRole('option', {name: /Mock ASPSP.*NL/}).click();
 
     await expect(page.getByText('Bank connection added')).toBeVisible();
     await expect(page).toHaveURL(/\/bank-connections$/);
@@ -246,7 +297,7 @@ test.describe('bank connections', () => {
     const heading = page.getByRole('heading', {name: 'Bank connections'});
     const headingGroup = page.getByTestId('bank-connections-heading');
     const connectButton = page
-      .getByRole('button', {name: /^Connect (ABN AMRO|Mock ASPSP)$/})
+      .getByRole('button', {name: 'Connect a bank'})
       .first();
     const syncButton = page.getByRole('button', {name: 'Sync now'});
     const status = page.getByTestId('bank-connection-status');
@@ -333,7 +384,7 @@ test.describe('bank connections', () => {
     });
 
     const connectButton = page
-      .getByRole('button', {name: /^Connect (ABN AMRO|Mock ASPSP)$/})
+      .getByRole('button', {name: 'Connect a bank'})
       .first();
     const connectButtonBox = await connectButton.boundingBox();
 
@@ -387,7 +438,7 @@ test.describe('bank connections without bank connections', () => {
     await page.goto('/bank-connections');
 
     await expect(page.getByRole('heading', {name: 'No bank connections'})).toBeVisible();
-    await expect(page.getByRole('button', {name: /^Connect (ABN AMRO|Mock ASPSP)$/})).toHaveCount(
+    await expect(page.getByRole('button', {name: 'Connect a bank'})).toHaveCount(
       1,
     );
   });

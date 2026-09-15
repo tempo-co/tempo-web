@@ -5,6 +5,11 @@ export type BankConnectionAuthorizationRequest = {
   aspspCountry: string;
 };
 
+export type BankConnectionAspsp = {
+  name: string;
+  country: string;
+};
+
 export type BankConnectionAuthorizationResponse = {
   authorizationUrl: string;
 };

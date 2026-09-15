@@ -1,4 +1,4 @@
-import {AlertTriangle, Building2, Loader, Plus, RefreshCw, Trash2} from 'lucide-react';
+import {AlertTriangle, Building2, Loader, RefreshCw, Trash2} from 'lucide-react';
 import {useState} from 'react';
 import {toast} from 'sonner';
 
@@ -27,13 +27,14 @@ import {useDeleteBankConnection} from '../api/use-delete-bank-connection';
 import {useGetBankConnectionTransactions} from '../api/use-get-bank-connection-transactions';
 import {useStartBankConnection} from '../api/use-start-bank-connection';
 import {useSyncBankConnection} from '../api/use-sync-bank-connection';
-import {BankConnection, BankTransaction} from '../types/bank-connection';
+import {BankConnection, BankConnectionAspsp, BankTransaction} from '../types/bank-connection';
 import {
   formatBankTransactionCompactDate,
   formatBankTransactionStatus,
   formatBankingWords,
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
+import {BankConnectionPicker} from './bank-connection-picker';
 
 type BankConnectionListProps = {
   bankConnections: BankConnection[];
@@ -43,20 +44,6 @@ type BankConnectionListProps = {
   onTransactionSelect: (transactionId: BankTransaction['id'], trigger: HTMLButtonElement) => void;
 };
 
-const ABN_AMRO = {
-  request: {aspspName: 'ABN AMRO', aspspCountry: 'NL'},
-  displayName: 'ABN AMRO',
-  testId: 'connect-abn-amro-button',
-};
-
-const MOCK_ASPSP = {
-  request: {aspspName: 'Mock ASPSP', aspspCountry: 'NL'},
-  displayName: 'Mock ASPSP',
-  testId: 'connect-mock-aspsp-button',
-};
-
-const targetBank = import.meta.env.MODE === 'development' ? MOCK_ASPSP : ABN_AMRO;
-
 const DESTRUCTIVE_CONNECTION_STATUSES = ['AUTHORIZED', 'EXPIRED'] as const;
 const REMOVABLE_CONNECTION_STATUSES = [
   'PENDING_AUTHORIZATION',
@@ -65,37 +52,6 @@ const REMOVABLE_CONNECTION_STATUSES = [
   ...DESTRUCTIVE_CONNECTION_STATUSES,
 ] as const;
 
-type ConnectBankButtonProps = {
-  onClick: () => void;
-  isPending: boolean;
-  className?: string;
-  testId?: string;
-  showIcon?: boolean;
-};
-
-function ConnectBankButton({
-  onClick,
-  isPending,
-  className,
-  testId,
-  showIcon = false,
-}: ConnectBankButtonProps) {
-  return (
-    <Button
-      className={cn(
-        'max-md:h-auto max-md:min-h-11 max-md:max-w-full max-md:whitespace-normal',
-        className,
-      )}
-      onClick={onClick}
-      disabled={isPending}
-      data-testid={testId}
-    >
-      {showIcon && (isPending ? <Loader className='animate-slow-spin' /> : <Plus />)}
-      {isPending ? 'Connecting...' : `Connect ${targetBank.displayName}`}
-    </Button>
-  );
-}
-
 function ConnectionPageFrame({
   children,
   connectBank,
@@ -103,7 +59,7 @@ function ConnectionPageFrame({
   showConnect = true,
 }: {
   children: React.ReactNode;
-  connectBank: () => void;
+  connectBank: (bank: BankConnectionAspsp) => void | Promise<void>;
   isStarting: boolean;
   showConnect?: boolean;
 }) {
@@ -120,11 +76,9 @@ function ConnectionPageFrame({
           </p>
         </div>
         {showConnect && (
-          <ConnectBankButton
-            onClick={connectBank}
-            isPending={isStarting}
-            testId={targetBank.testId}
-            showIcon
+          <BankConnectionPicker
+            onBankSelect={connectBank}
+            isStarting={isStarting}
             className='max-md:self-start'
           />
         )}
@@ -143,9 +97,12 @@ export function BankConnectionList({
 }: BankConnectionListProps) {
   const {startBankConnection, isPending: isStarting} = useStartBankConnection();
 
-  const connectBank = async () => {
+  const connectBank = async (bank: BankConnectionAspsp) => {
     try {
-      const {authorizationUrl} = await startBankConnection(targetBank.request);
+      const {authorizationUrl} = await startBankConnection({
+        aspspName: bank.name,
+        aspspCountry: bank.country,
+      });
       window.location.assign(authorizationUrl);
     } catch (error) {
       if (error instanceof HttpError && error.status === 429) return;
@@ -192,8 +149,8 @@ export function BankConnectionList({
             <Building2 className='mb-5 h-12 w-12 text-muted-foreground' />
             <h2 className='text-xl font-semibold'>No bank connections</h2>
             <p className='mt-2 max-w-md text-sm text-muted-foreground'>
-              Connect {targetBank.displayName} to make its available bank accounts part of your
-              financial history.
+              Connect a supported bank to make its available bank accounts part of your financial
+              history.
             </p>
           </CardContent>
         </Card>
