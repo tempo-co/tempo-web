@@ -8,52 +8,7 @@ const DETAIL_TRANSACTION_ID = '00000000-0000-4000-8000-000000000014';
 test.describe('bank connections', () => {
   test.use({storageState: VERIFIED_USER_AUTH_FILE});
 
-  test('shows seeded connection data and callback success feedback', async ({page}) => {
-    await page.goto('/bank-connections?result=connected');
-
-    await expect(page.getByRole('heading', {name: 'Bank connections'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'ABN AMRO'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Recent transactions'})).toBeVisible();
-    await expect(page.getByText('Connected', {exact: true})).toBeVisible();
-    await expect(page.getByTestId('bank-connection-freshness')).toContainText('Updated');
-    const status = page.getByTestId('bank-connection-status');
-    const freshness = page.getByTestId('bank-connection-freshness');
-    const syncButton = page.getByRole('button', {name: 'Sync now'});
-    const [statusBox, freshnessBox, syncButtonBox] = await Promise.all([
-      status.boundingBox(),
-      freshness.boundingBox(),
-      syncButton.boundingBox(),
-    ]);
-    expect(statusBox).not.toBeNull();
-    expect(freshnessBox).not.toBeNull();
-    expect(syncButtonBox).not.toBeNull();
-    const verticalCenters = [statusBox!, freshnessBox!, syncButtonBox!].map(
-      (box) => box.y + box.height / 2,
-    );
-    expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(1);
-    await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
-    await expect(page.getByText('available · primary')).toBeVisible();
-    await expect(page.getByText('Provider purchase')).toBeVisible();
-    const transactionTrigger = page.getByRole('button', {
-      name: 'View transaction details for Provider purchase',
-    });
-    await expect(transactionTrigger).toBeVisible();
-    await transactionTrigger.click();
-    const inspector = page.getByTestId('bank-transaction-inspector');
-    await expect(inspector).toBeVisible();
-    expect(new URL(page.url()).searchParams.get('transactionId')).toBe(DETAIL_TRANSACTION_ID);
-    await expect(inspector.getByRole('heading', {name: 'Provider purchase'})).toBeVisible();
-    await expect(inspector.getByText('Bank transaction', {exact: true})).toBeVisible();
-    await inspector.getByRole('button', {name: 'Close transaction details'}).click();
-    await expect(inspector).toBeHidden();
-    await expect(transactionTrigger).toBeFocused();
-    expect(new URL(page.url()).searchParams.has('transactionId')).toBe(false);
-    await expect(page.getByText('Bank connection added')).toBeVisible();
-    await expect(page).toHaveURL(/\/bank-connections$/);
-  });
-
-  test('uses provider logos in bank connection rows', async ({page}) => {
+  test('shows seeded connection data, callback feedback, and provider logo', async ({page}) => {
     await page.route('**/bank-connections/aspsps', async (route) => {
       await route.fulfill({
         status: 200,
@@ -68,12 +23,19 @@ test.describe('bank connections', () => {
       });
     });
 
-    await page.goto('/bank-connections');
+    await page.goto('/bank-connections?result=connected');
 
-    const bankLogo = page
+    await expect(page.getByRole('heading', {name: 'Bank connections'})).toBeVisible();
+    const connectionCard = page
       .locator('[data-testid^="bank-connection-"]')
-      .filter({has: page.getByRole('heading', {name: 'ABN AMRO'})})
-      .getByTestId('bank-connection-logo');
+      .filter({has: page.getByRole('heading', {name: 'ABN AMRO'})});
+    await expect(connectionCard).toBeVisible();
+    await expect(connectionCard.getByRole('heading', {name: 'Accounts'})).toBeVisible();
+    await expect(connectionCard.getByRole('heading', {name: 'Recent transactions'})).toBeVisible();
+    await expect(connectionCard.getByText('Connected', {exact: true})).toBeVisible();
+    await expect(connectionCard.getByTestId('bank-connection-freshness')).toContainText('Updated');
+
+    const bankLogo = connectionCard.getByTestId('bank-connection-logo');
     await expect(bankLogo).toBeVisible();
     await expect(bankLogo.locator('img')).toHaveAttribute(
       'src',
@@ -83,6 +45,41 @@ test.describe('bank connections', () => {
     await expect(bankLogo).toHaveClass(/bg-background/);
     await expect(bankLogo).toHaveCSS('width', '52px');
     await expect(bankLogo).toHaveCSS('height', '52px');
+
+    const status = connectionCard.getByTestId('bank-connection-status');
+    const freshness = connectionCard.getByTestId('bank-connection-freshness');
+    const syncButton = connectionCard.getByRole('button', {name: 'Sync now'});
+    const [statusBox, freshnessBox, syncButtonBox] = await Promise.all([
+      status.boundingBox(),
+      freshness.boundingBox(),
+      syncButton.boundingBox(),
+    ]);
+    expect(statusBox).not.toBeNull();
+    expect(freshnessBox).not.toBeNull();
+    expect(syncButtonBox).not.toBeNull();
+    const verticalCenters = [statusBox!, freshnessBox!, syncButtonBox!].map(
+      (box) => box.y + box.height / 2,
+    );
+    expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(1);
+    await expect(connectionCard.getByText('Daily spending', {exact: true})).toBeVisible();
+    await expect(connectionCard.getByText('available · primary')).toBeVisible();
+    await expect(connectionCard.getByText('Provider purchase')).toBeVisible();
+    const transactionTrigger = connectionCard.getByRole('button', {
+      name: 'View transaction details for Provider purchase',
+    });
+    await expect(transactionTrigger).toBeVisible();
+    await transactionTrigger.click();
+    const inspector = page.getByTestId('bank-transaction-inspector');
+    await expect(inspector).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('transactionId')).toBe(DETAIL_TRANSACTION_ID);
+    await expect(inspector.getByRole('heading', {name: 'Provider purchase'})).toBeVisible();
+    await expect(inspector.getByText('Bank transaction', {exact: true})).toBeVisible();
+    await inspector.getByRole('button', {name: 'Close transaction details'}).click();
+    await expect(inspector).toBeHidden();
+    await expect(transactionTrigger).toBeFocused();
+    expect(new URL(page.url()).searchParams.has('transactionId')).toBe(false);
+    await expect(page.getByText('Bank connection added')).toBeVisible();
+    await expect(page).toHaveURL(new RegExp('/bank-connections$'));
   });
 
   test('reports when synchronization finds no new transactions', async ({page}) => {
@@ -226,42 +223,17 @@ test.describe('bank connections', () => {
     await expect(connectedCard).toHaveCount(0);
   });
 
-  test('keeps the normal selectors visible while supported banks load', async ({page}) => {
+  test('keeps selectors visible while loading and lets the user choose a supported bank', async ({
+    page,
+  }) => {
     let releaseResponse!: () => void;
     const responseHeld = new Promise<void>((resolve) => {
       releaseResponse = resolve;
     });
-
-    await page.route('**/bank-connections/aspsps', async (route) => {
-      await responseHeld;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{name: 'ABN AMRO', country: 'NL'}]),
-      });
-    });
-
-    await page.goto('/bank-connections');
-    await page.getByRole('button', {name: 'Connect a bank'}).click();
-
-    const picker = page.getByTestId('bank-connection-picker');
-    const countrySelector = picker.getByTestId('bank-connection-country-selector');
-    const bankSelector = picker.getByTestId('bank-connection-bank-selector');
-    await expect(countrySelector).toBeVisible();
-    await expect(countrySelector).toBeDisabled();
-    await expect(bankSelector).toBeVisible();
-    await expect(bankSelector).toBeDisabled();
-    await expect(picker.getByRole('status')).toHaveCount(0);
-
-    releaseResponse();
-    await expect(countrySelector).toBeEnabled();
-    await expect(bankSelector).toBeDisabled();
-  });
-
-  test('lets the user choose a supported bank before authorization', async ({page}) => {
     let authorizationRequest: {aspspName: string; aspspCountry: string} | undefined;
 
     await page.route('**/bank-connections/aspsps', async (route) => {
+      await responseHeld;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -299,17 +271,28 @@ test.describe('bank connections', () => {
     await page.getByRole('button', {name: 'Connect a bank'}).click();
 
     const picker = page.getByTestId('bank-connection-picker');
+    const countrySelector = picker.getByTestId('bank-connection-country-selector');
+    const bankSelector = picker.getByTestId('bank-connection-bank-selector');
     await expect(picker).toBeVisible();
     await expect(picker.getByText(/personal account-information access/)).toHaveCount(0);
-    await picker.getByTestId('bank-connection-country-selector').click();
+    await expect(countrySelector).toBeVisible();
+    await expect(countrySelector).toBeDisabled();
+    await expect(bankSelector).toBeVisible();
+    await expect(bankSelector).toBeDisabled();
+    await expect(picker.getByRole('status')).toHaveCount(0);
+
+    releaseResponse();
+    await expect(countrySelector).toBeEnabled();
+    await expect(bankSelector).toBeDisabled();
+    await countrySelector.click();
     await page.getByPlaceholder('Search countries...').fill('NL');
     await expect(page.getByRole('option', {name: /Netherlands.*2 banks/})).toBeVisible();
     await page.getByPlaceholder('Search countries...').fill('');
     await expect(page.getByRole('option', {name: /Netherlands.*2 banks/})).toBeVisible();
     await page.getByRole('option', {name: /Netherlands.*2 banks/}).click();
 
-    await expect(picker.getByTestId('bank-connection-bank-selector')).toBeEnabled();
-    await picker.getByTestId('bank-connection-bank-selector').click();
+    await expect(bankSelector).toBeEnabled();
+    await bankSelector.click();
     const revolutOption = page.getByRole('option', {name: /Revolut.*NL/});
     await expect(revolutOption).toBeVisible();
     const bankLogo = revolutOption.getByTestId('bank-logo');
@@ -319,7 +302,7 @@ test.describe('bank connections', () => {
     await expect(bankLogo).toHaveCSS('width', '48px');
     await expect(bankLogo).toHaveCSS('height', '48px');
     await expect(page.getByRole('option', {name: /Nordea.*FI/})).toHaveCount(0);
-    await page.getByRole('option', {name: /Revolut.*NL/}).click();
+    await revolutOption.click();
 
     await expect
       .poll(() => authorizationRequest)
