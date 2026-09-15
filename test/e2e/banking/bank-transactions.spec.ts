@@ -564,6 +564,7 @@ test.describe('bank transactions', () => {
       exact: true,
     });
     await categorySourceFilter.click();
+    await expect(page.getByPlaceholder('Search category sources...')).toHaveCount(0);
     await expect(page.getByRole('option')).toHaveCount(2);
     await page.getByRole('option', {name: 'Manual', exact: true}).click();
 

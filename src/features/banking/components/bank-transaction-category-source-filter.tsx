@@ -6,9 +6,7 @@ import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
   CommandSeparator,
@@ -107,9 +105,7 @@ export function BankTransactionCategorySourceFilter({
       </PopoverTrigger>
       <PopoverContent className='w-[240px] p-0' align='start'>
         <Command>
-          <CommandInput placeholder='Search category sources...' />
           <CommandList>
-            <CommandEmpty>No category sources found.</CommandEmpty>
             <CommandGroup>
               {BANK_TRANSACTION_CATEGORIZATION_SOURCES.map((source) => {
                 const isSelected = selectedValues.includes(source);
