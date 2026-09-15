@@ -10,6 +10,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   testDir: './test',
+  testIgnore: '**/*.sandbox.spec.ts',
   timeout: 10000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

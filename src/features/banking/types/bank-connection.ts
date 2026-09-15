@@ -8,6 +8,7 @@ export type BankConnectionAuthorizationRequest = {
 export type BankConnectionAspsp = {
   name: string;
   country: string;
+  logoUrl?: string;
 };
 
 export type BankConnectionAuthorizationResponse = {

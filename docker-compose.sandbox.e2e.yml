@@ -1,0 +1,20 @@
+services:
+  mailpit:
+    container_name: tempo_enable_banking_sandbox_mailpit
+  redis:
+    container_name: tempo_enable_banking_sandbox_redis
+  postgres:
+    container_name: tempo_enable_banking_sandbox_postgres
+  api:
+    container_name: tempo_enable_banking_sandbox_api
+    environment:
+      ENABLE_BANKING_API_URL: ${ENABLE_BANKING_API_URL:?ENABLE_BANKING_API_URL is required}
+      ENABLE_BANKING_APPLICATION_ID: ${ENABLE_BANKING_APPLICATION_ID:?ENABLE_BANKING_APPLICATION_ID is required}
+      ENABLE_BANKING_PRIVATE_KEY_PATH: /run/secrets/enable-banking-private.key
+      ENABLE_BANKING_REDIRECT_URL: ${ENABLE_BANKING_REDIRECT_URL:?ENABLE_BANKING_REDIRECT_URL is required}
+      WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:5173}
+    volumes:
+      - type: bind
+        source: ${ENABLE_BANKING_PRIVATE_KEY_FILE:?ENABLE_BANKING_PRIVATE_KEY_FILE is required}
+        target: /run/secrets/enable-banking-private.key
+        read_only: true

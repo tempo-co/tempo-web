@@ -1,5 +1,5 @@
 import {AlertTriangle, Building2, Loader, RefreshCw, Trash2} from 'lucide-react';
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import {toast} from 'sonner';
 
 import {CurrencyAmount} from '@/components/shared/currency-amount';
@@ -25,6 +25,7 @@ import {formatRetryAfter} from '@/utils/retry-after';
 
 import {useDeleteBankConnection} from '../api/use-delete-bank-connection';
 import {useGetBankConnectionTransactions} from '../api/use-get-bank-connection-transactions';
+import {useGetSupportedBanks} from '../api/use-get-supported-banks';
 import {useStartBankConnection} from '../api/use-start-bank-connection';
 import {useSyncBankConnection} from '../api/use-sync-bank-connection';
 import {BankConnection, BankConnectionAspsp, BankTransaction} from '../types/bank-connection';
@@ -35,6 +36,7 @@ import {
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
 import {BankConnectionPicker} from './bank-connection-picker';
+import {BankLogo} from './bank-logo';
 
 type BankConnectionListProps = {
   bankConnections: BankConnection[];
@@ -51,6 +53,10 @@ const REMOVABLE_CONNECTION_STATUSES = [
   'CANCELLED',
   ...DESTRUCTIVE_CONNECTION_STATUSES,
 ] as const;
+
+function aspspKey(name: string, country: string) {
+  return `${country.trim().toUpperCase()}:${name.trim().toLowerCase()}`;
+}
 
 function ConnectionPageFrame({
   children,
@@ -96,6 +102,14 @@ export function BankConnectionList({
   onTransactionSelect,
 }: BankConnectionListProps) {
   const {startBankConnection, isPending: isStarting} = useStartBankConnection();
+  const {supportedBanks} = useGetSupportedBanks(!isPending && !isError);
+  const bankLogos = useMemo(() => {
+    const logos = new Map<string, string>();
+    for (const bank of supportedBanks ?? []) {
+      if (bank.logoUrl) logos.set(aspspKey(bank.name, bank.country), bank.logoUrl);
+    }
+    return logos;
+  }, [supportedBanks]);
 
   const connectBank = async (bank: BankConnectionAspsp) => {
     try {
@@ -159,6 +173,7 @@ export function BankConnectionList({
           <BankConnectionCard
             key={connection.id}
             connection={connection}
+            logoUrl={bankLogos.get(aspspKey(connection.aspspName, connection.aspspCountry))}
             onTransactionSelect={onTransactionSelect}
           />
         ))
@@ -169,9 +184,11 @@ export function BankConnectionList({
 
 function BankConnectionCard({
   connection,
+  logoUrl,
   onTransactionSelect,
 }: {
   connection: BankConnection;
+  logoUrl?: string;
   onTransactionSelect: BankConnectionListProps['onTransactionSelect'];
 }) {
   const isAuthorized = connection.status === 'AUTHORIZED';
@@ -254,12 +271,11 @@ function BankConnectionCard({
     >
       <CardHeader className='flex flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
         <div className='flex min-w-0 items-center gap-3'>
-          <div
-            className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-background text-primary'
-            aria-hidden='true'
-          >
-            <Building2 className='h-5 w-5' />
-          </div>
+          <BankLogo
+            bank={{name: connection.aspspName, logoUrl}}
+            className='h-[52px] w-[52px]'
+            testId='bank-connection-logo'
+          />
           <div className='min-w-0'>
             <h2 id={connectionHeadingId} className='break-words text-lg font-semibold'>
               {connection.aspspName}

@@ -1,0 +1,108 @@
+name: Enable Banking sandbox E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_ref:
+        description: API branch or commit to build for the test
+        required: true
+        default: feat/enable-banking-aspsp-picker
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: enable-banking-sandbox-e2e
+  cancel-in-progress: false
+
+jobs:
+  sandbox-e2e:
+    name: Real Enable Banking sandbox flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: enable-banking-sandbox
+    env:
+      ENABLE_BANKING_API_URL: https://api.enablebanking.com
+      ENABLE_BANKING_APPLICATION_ID: ${{ secrets.ENABLE_BANKING_SANDBOX_APPLICATION_ID }}
+      ENABLE_BANKING_REDIRECT_URL: http://localhost:3020/bank-connections/callback
+      ENABLE_BANKING_PRIVATE_KEY_FILE: ${{ runner.temp }}/enable-banking-sandbox.key
+      TEMPO_API_E2E_IMAGE: tempo-api-sandbox
+      TEMPO_API_HOST_PORT: 3020
+      VITE_API_URL: http://localhost:3020
+      VITE_APP_URL: http://localhost:5173
+      WEB_BASE_URL: http://localhost:5173
+
+    steps:
+      - name: Check out web
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check out API
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: tempo-co/tempo-api
+          ref: ${{ inputs.api_ref }}
+          path: tempo-api
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Write sandbox private key
+        env:
+          ENABLE_BANKING_SANDBOX_PRIVATE_KEY: ${{ secrets.ENABLE_BANKING_SANDBOX_PRIVATE_KEY }}
+        run: |
+          test -n "$ENABLE_BANKING_SANDBOX_PRIVATE_KEY"
+          printf '%s' "$ENABLE_BANKING_SANDBOX_PRIVATE_KEY" > "$ENABLE_BANKING_PRIVATE_KEY_FILE"
+          chmod 600 "$ENABLE_BANKING_PRIVATE_KEY_FILE"
+
+      - name: Write provider browser state
+        env:
+          ENABLE_BANKING_PROVIDER_STORAGE_STATE_B64: ${{ secrets.ENABLE_BANKING_PROVIDER_STORAGE_STATE_B64 }}
+        run: |
+          test -n "$ENABLE_BANKING_PROVIDER_STORAGE_STATE_B64"
+          mkdir -p playwright/.auth
+          printf '%s' "$ENABLE_BANKING_PROVIDER_STORAGE_STATE_B64" | base64 --decode > playwright/.auth/enable-banking-provider.json
+          chmod 600 playwright/.auth/enable-banking-provider.json
+          node -e "JSON.parse(require('fs').readFileSync('playwright/.auth/enable-banking-provider.json', 'utf8'))"
+
+      - name: Build matching API image
+        run: docker build --tag tempo-api-sandbox ./tempo-api
+
+      - name: Start isolated E2E services
+        run: >-
+          docker compose -p tempo-enable-banking-sandbox
+          -f docker-compose.e2e.yml
+          -f docker-compose.sandbox.e2e.yml
+          up -d --wait
+
+      - name: Seed the E2E database
+        run: >-
+          docker compose -p tempo-enable-banking-sandbox
+          -f docker-compose.e2e.yml
+          -f docker-compose.sandbox.e2e.yml
+          exec -T api node ./dist/scripts/seed.js
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the real sandbox flow
+        run: npm run test:e2e:sandbox
+
+      - name: Remove isolated E2E services
+        if: always()
+        run: >-
+          docker compose -p tempo-enable-banking-sandbox
+          -f docker-compose.e2e.yml
+          -f docker-compose.sandbox.e2e.yml
+          down -v --remove-orphans
+
+      - name: Remove secret files
+        if: always()
+        run: rm -f "$ENABLE_BANKING_PRIVATE_KEY_FILE" playwright/.auth/enable-banking-provider.json playwright/.auth/enable-banking-sandbox-user.json

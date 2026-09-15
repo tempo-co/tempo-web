@@ -53,6 +53,38 @@ test.describe('bank connections', () => {
     await expect(page).toHaveURL(/\/bank-connections$/);
   });
 
+  test('uses provider logos in bank connection rows', async ({page}) => {
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            name: 'ABN AMRO',
+            country: 'NL',
+            logoUrl: 'https://enablebanking.com/brands/NL/ABN-AMRO/',
+          },
+        ]),
+      });
+    });
+
+    await page.goto('/bank-connections');
+
+    const bankLogo = page
+      .locator('[data-testid^="bank-connection-"]')
+      .filter({has: page.getByRole('heading', {name: 'ABN AMRO'})})
+      .getByTestId('bank-connection-logo');
+    await expect(bankLogo).toBeVisible();
+    await expect(bankLogo.locator('img')).toHaveAttribute(
+      'src',
+      'https://enablebanking.com/brands/NL/ABN-AMRO/',
+    );
+    await expect(bankLogo).toHaveClass(/border-border/);
+    await expect(bankLogo).toHaveClass(/bg-background/);
+    await expect(bankLogo).toHaveCSS('width', '52px');
+    await expect(bankLogo).toHaveCSS('height', '52px');
+  });
+
   test('reports when synchronization finds no new transactions', async ({page}) => {
     await page.route('**/bank-connections/*/sync', async (route) => {
       if (route.request().method() !== 'POST') {
@@ -194,6 +226,38 @@ test.describe('bank connections', () => {
     await expect(connectedCard).toHaveCount(0);
   });
 
+  test('keeps the normal selectors visible while supported banks load', async ({page}) => {
+    let releaseResponse!: () => void;
+    const responseHeld = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await responseHeld;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{name: 'ABN AMRO', country: 'NL'}]),
+      });
+    });
+
+    await page.goto('/bank-connections');
+    await page.getByRole('button', {name: 'Connect a bank'}).click();
+
+    const picker = page.getByTestId('bank-connection-picker');
+    const countrySelector = picker.getByTestId('bank-connection-country-selector');
+    const bankSelector = picker.getByTestId('bank-connection-bank-selector');
+    await expect(countrySelector).toBeVisible();
+    await expect(countrySelector).toBeDisabled();
+    await expect(bankSelector).toBeVisible();
+    await expect(bankSelector).toBeDisabled();
+    await expect(picker.getByRole('status')).toHaveCount(0);
+
+    releaseResponse();
+    await expect(countrySelector).toBeEnabled();
+    await expect(bankSelector).toBeDisabled();
+  });
+
   test('lets the user choose a supported bank before authorization', async ({page}) => {
     let authorizationRequest: {aspspName: string; aspspCountry: string} | undefined;
 
@@ -202,9 +266,13 @@ test.describe('bank connections', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
-          {name: 'ABN AMRO', country: 'NL'},
-          {name: 'Nordea', country: 'FI'},
-          {name: 'Revolut', country: 'NL'},
+          {
+            name: 'ABN AMRO',
+            country: 'NL',
+            logoUrl: 'https://enablebanking.com/brands/NL/ABN-AMRO/',
+          },
+          {name: 'Nordea', country: 'FI', logoUrl: 'https://enablebanking.com/brands/FI/Nordea/'},
+          {name: 'Revolut', country: 'NL', logoUrl: 'https://enablebanking.com/brands/NL/Revolut/'},
         ]),
       });
     });
@@ -220,21 +288,151 @@ test.describe('bank connections', () => {
       });
     });
     await page.route('https://auth.example.test/revolut', async (route) => {
-      await route.fulfill({status: 200, contentType: 'text/html', body: '<p>Enable Banking authorization</p>'});
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<p>Enable Banking authorization</p>',
+      });
     });
 
     await page.goto('/bank-connections');
     await page.getByRole('button', {name: 'Connect a bank'}).click();
 
-    const picker = page.getByRole('dialog');
+    const picker = page.getByTestId('bank-connection-picker');
     await expect(picker).toBeVisible();
-    await picker.getByPlaceholder('Search banks by name or country').fill('Revolut');
-    const revolut = picker.getByRole('option', {name: /Revolut.*NL/});
-    await expect(revolut).toBeVisible();
-    await revolut.click();
+    await expect(picker.getByText(/personal account-information access/)).toHaveCount(0);
+    await picker.getByTestId('bank-connection-country-selector').click();
+    await page.getByPlaceholder('Search countries...').fill('NL');
+    await expect(page.getByRole('option', {name: /Netherlands.*2 banks/})).toBeVisible();
+    await page.getByPlaceholder('Search countries...').fill('');
+    await expect(page.getByRole('option', {name: /Netherlands.*2 banks/})).toBeVisible();
+    await page.getByRole('option', {name: /Netherlands.*2 banks/}).click();
 
-    await expect.poll(() => authorizationRequest).toEqual({aspspName: 'Revolut', aspspCountry: 'NL'});
+    await expect(picker.getByTestId('bank-connection-bank-selector')).toBeEnabled();
+    await picker.getByTestId('bank-connection-bank-selector').click();
+    const revolutOption = page.getByRole('option', {name: /Revolut.*NL/});
+    await expect(revolutOption).toBeVisible();
+    const bankLogo = revolutOption.getByTestId('bank-logo');
+    await expect(bankLogo).toBeVisible();
+    await expect(bankLogo).toHaveClass(/border-border/);
+    await expect(bankLogo).toHaveClass(/bg-background/);
+    await expect(bankLogo).toHaveCSS('width', '48px');
+    await expect(bankLogo).toHaveCSS('height', '48px');
+    await expect(page.getByRole('option', {name: /Nordea.*FI/})).toHaveCount(0);
+    await page.getByRole('option', {name: /Revolut.*NL/}).click();
+
+    await expect
+      .poll(() => authorizationRequest)
+      .toEqual({aspspName: 'Revolut', aspspCountry: 'NL'});
     await expect(page).toHaveURL('https://auth.example.test/revolut');
+  });
+
+  test('uses the custom scrollbar for a long bank list', async ({page}) => {
+    const banks = Array.from({length: 40}, (_, index) => ({
+      name: `Sandbox Bank ${String(index + 1).padStart(2, '0')}`,
+      country: 'NL',
+    }));
+
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(banks),
+      });
+    });
+
+    await page.goto('/bank-connections');
+    await page.getByRole('button', {name: 'Connect a bank'}).click();
+
+    const picker = page.getByTestId('bank-connection-picker');
+    await picker.getByTestId('bank-connection-country-selector').click();
+    await page.getByRole('option', {name: /Netherlands.*40 banks/}).click();
+    await picker.getByTestId('bank-connection-bank-selector').click();
+
+    const commandList = page.locator('[cmdk-list]');
+    await expect(commandList).toHaveCSS('max-height', 'none');
+    await expect(commandList).toHaveCSS('overflow-y', 'visible');
+
+    const viewport = page.locator('[data-radix-scroll-area-viewport]');
+    await expect(viewport).toHaveCount(1);
+    const viewportMetrics = await viewport.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(viewportMetrics.scrollHeight).toBeGreaterThan(viewportMetrics.clientHeight);
+    const scrollAreaRoot = viewport.locator('..');
+    await scrollAreaRoot.hover();
+    await viewport.evaluate((element) => {
+      element.scrollTop = 1;
+    });
+    const customScrollbar = scrollAreaRoot.locator('[data-orientation="vertical"]');
+    await expect(customScrollbar).toHaveCount(1);
+    await expect(customScrollbar).toBeVisible();
+  });
+
+  test('scrolls the country list with the mouse wheel', async ({page}) => {
+    const countryCodes = [
+      'AD',
+      'AE',
+      'AF',
+      'AG',
+      'AI',
+      'AL',
+      'AM',
+      'AO',
+      'AQ',
+      'AR',
+      'AS',
+      'AT',
+      'AU',
+      'AW',
+      'AX',
+      'AZ',
+      'BA',
+      'BB',
+      'BD',
+      'BE',
+      'BF',
+      'BG',
+      'BH',
+      'BI',
+      'BJ',
+      'BL',
+      'BM',
+      'BN',
+      'BO',
+      'BQ',
+      'BR',
+      'BS',
+      'BT',
+      'BV',
+      'BW',
+      'BY',
+      'BZ',
+      'CA',
+      'CC',
+      'CD',
+    ];
+
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(countryCodes.map((country) => ({name: `${country} Bank`, country}))),
+      });
+    });
+
+    await page.goto('/bank-connections');
+    await page.getByRole('button', {name: 'Connect a bank'}).click();
+    await page.getByTestId('bank-connection-country-selector').click();
+
+    const viewport = page.locator('[data-radix-scroll-area-viewport]');
+    const initialScrollTop = await viewport.evaluate((element) => element.scrollTop);
+    await viewport.hover();
+    await page.mouse.wheel(0, 600);
+    await expect
+      .poll(() => viewport.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(initialScrollTop);
   });
 
   test('reopens a connection transaction inspector from its shareable URL', async ({page}) => {
@@ -263,7 +461,13 @@ test.describe('bank connections', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{name: 'Mock ASPSP', country: 'NL'}]),
+        body: JSON.stringify([
+          {
+            name: 'Mock ASPSP',
+            country: 'NL',
+            logoUrl: 'https://enablebanking.com/brands/NL/Mock-ASPSP/',
+          },
+        ]),
       });
     });
     await page.route('**/bank-connections/authorize', async (route) => {
@@ -283,7 +487,11 @@ test.describe('bank connections', () => {
     });
 
     await page.getByRole('button', {name: 'Connect a bank'}).click();
-    await page.getByRole('dialog').getByRole('option', {name: /Mock ASPSP.*NL/}).click();
+    const picker = page.getByTestId('bank-connection-picker');
+    await picker.getByTestId('bank-connection-country-selector').click();
+    await page.getByRole('option', {name: /Netherlands.*1 bank/}).click();
+    await picker.getByTestId('bank-connection-bank-selector').click();
+    await page.getByRole('option', {name: /Mock ASPSP.*NL/}).click();
 
     await expect(page.getByText('Bank connection added')).toBeVisible();
     await expect(page).toHaveURL(/\/bank-connections$/);
@@ -296,9 +504,7 @@ test.describe('bank connections', () => {
 
     const heading = page.getByRole('heading', {name: 'Bank connections'});
     const headingGroup = page.getByTestId('bank-connections-heading');
-    const connectButton = page
-      .getByRole('button', {name: 'Connect a bank'})
-      .first();
+    const connectButton = page.getByRole('button', {name: 'Connect a bank'}).first();
     const syncButton = page.getByRole('button', {name: 'Sync now'});
     const status = page.getByTestId('bank-connection-status');
     const freshness = page.getByTestId('bank-connection-freshness');
@@ -383,9 +589,7 @@ test.describe('bank connections', () => {
       document.documentElement.style.fontSize = '200%';
     });
 
-    const connectButton = page
-      .getByRole('button', {name: 'Connect a bank'})
-      .first();
+    const connectButton = page.getByRole('button', {name: 'Connect a bank'}).first();
     const connectButtonBox = await connectButton.boundingBox();
 
     expect(connectButtonBox).not.toBeNull();
@@ -438,8 +642,6 @@ test.describe('bank connections without bank connections', () => {
     await page.goto('/bank-connections');
 
     await expect(page.getByRole('heading', {name: 'No bank connections'})).toBeVisible();
-    await expect(page.getByRole('button', {name: 'Connect a bank'})).toHaveCount(
-      1,
-    );
+    await expect(page.getByRole('button', {name: 'Connect a bank'})).toHaveCount(1);
   });
 });
