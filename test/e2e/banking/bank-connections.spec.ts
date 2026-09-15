@@ -1,19 +1,37 @@
 import {expect, test} from '@playwright/test';
 
 import type {BankConnection} from '../../../src/features/banking/types/bank-connection';
-import {
-  ENABLE_BANKING_SANDBOX_USER_AUTH_FILE,
-  PW_CHANGE_USER_AUTH_FILE,
-  SESSION_TEST_USER_AUTH_FILE,
-  VERIFIED_USER_AUTH_FILE,
-} from '../../constants/auth.constants';
+import {PW_CHANGE_USER_AUTH_FILE, VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 
 const DETAIL_TRANSACTION_ID = '00000000-0000-4000-8000-000000000014';
-const ENABLE_BANKING_SANDBOX_E2E =
-  process.env.ENABLE_BANKING_E2E === 'true' &&
-  Boolean(process.env.ENABLE_BANKING_PROVIDER_STORAGE_STATE);
-const API_URL = process.env.VITE_API_URL ?? 'http://localhost:3020';
+const MOCK_PROVIDER_ORIGIN = 'https://enablebanking.test';
 const TARGET_ASPSP = {name: 'Mock ASPSP', country: 'NL'};
+const MOCK_CONNECTION: BankConnection = {
+  id: '00000000-0000-4000-8000-000000000096',
+  provider: 'enable-banking',
+  aspspName: TARGET_ASPSP.name,
+  aspspCountry: TARGET_ASPSP.country,
+  status: 'AUTHORIZED',
+  consentValidUntil: '2030-01-01T00:00:00.000Z',
+  lastSyncedAt: null,
+  bankAccounts: [
+    {
+      id: '00000000-0000-4000-8000-000000000097',
+      name: 'Mock current account',
+      details: 'Mock ASPSP checking account',
+      alias: null,
+      currency: 'EUR',
+      cashAccountType: 'CACC',
+      usage: 'PRIV',
+      maskedIdentifier: '****1234',
+      currentBalanceAmount: '1234.56',
+      currentBalanceType: 'AVAILABLE',
+      balanceUpdatedAt: null,
+      isActive: true,
+      latestBalances: [],
+    },
+  ],
+};
 
 test.describe('bank connections', () => {
   test.use({storageState: VERIFIED_USER_AUTH_FILE});
@@ -568,94 +586,178 @@ test.describe('bank connections', () => {
   });
 });
 
-test.describe('Enable Banking sandbox bank connection', () => {
-  test.skip(
-    !ENABLE_BANKING_SANDBOX_E2E,
-    'Requires ENABLE_BANKING_E2E=true and an authenticated provider storage state.',
-  );
-  test.use({
-    storageState: ENABLE_BANKING_SANDBOX_E2E
-      ? ENABLE_BANKING_SANDBOX_USER_AUTH_FILE
-      : SESSION_TEST_USER_AUTH_FILE,
-  });
-  test.setTimeout(120000);
-
-  test.beforeEach(async ({page}) => {
-    await removeTargetConnections(page);
-  });
-
-  test.afterEach(async ({page}) => {
-    await removeTargetConnections(page);
-  });
+test.describe('mocked Enable Banking bank connection', () => {
+  test.use({storageState: VERIFIED_USER_AUTH_FILE});
 
   test('connects a mock account through the complete authorization callback', async ({page}) => {
+    let connectionPersisted = false;
+    let connectionDeleted = false;
+    let authorizationRequest: {aspspName: string; aspspCountry: string} | undefined;
+    let callbackRequest: URL | undefined;
+    let callbackRedirectUrl = '';
+    let providerCallbackUrl = '';
+
+    await page.route('**/bank-connections/aspsps', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            ...TARGET_ASPSP,
+            logoUrl: 'https://enablebanking.com/brands/NL/Mock-ASPSP/',
+          },
+        ]),
+      });
+    });
+
+    await page.route('**/bank-connections', async (route) => {
+      if (route.request().resourceType() === 'document') {
+        await route.continue();
+        return;
+      }
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(connectionPersisted && !connectionDeleted ? [MOCK_CONNECTION] : []),
+      });
+    });
+
+    await page.route('**/bank-connections/authorize', async (route) => {
+      authorizationRequest = route.request().postDataJSON() as {
+        aspspName: string;
+        aspspCountry: string;
+      };
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({authorizationUrl: `${MOCK_PROVIDER_ORIGIN}/consent`}),
+      });
+    });
+
+    await page.route('**/bank-connections/callback**', async (route) => {
+      callbackRequest = new URL(route.request().url());
+      connectionPersisted = true;
+      await route.fulfill({
+        status: 302,
+        headers: {location: callbackRedirectUrl},
+      });
+    });
+
+    await page.route(`${MOCK_PROVIDER_ORIGIN}/consent`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: `<!doctype html>
+<html>
+  <body>
+    <h1>Enable Banking</h1>
+    <p>Mock ASPSP authorization</p>
+    <button type="button" id="continue">Continue with authentication</button>
+    <script>
+      document.querySelector('#continue').addEventListener('click', () => {
+        window.location.href = ${JSON.stringify(`${MOCK_PROVIDER_ORIGIN}/accounts`)};
+      });
+    </script>
+  </body>
+</html>`,
+      });
+    });
+
+    await page.route(`${MOCK_PROVIDER_ORIGIN}/accounts`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: `<!doctype html>
+<html>
+  <body>
+    <h1>Please select the account</h1>
+    <label>
+      <input type="checkbox" name="account" value="mock-account" />
+      Mock current account
+    </label>
+    <button type="button" id="authorize">Authorize</button>
+    <script>
+      document.querySelector('#authorize').addEventListener('click', () => {
+        window.location.href = ${JSON.stringify(providerCallbackUrl)};
+      });
+    </script>
+  </body>
+</html>`,
+      });
+    });
+
+    await page.route(`**/bank-connections/${MOCK_CONNECTION.id}`, async (route) => {
+      if (route.request().method() !== 'DELETE') {
+        await route.continue();
+        return;
+      }
+
+      expect(route.request().postDataJSON()).toEqual({confirmation: 'DELETE'});
+      connectionDeleted = true;
+      await route.fulfill({status: 204, body: ''});
+    });
+
     await page.goto('/bank-connections');
-    await expect(page.getByRole('heading', {name: 'Bank connections'})).toBeVisible();
+    callbackRedirectUrl = new URL('/bank-connections?result=connected', page.url()).toString();
+    const providerCallback = new URL('/bank-connections/callback', page.url());
+    providerCallback.searchParams.set('state', 'mock-authorization-state');
+    providerCallback.searchParams.set('code', 'mock-provider-code');
+    providerCallbackUrl = providerCallback.toString();
+    await expect(page.getByText('0 connections', {exact: true})).toBeVisible();
 
     await page.getByRole('button', {name: 'Connect a bank'}).click();
     const picker = page.getByTestId('bank-connection-picker');
 
     await picker.getByTestId('bank-connection-country-selector').click();
     await page.getByPlaceholder('Search countries...').fill(TARGET_ASPSP.country);
-    await page.getByRole('option', {name: /Netherlands/}).click();
+    await page.getByRole('option', {name: /Netherlands.*1 bank/}).click();
 
     await picker.getByTestId('bank-connection-bank-selector').click();
-    await page.getByRole('option', {name: /Mock ASPSP/}).click();
-
-    await page.waitForURL((url) => url.hostname === 'tilisy-sandbox.enablebanking.com', {
-      timeout: 60000,
-    });
-    await expect(
-      page.getByRole('button', {name: /Continue with authentication|Doorgaan met authenticatie/}),
-    ).toBeVisible();
-    await page
-      .getByRole('button', {name: /Continue with authentication|Doorgaan met authenticatie/})
-      .click();
-
-    await page.waitForURL(
-      (url) => url.hostname === 'enablebanking.com' && url.pathname === '/cp/mock-aspsp/auth',
-      {timeout: 60000},
-    );
-    await expect(page.getByRole('heading', {name: /Please select the account/i})).toBeVisible();
-
-    const accountCheckboxes = page.locator('input[type="checkbox"]');
-    await expect(accountCheckboxes.first()).toBeVisible();
-    await accountCheckboxes.first().check();
-    await page.getByRole('button', {name: 'Authorize', exact: true}).click();
-
-    await page.waitForURL(
-      (url) =>
-        url.pathname === '/bank-connections' && url.searchParams.get('result') === 'connected',
-      {timeout: 120000},
-    );
-    await expect(page.getByText('Bank connection added', {exact: true})).toBeVisible();
-    await expect(page).toHaveURL(
-      (url) => url.pathname === '/bank-connections' && url.search === '',
-    );
+    await page.getByRole('option', {name: /Mock ASPSP.*NL/}).click();
 
     await expect
-      .poll(
-        async () => {
-          const connection = await findTargetConnection(page);
-          return connection?.status ?? null;
-        },
-        {timeout: 60000},
-      )
-      .toBe('AUTHORIZED');
+      .poll(() => authorizationRequest)
+      .toEqual({
+        aspspName: TARGET_ASPSP.name,
+        aspspCountry: TARGET_ASPSP.country,
+      });
+    await expect(page).toHaveURL(`${MOCK_PROVIDER_ORIGIN}/consent`);
+    await page.getByRole('button', {name: 'Continue with authentication'}).click();
 
-    const connection = await findTargetConnection(page);
-    expect(connection).toMatchObject({
-      aspspName: TARGET_ASPSP.name,
-      aspspCountry: TARGET_ASPSP.country,
-      status: 'AUTHORIZED',
-    });
-    expect(connection?.consentValidUntil).not.toBeNull();
-    expect(Date.parse(connection?.consentValidUntil ?? '')).toBeGreaterThan(Date.now());
-    expect(connection?.bankAccounts.length).toBeGreaterThan(0);
+    await expect(page).toHaveURL(`${MOCK_PROVIDER_ORIGIN}/accounts`);
+    await expect(page.getByRole('heading', {name: 'Please select the account'})).toBeVisible();
+    await page.getByRole('checkbox', {name: 'Mock current account'}).check();
+    await page.getByRole('button', {name: 'Authorize', exact: true}).click();
 
-    await expect(page.getByRole('heading', {name: TARGET_ASPSP.name})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
-    await expect(page.getByText('Connected', {exact: true})).toBeVisible();
+    await expect(page.getByText('Bank connection added', {exact: true})).toBeVisible();
+    await expect(page).toHaveURL(/\/bank-connections$/);
+    await expect.poll(() => callbackRequest?.searchParams.get('code')).toBe('mock-provider-code');
+    expect(callbackRequest?.searchParams.get('state')).toBe('mock-authorization-state');
+    expect(connectionPersisted).toBe(true);
+
+    const connectionCard = page.getByTestId(`bank-connection-${MOCK_CONNECTION.id}`);
+    await expect(page.getByText('1 connection', {exact: true})).toBeVisible();
+    await expect(connectionCard).toBeVisible();
+    await expect(connectionCard.getByRole('heading', {name: TARGET_ASPSP.name})).toBeVisible();
+    await expect(connectionCard.getByText('Connected', {exact: true})).toBeVisible();
+    await expect(connectionCard.getByRole('heading', {name: 'Accounts'})).toBeVisible();
+    await expect(connectionCard.getByText('Mock current account', {exact: true})).toBeVisible();
+    await expect(connectionCard.getByText('Valid until', {exact: false})).toBeVisible();
+
+    await connectionCard.getByRole('button', {name: 'Remove'}).click();
+    await expect(page.getByRole('heading', {name: 'Remove connected bank?'})).toBeVisible();
+    await page.getByTestId(`remove-bank-confirmation-${MOCK_CONNECTION.id}`).fill('DELETE');
+    await page.getByTestId(`remove-bank-confirm-${MOCK_CONNECTION.id}`).click();
+
+    await expect(page.getByText('Bank connection removed', {exact: true})).toBeVisible();
+    await expect.poll(() => connectionDeleted).toBe(true);
+    await expect(connectionCard).toHaveCount(0);
+    await expect(page.getByText('0 connections', {exact: true})).toBeVisible();
   });
 });
 
@@ -704,32 +806,3 @@ test.describe('bank connections without bank connections', () => {
     await expect(page.getByRole('button', {name: 'Connect a bank'})).toHaveCount(1);
   });
 });
-
-async function findTargetConnection(page: import('@playwright/test').Page) {
-  const connections = await listTargetConnections(page);
-  return connections[0];
-}
-
-async function listTargetConnections(page: import('@playwright/test').Page) {
-  const response = await page.request.get(`${API_URL}/bank-connections`);
-  expect(response.ok()).toBe(true);
-
-  const connections = (await response.json()) as BankConnection[];
-  return connections.filter(
-    (connection) =>
-      connection.aspspName === TARGET_ASPSP.name &&
-      connection.aspspCountry === TARGET_ASPSP.country,
-  );
-}
-
-async function removeTargetConnections(page: import('@playwright/test').Page) {
-  const connections = await listTargetConnections(page);
-  for (const connection of connections) {
-    const response = await page.request.delete(`${API_URL}/bank-connections/${connection.id}`, {
-      data: {confirmation: 'DELETE'},
-    });
-    expect(response.ok()).toBe(true);
-  }
-
-  await expect.poll(() => listTargetConnections(page), {timeout: 30000}).toHaveLength(0);
-}
