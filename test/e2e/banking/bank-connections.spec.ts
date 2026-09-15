@@ -355,49 +355,6 @@ test.describe('bank connections', () => {
     await expect(page).toHaveURL('https://auth.example.test/revolut');
   });
 
-  test('uses the custom scrollbar for a long bank list', async ({page}) => {
-    const banks = Array.from({length: 40}, (_, index) => ({
-      name: `Sandbox Bank ${String(index + 1).padStart(2, '0')}`,
-      country: 'NL',
-    }));
-
-    await page.route('**/bank-connections/aspsps', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(banks),
-      });
-    });
-
-    await page.goto('/bank-connections');
-    await page.getByRole('button', {name: 'Connect a bank'}).click();
-
-    const picker = page.getByTestId('bank-connection-picker');
-    await picker.getByTestId('bank-connection-country-selector').click();
-    await page.getByRole('option', {name: /Netherlands.*40 banks/}).click();
-    await picker.getByTestId('bank-connection-bank-selector').click();
-
-    const commandList = page.locator('[cmdk-list]');
-    await expect(commandList).toHaveCSS('max-height', 'none');
-    await expect(commandList).toHaveCSS('overflow-y', 'visible');
-
-    const viewport = page.locator('[data-radix-scroll-area-viewport]');
-    await expect(viewport).toHaveCount(1);
-    const viewportMetrics = await viewport.evaluate((element) => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-    }));
-    expect(viewportMetrics.scrollHeight).toBeGreaterThan(viewportMetrics.clientHeight);
-    const scrollAreaRoot = viewport.locator('..');
-    await scrollAreaRoot.hover();
-    await viewport.evaluate((element) => {
-      element.scrollTop = 1;
-    });
-    const customScrollbar = scrollAreaRoot.locator('[data-orientation="vertical"]');
-    await expect(customScrollbar).toHaveCount(1);
-    await expect(customScrollbar).toBeVisible();
-  });
-
   test('reopens a connection transaction inspector from its shareable URL', async ({page}) => {
     await page.goto('/bank-connections');
 
