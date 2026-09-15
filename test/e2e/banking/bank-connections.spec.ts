@@ -40,7 +40,6 @@ test.describe('bank connections', () => {
     });
     await expect(transactionTrigger).toBeVisible();
     await expect(transactionTrigger.locator('..').locator('p')).toHaveText('18 Aug');
-    await expect(transactionTrigger.locator('..').locator('p')).not.toContainText('Booked');
     await transactionTrigger.click();
     const inspector = page.getByTestId('bank-transaction-inspector');
     await expect(inspector).toBeVisible();

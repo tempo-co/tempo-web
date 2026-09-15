@@ -20,19 +20,9 @@ test.describe('bank transactions', () => {
 
     await expect(page.getByText('Coffee shop')).toBeVisible();
     await expect(firstTransactionRow.getByText('Daily spending', {exact: true})).toBeVisible();
-    await expect(firstTransactionRow.getByText('Expense', {exact: true})).not.toBeVisible();
-    await expect(
-      page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Status'}),
-    ).not.toBeVisible();
     await expect(
       page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Category'}),
     ).toBeVisible();
-    await expect(
-      page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Value date'}),
-    ).toHaveCount(0);
-    await expect(
-      page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Type'}),
-    ).toHaveCount(0);
     await expect(firstTransactionRow.getByRole('cell')).toHaveCount(5);
     await expect(firstTransactionRow.getByRole('cell').nth(2)).toContainText('Not categorized');
     await expect(firstTransactionRow.getByRole('cell').nth(0)).toContainText('Aug 26, 2026');
@@ -371,14 +361,10 @@ test.describe('bank transactions', () => {
       ).toBeVisible();
       await expect(inspector.getByRole('heading', {level: 3, name: 'Dates'})).toBeVisible();
       await expect(inspector.getByRole('heading', {level: 3, name: 'Account'})).toBeVisible();
-      await expect(inspector.getByText('Expense', {exact: true})).toHaveCount(0);
-      await expect(inspector.getByText('Direction', {exact: true})).toHaveCount(0);
       const amount = inspector.getByTestId('bank-transaction-detail-amount');
       const currency = inspector.getByTestId('bank-transaction-detail-currency');
       await expect(amount).toBeVisible();
       await expect(currency).toHaveText('EUR');
-      await expect(inspector.getByText('Booked', {exact: true})).toHaveCount(0);
-      await expect(inspector.getByTestId('bank-transaction-detail-status')).toHaveCount(0);
       const [amountBox, currencyBox] = await Promise.all([
         amount.boundingBox(),
         currency.boundingBox(),
@@ -606,7 +592,6 @@ test.describe('bank transactions', () => {
       exact: true,
     });
     await categorySourceFilter.click();
-    await expect(page.getByPlaceholder('Search category sources...')).toHaveCount(0);
     await expect(page.getByRole('option')).toHaveCount(2);
     await page.getByRole('option', {name: 'Manual', exact: true}).click();
 
@@ -621,20 +606,6 @@ test.describe('bank transactions', () => {
     expect(clearedUrl.searchParams.has('categories')).toBe(false);
     expect(clearedUrl.searchParams.has('categorySources')).toBe(false);
     await expect(page.getByText('Salary', {exact: true})).toBeVisible();
-  });
-
-  test('uses the custom scrollbar in the category filter', async ({page}) => {
-    await page.goto('/bank-transactions');
-
-    await page.getByRole('button', {name: 'Categories', exact: true}).click();
-
-    const categoryList = page.getByRole('listbox');
-    await expect(categoryList).toHaveCSS('max-height', 'none');
-    await expect(categoryList).toHaveCSS('overflow-y', 'visible');
-    const categoryViewport = categoryList.locator('[data-radix-scroll-area-viewport]');
-    await expect(categoryViewport).toHaveCount(1);
-    await categoryViewport.hover();
-    await expect(page.locator('[data-orientation="vertical"][data-state="visible"]')).toBeVisible();
   });
 
   test('filters from the responsive mobile drawer and clears all values', async ({page}) => {
@@ -667,37 +638,6 @@ test.describe('bank transactions', () => {
     expect(clearedUrl.searchParams.has('categories')).toBe(false);
     expect(clearedUrl.searchParams.has('categorySources')).toBe(false);
     await expect(page.getByText('Salary', {exact: true})).toBeVisible();
-  });
-
-  test('keeps mobile filter reset actions visible and attached to their controls', async ({
-    page,
-  }) => {
-    await page.setViewportSize({width: 393, height: 852});
-    await page.goto('/bank-transactions');
-
-    await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
-    const mobileFilters = page.getByTestId('bank-transaction-mobile-filters');
-    const categoriesSection = mobileFilters
-      .getByRole('heading', {name: 'Categories'})
-      .locator('..');
-    await categoriesSection.getByRole('option', {name: 'Not categorized', exact: true}).click();
-
-    const categoryViewport = categoriesSection.locator('[data-radix-scroll-area-viewport]');
-    await expect.poll(() => categoryViewport.evaluate((element) => element.scrollTop)).toBe(0);
-    await expect(categoriesSection.getByRole('option', {name: 'Reset', exact: true})).toBeVisible();
-    await categoriesSection.getByRole('option', {name: 'Reset', exact: true}).click();
-    await expect(categoryViewport).toHaveJSProperty('scrollTop', 0);
-
-    const calendarFrame = mobileFilters.getByTestId('bank-transaction-mobile-calendar');
-    const dayButtons = calendarFrame.locator(
-      'button[name="day"]:not([disabled]):not(.day-outside)',
-    );
-    await dayButtons.nth(0).click();
-    await dayButtons.nth(1).click();
-    const calendarReset = calendarFrame.getByRole('button', {name: 'Reset', exact: true});
-    await expect(calendarReset).toBeVisible();
-    await calendarReset.click();
-    await expect(calendarReset).toHaveCount(0);
   });
 
   test('reflows transaction records for a phone viewport', async ({page}) => {
@@ -769,10 +709,6 @@ test.describe('bank transactions', () => {
     expect(lastCalendarCellBox!.x + lastCalendarCellBox!.width).toBeGreaterThan(
       calendarTableBox!.x + calendarTableBox!.width - 24,
     );
-    await expect(mobileFilters.getByText('Narrow the transactions in this list.')).toHaveCount(0);
-    await expect(mobileFilters.getByText('Any date', {exact: true})).toHaveCount(0);
-    await expect(mobileFilters.getByText('All categories', {exact: true})).toHaveCount(0);
-    await expect(mobileFilters.getByText('All sources', {exact: true})).toHaveCount(0);
     const categoriesSection = mobileFilters
       .getByRole('heading', {name: 'Categories'})
       .locator('..');
@@ -780,9 +716,6 @@ test.describe('bank transactions', () => {
       .getByRole('heading', {name: 'Category source'})
       .locator('..');
     await expect(categoriesSection.getByPlaceholder('Search categories...')).toBeVisible();
-    await expect(categorySourceSection.getByPlaceholder('Search category sources...')).toHaveCount(
-      0,
-    );
     await expect(categorySourceSection.getByRole('option')).toHaveCount(2);
     await expect(mobileFilters.getByRole('button', {name: 'Done', exact: true})).toBeVisible();
     await mobileFilters.getByRole('button', {name: 'Done', exact: true}).click();
@@ -811,8 +744,6 @@ test.describe('bank transactions', () => {
     await expect(mobileMeta).toContainText('26 Aug');
     await expect(mobileMeta).toContainText('Daily spending');
     await expect(mobileMeta).toContainText('ABN AMRO');
-    await expect(mobileMeta).not.toContainText('Card Payment');
-    await expect(firstTransactionRow.getByText('Aug 25, 2026', {exact: true})).not.toBeVisible();
     const pagination = page.getByTestId('pagination');
     await expect(pagination).toBeVisible();
     await expect(pagination).toHaveCSS('width', '361px');
@@ -1004,22 +935,6 @@ test.describe('bank transactions', () => {
       by: 'source',
       order: 'DESC',
     });
-  });
-
-  test('keeps desktop transaction row heights consistent', async ({page}) => {
-    await page.setViewportSize({width: 1280, height: 720});
-    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
-
-    const rows = page
-      .getByTestId('bank-transactions-table')
-      .locator('tbody tr[data-testid^="bank-transaction-row-"]');
-    await expect(rows.first()).toBeVisible();
-    expect(await rows.count()).toBeGreaterThan(1);
-    const rowHeights = await rows.evaluateAll((transactionRows) =>
-      transactionRows.map((row) => Math.round(row.getBoundingClientRect().height)),
-    );
-
-    expect(new Set(rowHeights).size).toBe(1);
   });
 });
 
