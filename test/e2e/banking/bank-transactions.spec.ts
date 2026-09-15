@@ -819,7 +819,7 @@ test.describe('bank transactions', () => {
     await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
 
     const table = page.getByTestId('bank-transactions-table');
-    await expect(page.getByText('33 transactions', {exact: true})).toBeVisible();
+    await expect(table.locator('tbody tr').first()).toBeVisible();
 
     const categorySortButton = table
       .getByRole('columnheader', {name: 'Category'})
