@@ -21,7 +21,8 @@ import {cn} from '@/utils/cn';
 import {
   BANK_TRANSACTION_CATEGORIES,
   BANK_TRANSACTION_CATEGORY_LABELS,
-  BankTransactionCategory,
+  BANK_TRANSACTION_UNCATEGORIZED,
+  BankTransactionCategoryFilterValue,
   BankTransactionFilterParams,
 } from '../types/bank-transaction';
 import {BankTransactionCategoryIcon} from './bank-transaction-category-icon';
@@ -39,14 +40,16 @@ export function BankTransactionCategoryFilter({
 }: BankTransactionCategoryFilterProps) {
   const navigate = useNavigate({from: '/bank-transactions/'});
   const selectedValues = filters.categories || [];
-  const selectedCategories = BANK_TRANSACTION_CATEGORIES.filter((category) =>
-    selectedValues.includes(category),
+  const selectedLabels = selectedValues.map((value) =>
+    value === BANK_TRANSACTION_UNCATEGORIZED
+      ? 'Not categorized'
+      : BANK_TRANSACTION_CATEGORY_LABELS[value],
   );
 
-  const handleSelect = async (category: BankTransactionCategory) => {
-    const newSelectedValues = selectedValues.includes(category)
-      ? selectedValues.filter((selectedCategory) => selectedCategory !== category)
-      : [...selectedValues, category];
+  const handleSelect = async (value: BankTransactionCategoryFilterValue) => {
+    const newSelectedValues = selectedValues.includes(value)
+      ? selectedValues.filter((selectedValue) => selectedValue !== value)
+      : [...selectedValues, value];
 
     await navigate({
       search: (prev) => ({
@@ -71,28 +74,31 @@ export function BankTransactionCategoryFilter({
           size='sm'
           aria-label='Categories'
           className={cn(
-            'h-10 sm:h-8',
+            'h-12 sm:h-8',
             selectedValues.length === 0 ? 'border-dashed' : 'border',
             className,
           )}
         >
           <Tags />
           Categories
-          {selectedCategories.length > 0 && (
+          {selectedValues.length > 0 && (
             <>
               <Separator orientation='vertical' className='mx-2 h-4' />
               <Badge variant='secondary' className='rounded-sm px-1 font-normal lg:hidden'>
-                {selectedCategories.length}
+                {selectedValues.length}
               </Badge>
               <div className='hidden space-x-1 lg:flex'>
-                {selectedCategories.length > 2 ? (
+                {selectedValues.length > 2 ? (
                   <Badge variant='secondary' className='rounded-sm px-2 font-normal'>
-                    {selectedCategories.length} selected
+                    {selectedValues.length} selected
                   </Badge>
                 ) : (
-                  selectedCategories.map((category) => (
-                    <span className='rounded bg-accent px-1.5 py-0.5 text-xs' key={category}>
-                      {BANK_TRANSACTION_CATEGORY_LABELS[category]}
+                  selectedLabels.map((label, index) => (
+                    <span
+                      className='rounded bg-accent px-1.5 py-0.5 text-xs'
+                      key={selectedValues[index]}
+                    >
+                      {label}
                     </span>
                   ))
                 )}
@@ -105,10 +111,27 @@ export function BankTransactionCategoryFilter({
       <PopoverContent className='w-[280px] p-0' align='start'>
         <Command>
           <CommandInput placeholder='Search categories...' />
-          <ScrollArea className='h-fit max-h-[300px]'>
-            <CommandList>
+          <ScrollArea className='h-[300px]'>
+            <CommandList className='max-h-none overflow-visible'>
               <CommandEmpty>No categories found.</CommandEmpty>
               <CommandGroup>
+                <CommandItem
+                  value='Not categorized'
+                  onSelect={() => handleSelect(BANK_TRANSACTION_UNCATEGORIZED)}
+                >
+                  <div
+                    className={cn(
+                      'mr-1 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                      selectedValues.includes(BANK_TRANSACTION_UNCATEGORIZED)
+                        ? 'bg-primary text-primary-foreground'
+                        : 'opacity-50 [&_svg]:invisible',
+                    )}
+                  >
+                    <Check />
+                  </div>
+                  <Tags className='h-5 w-5 text-muted-foreground' />
+                  <span className='truncate'>Not categorized</span>
+                </CommandItem>
                 {BANK_TRANSACTION_CATEGORIES.map((category) => {
                   const isSelected = selectedValues.includes(category);
                   return (

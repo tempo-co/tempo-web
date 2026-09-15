@@ -65,7 +65,7 @@ export function BankTransactionDateFilter({
         <Button
           variant='outline'
           size='sm'
-          className={cn('h-10 sm:h-8', filters.bookingDate ? 'border' : 'border-dashed', className)}
+          className={cn('h-12 sm:h-8', filters.bookingDate ? 'border' : 'border-dashed', className)}
           aria-label={fullBookingDateLabel ? `Booking date: ${fullBookingDateLabel}` : undefined}
         >
           <CalendarIcon />

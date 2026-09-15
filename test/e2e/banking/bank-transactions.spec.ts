@@ -27,11 +27,15 @@ test.describe('bank transactions', () => {
     await expect(
       page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Category'}),
     ).toBeVisible();
-    await expect(firstTransactionRow.getByRole('cell').nth(3)).toContainText('Not categorized');
     await expect(
-      firstTransactionRow.getByRole('cell').nth(4).getByText('Card Payment', {exact: true}),
-    ).toBeVisible();
-    await expect(firstTransactionRow.getByRole('cell').nth(1)).toContainText('Aug 25, 2026');
+      page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Value date'}),
+    ).toHaveCount(0);
+    await expect(
+      page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Type'}),
+    ).toHaveCount(0);
+    await expect(firstTransactionRow.getByRole('cell')).toHaveCount(5);
+    await expect(firstTransactionRow.getByRole('cell').nth(2)).toContainText('Not categorized');
+    await expect(firstTransactionRow.getByRole('cell').nth(0)).toContainText('Aug 26, 2026');
 
     await page.getByTestId('bank-transactions-search').fill('does not exist');
     await expect(page.getByText('No bank transactions found')).toBeVisible();
@@ -84,7 +88,7 @@ test.describe('bank transactions', () => {
     await expect(
       page.getByTestId('bank-transactions-table').getByRole('columnheader', {name: 'Category'}),
     ).toBeVisible();
-    await expect(firstTransactionRow.getByRole('cell').nth(3)).toContainText('Not categorized');
+    await expect(firstTransactionRow.getByRole('cell').nth(2)).toContainText('Not categorized');
 
     await firstTransactionRow
       .getByRole('button', {name: 'View Coffee shop transaction details'})
@@ -134,7 +138,7 @@ test.describe('bank transactions', () => {
     await inspector.getByRole('button', {name: 'Close transaction details'}).click();
     await expect(inspector).toBeHidden();
     await expect(
-      firstTransactionRow.getByRole('cell').nth(3).locator('svg').locator('..'),
+      firstTransactionRow.getByRole('cell').nth(2).locator('svg').locator('..'),
     ).toHaveClass(/text-category-food-and-drink/);
     await firstTransactionRow
       .getByRole('button', {name: 'View Coffee shop transaction details'})
@@ -479,7 +483,9 @@ test.describe('bank transactions', () => {
     await page.route('**/bank-transactions?*', async (route) => {
       const requestUrl = new URL(route.request().url());
       const categoryValues = requestUrl.searchParams.getAll('filter[categories][]');
+      const categorySourceValues = requestUrl.searchParams.getAll('filter[categorySources][]');
       requestUrl.searchParams.delete('filter[categories][]');
+      requestUrl.searchParams.delete('filter[categorySources][]');
       const response = await route.fetch({url: requestUrl.toString()});
       const payload = (await response.json()) as {
         transactions: Array<Record<string, unknown>>;
@@ -489,23 +495,38 @@ test.describe('bank transactions', () => {
         ...transaction,
         category: index === 0 ? 'FOOD_AND_DRINK' : index === 1 ? 'SHOPPING' : null,
         categoryStatus: index < 2 ? 'COMPLETED' : 'PENDING',
-        categorySource: null,
+        categorySource: index === 0 ? 'MANUAL' : index === 1 ? 'AI' : null,
       }));
       const transactions =
         categoryValues.length > 0
           ? categorizedTransactions.filter((transaction) =>
-              categoryValues.includes(String(transaction.category)),
+              categoryValues.includes(
+                transaction.category === null ? 'UNCATEGORIZED' : String(transaction.category),
+              ),
             )
           : categorizedTransactions;
+      const sourceFilteredTransactions =
+        categorySourceValues.length > 0
+          ? transactions.filter((transaction) =>
+              categorySourceValues.includes(String(transaction.categorySource)),
+            )
+          : transactions;
 
-      await route.fulfill({response, json: {...payload, transactions, total: transactions.length}});
+      await route.fulfill({
+        response,
+        json: {
+          ...payload,
+          transactions: sourceFilteredTransactions,
+          total: sourceFilteredTransactions.length,
+        },
+      });
     });
     await page.goto('/bank-transactions');
 
     const categoryFilter = page.getByRole('button', {name: 'Categories', exact: true});
     await expect(categoryFilter).toBeVisible();
     await categoryFilter.click();
-    await expect(page.getByRole('option')).toHaveCount(19);
+    await expect(page.getByRole('option')).toHaveCount(20);
     await page.getByRole('option', {name: 'Food and drink', exact: true}).click();
 
     const singleCategoryParam = new URL(page.url()).searchParams.get('categories');
@@ -525,6 +546,54 @@ test.describe('bank transactions', () => {
     await expect(
       page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Salary'}),
     ).toBeVisible();
+
+    await page.getByRole('option', {name: 'Not categorized', exact: true}).click();
+    const categoryWithUncategorizedParam = new URL(page.url()).searchParams.get('categories');
+    expect(categoryWithUncategorizedParam).not.toBeNull();
+    expect(JSON.parse(categoryWithUncategorizedParam!)).toEqual([
+      'FOOD_AND_DRINK',
+      'SHOPPING',
+      'UNCATEGORIZED',
+    ]);
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Salary'}),
+    ).toBeVisible();
+
+    const categorySourceFilter = page.getByRole('button', {
+      name: 'Category source',
+      exact: true,
+    });
+    await categorySourceFilter.click();
+    await expect(page.getByRole('option')).toHaveCount(2);
+    await page.getByRole('option', {name: 'Manual', exact: true}).click();
+
+    const manualSourceParam = new URL(page.url()).searchParams.get('categorySources');
+    expect(manualSourceParam).not.toBeNull();
+    expect(JSON.parse(manualSourceParam!)).toEqual(['MANUAL']);
+    await expect(page.getByText('Coffee shop', {exact: true})).toBeVisible();
+    await expect(page.getByText('Salary', {exact: true})).not.toBeVisible();
+
+    await page.getByRole('button', {name: 'Clear filters'}).first().click();
+    const clearedUrl = new URL(page.url());
+    expect(clearedUrl.searchParams.has('categories')).toBe(false);
+    expect(clearedUrl.searchParams.has('categorySources')).toBe(false);
+    await expect(page.getByText('Salary', {exact: true})).toBeVisible();
+  });
+
+  test('uses the custom scrollbar in the category filter', async ({page}) => {
+    await page.goto('/bank-transactions');
+
+    await page.getByRole('button', {name: 'Categories', exact: true}).click();
+
+    const categoryList = page.getByRole('listbox');
+    await expect(categoryList).toHaveCSS('max-height', 'none');
+    await expect(categoryList).toHaveCSS('overflow-y', 'visible');
+    const categoryViewport = categoryList.locator(
+      'xpath=ancestor::*[@data-radix-scroll-area-viewport]',
+    );
+    await expect(categoryViewport).toHaveCount(1);
+    await categoryViewport.hover();
+    await expect(page.locator('[data-orientation="vertical"][data-state="visible"]')).toBeVisible();
   });
 
   test('reflows transaction records for a phone viewport', async ({page}) => {
@@ -554,8 +623,17 @@ test.describe('bank transactions', () => {
     const bookingDateBox = await bookingDateFilter.boundingBox();
     expect(bookingDateBox).not.toBeNull();
     expect(bookingDateBox!.width).toBe(361);
+    await expect(bookingDateFilter).toHaveCSS('height', '48px');
+    await expect(page.getByRole('button', {name: 'Categories', exact: true})).toHaveCSS(
+      'height',
+      '48px',
+    );
+    await expect(page.getByRole('button', {name: 'Category source', exact: true})).toHaveCSS(
+      'height',
+      '48px',
+    );
     await expect(firstTransactionRow).toBeVisible();
-    await expect(firstTransactionRow.getByRole('cell').nth(3)).toBeHidden();
+    await expect(firstTransactionRow.locator('td').nth(2)).toBeHidden();
     const [tableBox, firstTransactionRowBox] = await Promise.all([
       table.boundingBox(),
       firstTransactionRow.boundingBox(),
@@ -573,7 +651,7 @@ test.describe('bank transactions', () => {
     await expect(mobileMeta).toContainText('26 Aug');
     await expect(mobileMeta).toContainText('Daily spending');
     await expect(mobileMeta).toContainText('ABN AMRO');
-    await expect(mobileMeta).toContainText('Card Payment');
+    await expect(mobileMeta).not.toContainText('Card Payment');
     await expect(firstTransactionRow.getByText('Aug 25, 2026', {exact: true})).not.toBeVisible();
     const pagination = page.getByTestId('pagination');
     await expect(pagination).toBeVisible();
@@ -659,11 +737,66 @@ test.describe('bank transactions', () => {
   });
 
   test('sorts and paginates with the shared table controls', async ({page}) => {
-    await page.goto('/bank-transactions');
+    await page.setViewportSize({width: 1280, height: 720});
+    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
 
-    const bookingDateButton = page
-      .getByTestId('bank-transactions-table')
-      .getByRole('button', {name: 'Booking date'});
+    const table = page.getByTestId('bank-transactions-table');
+    await expect(page.getByText('Coffee shop', {exact: true})).toBeVisible();
+    const readColumnBoxes = () =>
+      table.locator('thead th').evaluateAll((headers) =>
+        headers.map((header) => {
+          const box = header.getBoundingClientRect();
+          return {
+            text: header.textContent?.replace(/\\s+/g, ' ').trim(),
+            x: box.x,
+            width: box.width,
+          };
+        }),
+      );
+    const firstPageColumns = await readColumnBoxes();
+    expect(firstPageColumns.map(({text}) => text)).toEqual([
+      'Booking date',
+      'Description',
+      'Category',
+      'Source',
+      'Amount',
+    ]);
+    expect(firstPageColumns[1].width).toBeGreaterThan(
+      Math.max(...firstPageColumns.filter((_, index) => index !== 1).map(({width}) => width)),
+    );
+
+    const amountHeaderButton = table
+      .getByRole('columnheader', {name: 'Amount'})
+      .getByRole('button', {name: 'Amount'});
+    await expect(amountHeaderButton).toHaveCSS('justify-content', 'flex-end');
+    const [amountHeaderBox, amountCellBox, amountHeaderContentRight, amountCellContentBox] =
+      await Promise.all([
+        amountHeaderButton.boundingBox(),
+        table.locator('tbody tr').first().locator('td').nth(4).boundingBox(),
+        amountHeaderButton.evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return range.getBoundingClientRect().right;
+        }),
+        table.locator('tbody tr').first().locator('td').nth(4).locator('div').boundingBox(),
+      ]);
+    expect(amountHeaderBox).not.toBeNull();
+    expect(amountCellBox).not.toBeNull();
+    expect(amountCellContentBox).not.toBeNull();
+    expect(amountHeaderBox!.x + amountHeaderBox!.width).toBeCloseTo(
+      amountCellBox!.x + amountCellBox!.width,
+      0,
+    );
+    expect(amountHeaderContentRight).toBeCloseTo(
+      amountCellContentBox!.x + amountCellContentBox!.width,
+      0,
+    );
+
+    const bookingDateButton = table
+      .getByRole('columnheader', {name: 'Booking date'})
+      .getByRole('button', {
+        name: 'Booking date',
+      });
     await bookingDateButton.click();
     let sort = new URL(page.url()).searchParams.get('sort');
     expect(sort).toBe(JSON.stringify({by: 'bookingDate', order: 'ASC'}));
@@ -674,6 +807,58 @@ test.describe('bank transactions', () => {
     await page.getByRole('button', {name: 'Go to next page'}).click();
     await expect(page).toHaveURL(/pageIndex=1/);
     await expect(page.getByText('Extra transaction 9')).toBeVisible();
+    const secondPageColumns = await readColumnBoxes();
+    expect(secondPageColumns).toHaveLength(firstPageColumns.length);
+    secondPageColumns.forEach((column, index) => {
+      expect(column.x).toBeCloseTo(firstPageColumns[index].x, 0);
+      expect(column.width).toBeCloseTo(firstPageColumns[index].width, 0);
+    });
+  });
+
+  test('sorts the category and source columns', async ({page}) => {
+    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
+
+    const table = page.getByTestId('bank-transactions-table');
+    await expect(page.getByText('33 transactions', {exact: true})).toBeVisible();
+
+    const categorySortButton = table
+      .getByRole('columnheader', {name: 'Category'})
+      .getByRole('button', {name: 'Category'});
+    await categorySortButton.click();
+    expect(JSON.parse(new URL(page.url()).searchParams.get('sort')!)).toEqual({
+      by: 'category',
+      order: 'DESC',
+    });
+    await categorySortButton.click();
+    expect(JSON.parse(new URL(page.url()).searchParams.get('sort')!)).toEqual({
+      by: 'category',
+      order: 'ASC',
+    });
+
+    const sourceSortButton = table
+      .getByRole('columnheader', {name: 'Source'})
+      .getByRole('button', {name: 'Source'});
+    await sourceSortButton.click();
+    expect(JSON.parse(new URL(page.url()).searchParams.get('sort')!)).toEqual({
+      by: 'source',
+      order: 'DESC',
+    });
+  });
+
+  test('keeps desktop transaction row heights consistent', async ({page}) => {
+    await page.setViewportSize({width: 1280, height: 720});
+    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
+
+    const rows = page
+      .getByTestId('bank-transactions-table')
+      .locator('tbody tr[data-testid^="bank-transaction-row-"]');
+    await expect(rows.first()).toBeVisible();
+    expect(await rows.count()).toBeGreaterThan(1);
+    const rowHeights = await rows.evaluateAll((transactionRows) =>
+      transactionRows.map((row) => Math.round(row.getBoundingClientRect().height)),
+    );
+
+    expect(new Set(rowHeights).size).toBe(1);
   });
 });
 

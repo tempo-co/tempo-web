@@ -31,11 +31,11 @@ import {
 } from '../types/bank-transaction';
 import {
   formatBankTransactionCompactDate,
-  formatBankTransactionType,
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
 import {BankTransactionAccountFilter} from './bank-transaction-account-filter';
 import {BankTransactionCategoryFilter} from './bank-transaction-category-filter';
+import {BankTransactionCategorySourceFilter} from './bank-transaction-category-source-filter';
 import {BankTransactionDateFilter} from './bank-transaction-date-filter';
 import {bankTransactionTableColumns} from './bank-transaction-table-columns';
 
@@ -76,6 +76,7 @@ export function BankTransactionTable({
     !!filters.bookingDate ||
     (filters.bankAccountIds?.length ?? 0) > 0 ||
     (filters.categories?.length ?? 0) > 0 ||
+    (filters.categorySources?.length ?? 0) > 0 ||
     !!filters.search?.trim();
 
   useEffect(() => {
@@ -139,11 +140,18 @@ export function BankTransactionTable({
         bookingDate: undefined,
         bankAccountIds: undefined,
         categories: undefined,
+        categorySources: undefined,
         search: undefined,
         pageIndex: 0,
       }),
     });
-    setFilters({bookingDate: undefined, bankAccountIds: [], categories: [], search: undefined});
+    setFilters({
+      bookingDate: undefined,
+      bankAccountIds: [],
+      categories: [],
+      categorySources: [],
+      search: undefined,
+    });
   };
 
   if (isPending) {
@@ -185,7 +193,7 @@ export function BankTransactionTable({
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder='Search transactions...'
             aria-label='Search transactions'
-            className='h-10 pl-9 sm:h-8'
+            className='h-12 pl-9 sm:h-8'
             data-testid='bank-transactions-search'
           />
         </div>
@@ -193,21 +201,26 @@ export function BankTransactionTable({
           <BankTransactionDateFilter
             filters={filters}
             setFilters={setFilters}
-            className='max-md:min-w-0 max-md:flex-1'
+            className='max-md:w-full max-md:min-w-0'
           />
           <BankTransactionCategoryFilter
             filters={filters}
             setFilters={setFilters}
-            className='max-md:min-w-0 max-md:flex-1'
+            className='max-md:w-full max-md:min-w-0'
+          />
+          <BankTransactionCategorySourceFilter
+            filters={filters}
+            setFilters={setFilters}
+            className='max-md:w-full max-md:min-w-0'
           />
           <BankTransactionAccountFilter
             filters={filters}
             setFilters={setFilters}
-            className='max-md:min-w-0 max-md:flex-1'
+            className='max-md:w-full max-md:min-w-0'
           />
         </div>
         {isFilteringApplied && (
-          <Button variant='secondary' size='sm' className='h-10 sm:h-8' onClick={clearFilters}>
+          <Button variant='secondary' size='sm' className='h-12 sm:h-8' onClick={clearFilters}>
             Clear filters
           </Button>
         )}
@@ -218,8 +231,15 @@ export function BankTransactionTable({
           data-testid='bank-transactions-table'
           aria-label='Bank transactions'
           wrapperClassName='max-md:rounded-none max-md:border-0'
-          className='max-md:block max-md:w-full'
+          className='table-fixed max-md:block max-md:w-full'
         >
+          <colgroup>
+            <col className='w-[13%]' />
+            <col className='w-[37%]' />
+            <col className='w-[22%]' />
+            <col className='w-[18%]' />
+            <col className='w-[10%]' />
+          </colgroup>
           <TableCaption className='sr-only'>
             Bank transaction records. Select a transaction description to view its full details.
           </TableCaption>
@@ -274,7 +294,6 @@ export function BankTransactionTable({
             ) : (
               table.getRowModel().rows.map((row) => {
                 const transactionLabel = getTransactionLabel(row.original);
-                const mobileTransactionType = getMobileTransactionType(row.original);
 
                 return (
                   <TableRow
@@ -306,10 +325,7 @@ export function BankTransactionTable({
                               'max-md:order-2 max-md:block max-md:self-start max-md:justify-self-end max-md:border-0 max-md:p-0',
                             isDescriptionCell &&
                               'max-md:order-1 max-md:col-span-1 max-md:block max-md:min-w-0 max-md:border-0 max-md:p-0',
-                            (cell.column.id === 'category' ||
-                              cell.column.id === 'valueDate' ||
-                              cell.column.id === 'transactionType' ||
-                              cell.column.id === 'source') &&
+                            (cell.column.id === 'category' || cell.column.id === 'source') &&
                               'max-md:hidden',
                           )}
                         >
@@ -347,12 +363,6 @@ export function BankTransactionTable({
                           className='flex min-w-0 max-w-[55%] shrink-0 items-center justify-end gap-1.5 text-right'
                         >
                           <span className='truncate'>{row.original.bankName}</span>
-                          {mobileTransactionType && (
-                            <>
-                              <span aria-hidden='true'>·</span>
-                              <span className='shrink-0'>{mobileTransactionType}</span>
-                            </>
-                          )}
                         </span>
                       </div>
                     </TableCell>
@@ -381,11 +391,6 @@ function getTransactionLabel(transaction: BankTransaction) {
 
 function getMobileTransactionAccount(transaction: BankTransaction) {
   return transaction.bankAccountAlias || transaction.bankAccountName || 'Bank account';
-}
-
-function getMobileTransactionType(transaction: BankTransaction) {
-  const type = formatBankTransactionType(transaction.transactionType);
-  return type === 'Other' ? null : type;
 }
 
 function isBankTransactionSortField(value: string): value is BankTransactionSortField {
