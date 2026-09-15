@@ -58,14 +58,20 @@ function aspspKey(name: string, country: string) {
   return `${country.trim().toUpperCase()}:${name.trim().toLowerCase()}`;
 }
 
+function formatConnectionCount(count: number) {
+  return `${count} ${count === 1 ? 'connection' : 'connections'}`;
+}
+
 function ConnectionPageFrame({
   children,
   connectBank,
+  connectionCount,
   isStarting,
   showConnect = true,
 }: {
   children: React.ReactNode;
   connectBank: (bank: BankConnectionAspsp) => void | Promise<void>;
+  connectionCount: number;
   isStarting: boolean;
   showConnect?: boolean;
 }) {
@@ -78,7 +84,7 @@ function ConnectionPageFrame({
         <div className='min-w-0'>
           <h1 className='text-2xl font-semibold'>Bank connections</h1>
           <p className='mt-1 text-sm text-muted-foreground'>
-            Read-only connections to your financial institutions.
+            {formatConnectionCount(connectionCount)}
           </p>
         </div>
         {showConnect && (
@@ -130,6 +136,7 @@ export function BankConnectionList({
   return (
     <ConnectionPageFrame
       connectBank={connectBank}
+      connectionCount={bankConnections.length}
       isStarting={isStarting}
       showConnect={!isPending && !isError}
     >

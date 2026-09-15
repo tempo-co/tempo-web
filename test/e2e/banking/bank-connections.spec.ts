@@ -33,9 +33,26 @@ test.describe('bank connections', () => {
       });
     });
 
+    await page.route('**/bank-connections', async (route) => {
+      if (route.request().resourceType() === 'document') {
+        await route.continue();
+        return;
+      }
+
+      const response = await route.fetch();
+      const connections = (await response.json()) as BankConnection[];
+      const seededConnection = connections.find(
+        (connection) => connection.aspspName === 'ABN AMRO',
+      );
+      if (!seededConnection) throw new Error('Expected a seeded ABN AMRO connection');
+
+      await route.fulfill({response, json: [seededConnection]});
+    });
+
     await page.goto('/bank-connections?result=connected');
 
     await expect(page.getByRole('heading', {name: 'Bank connections'})).toBeVisible();
+    await expect(page.getByText('1 connection', {exact: true})).toBeVisible();
     const connectionCard = page
       .locator('[data-testid^="bank-connection-"]')
       .filter({has: page.getByRole('heading', {name: 'ABN AMRO'})});
@@ -90,6 +107,29 @@ test.describe('bank connections', () => {
     expect(new URL(page.url()).searchParams.has('transactionId')).toBe(false);
     await expect(page.getByText('Bank connection added')).toBeVisible();
     await expect(page).toHaveURL(new RegExp('/bank-connections$'));
+  });
+
+  test('uses plural wording for multiple connections', async ({page}) => {
+    await page.route('**/bank-connections', async (route) => {
+      if (route.request().resourceType() === 'document') {
+        await route.continue();
+        return;
+      }
+
+      const response = await route.fetch();
+      const connections = (await response.json()) as BankConnection[];
+      const firstConnection = connections[0];
+      if (!firstConnection) throw new Error('Expected a seeded bank connection');
+
+      await route.fulfill({
+        response,
+        json: [firstConnection, {...firstConnection, id: '00000000-0000-4000-8000-000000000099'}],
+      });
+    });
+
+    await page.goto('/bank-connections');
+
+    await expect(page.getByText('2 connections', {exact: true})).toBeVisible();
   });
 
   test('reports when synchronization finds no new transactions', async ({page}) => {
