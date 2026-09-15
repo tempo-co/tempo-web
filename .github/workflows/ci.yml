@@ -81,7 +81,7 @@ jobs:
 
       - name: Export environment variables
         run: |
-          echo '${{ toJson(vars) }}' | jq -c '.' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          echo '${{ toJson(vars) }}' | jq -c '.' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       - name: Setup Docker E2E environment
         run: |
@@ -126,10 +126,8 @@ jobs:
       ENABLE_BANKING_E2E: 'true'
       ENABLE_BANKING_API_URL: https://api.enablebanking.com
       ENABLE_BANKING_REDIRECT_URL: http://localhost:3020/bank-connections/callback
-      ENABLE_BANKING_PRIVATE_KEY_FILE: ${{ runner.temp }}/enable-banking-sandbox.key
       ENABLE_BANKING_PRIVATE_KEY_PATH: /run/secrets/enable-banking-private.key
       ENABLE_BANKING_PROVIDER_STORAGE_STATE: ${{ github.workspace }}/playwright/.auth/enable-banking-provider.json
-      TEMPO_API_ENV_FILE: ${{ runner.temp }}/tempo-api-provider.env
       TEMPO_API_E2E_IMAGE: tempo-api-enable-banking
       TEMPO_API_HOST_PORT: 3020
       VITE_API_URL: http://localhost:3020
@@ -155,6 +153,11 @@ jobs:
 
       - name: Install web dependencies
         run: npm ci
+
+      - name: Set temporary provider paths
+        run: |
+          printf 'ENABLE_BANKING_PRIVATE_KEY_FILE=%s\n' "$RUNNER_TEMP/enable-banking-sandbox.key" >> "$GITHUB_ENV"
+          printf 'TEMPO_API_ENV_FILE=%s\n' "$RUNNER_TEMP/tempo-api-provider.env" >> "$GITHUB_ENV"
 
       - name: Write sandbox private key
         env:
