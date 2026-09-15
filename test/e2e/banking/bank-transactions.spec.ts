@@ -371,6 +371,49 @@ test.describe('bank transactions', () => {
       ).toBeVisible();
       await expect(inspector.getByRole('heading', {level: 3, name: 'Dates'})).toBeVisible();
       await expect(inspector.getByRole('heading', {level: 3, name: 'Account'})).toBeVisible();
+      await expect(inspector.getByText('Expense', {exact: true})).toHaveCount(0);
+      await expect(inspector.getByText('Direction', {exact: true})).toHaveCount(0);
+      const amountSection = inspector.locator('section[aria-label$="amount and status"]');
+      const amount = inspector.getByTestId('bank-transaction-detail-amount');
+      const status = inspector.getByTestId('bank-transaction-detail-status');
+      await expect(amount).toBeVisible();
+      await expect(status).toBeVisible();
+      const [amountBox, statusBox] = await Promise.all([
+        amount.boundingBox(),
+        status.boundingBox(),
+      ]);
+      expect(amountBox).not.toBeNull();
+      expect(statusBox).not.toBeNull();
+      expect(statusBox!.x).toBeGreaterThan(amountBox!.x + amountBox!.width);
+      expect(statusBox!.y).toBeLessThan(amountBox!.y + amountBox!.height);
+      expect(statusBox!.y + statusBox!.height).toBeGreaterThan(amountBox!.y);
+      await expect(amountSection.getByText('Booked', {exact: true})).toBeVisible();
+      await expect(amountSection.getByText('EUR', {exact: true})).toBeVisible();
+
+      if (viewport.width < 768) {
+        const detailGrid = inspector
+          .getByTestId('bank-transaction-details-sections')
+          .locator(':scope > div');
+        const detailGridColumns = await detailGrid.evaluate(
+          (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length,
+        );
+        expect(detailGridColumns).toBe(1);
+        const datesGrid = inspector
+          .getByRole('heading', {name: 'Dates'})
+          .locator('..')
+          .locator('dl');
+        const datesGridColumns = await datesGrid.evaluate(
+          (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length,
+        );
+        expect(datesGridColumns).toBe(2);
+        const detailFieldWrapping = await inspector
+          .getByTestId('bank-transaction-details-sections')
+          .locator('dl dt, dl dd')
+          .evaluateAll((elements) =>
+            elements.map((element) => getComputedStyle(element).whiteSpace),
+          );
+        expect(detailFieldWrapping.every((whiteSpace) => whiteSpace === 'nowrap')).toBe(true);
+      }
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
         .toBe(true);
