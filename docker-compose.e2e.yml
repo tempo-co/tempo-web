@@ -35,11 +35,18 @@ services:
     container_name: api
     ports:
       - '${TEMPO_API_HOST_PORT:-3000}:3000'
+    env_file:
+      - ${TEMPO_API_ENV_FILE:-/dev/null}
     environment:
       NODE_ENV: test
       DB_HOST: postgres
       REDIS_URL: redis://redis:6379
       EMAIL_HOST: mailpit
+    volumes:
+      - type: bind
+        source: ${ENABLE_BANKING_PRIVATE_KEY_FILE:-/dev/null}
+        target: /run/secrets/enable-banking-private.key
+        read_only: true
     depends_on:
       postgres:
         condition: service_healthy

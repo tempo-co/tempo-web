@@ -1,9 +1,19 @@
 import {expect, test} from '@playwright/test';
 
 import type {BankConnection} from '../../../src/features/banking/types/bank-connection';
-import {PW_CHANGE_USER_AUTH_FILE, VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
+import {
+  ENABLE_BANKING_SANDBOX_USER_AUTH_FILE,
+  PW_CHANGE_USER_AUTH_FILE,
+  SESSION_TEST_USER_AUTH_FILE,
+  VERIFIED_USER_AUTH_FILE,
+} from '../../constants/auth.constants';
 
 const DETAIL_TRANSACTION_ID = '00000000-0000-4000-8000-000000000014';
+const ENABLE_BANKING_SANDBOX_E2E =
+  process.env.ENABLE_BANKING_E2E === 'true' &&
+  Boolean(process.env.ENABLE_BANKING_PROVIDER_STORAGE_STATE);
+const API_URL = process.env.VITE_API_URL ?? 'http://localhost:3020';
+const TARGET_ASPSP = {name: 'Mock ASPSP', country: 'NL'};
 
 test.describe('bank connections', () => {
   test.use({storageState: VERIFIED_USER_AUTH_FILE});
@@ -518,6 +528,97 @@ test.describe('bank connections', () => {
   });
 });
 
+test.describe('Enable Banking sandbox bank connection', () => {
+  test.skip(
+    !ENABLE_BANKING_SANDBOX_E2E,
+    'Requires ENABLE_BANKING_E2E=true and an authenticated provider storage state.',
+  );
+  test.use({
+    storageState: ENABLE_BANKING_SANDBOX_E2E
+      ? ENABLE_BANKING_SANDBOX_USER_AUTH_FILE
+      : SESSION_TEST_USER_AUTH_FILE,
+  });
+  test.setTimeout(120000);
+
+  test.beforeEach(async ({page}) => {
+    await removeTargetConnections(page);
+  });
+
+  test.afterEach(async ({page}) => {
+    await removeTargetConnections(page);
+  });
+
+  test('connects a mock account through the complete authorization callback', async ({page}) => {
+    await page.goto('/bank-connections');
+    await expect(page.getByRole('heading', {name: 'Bank connections'})).toBeVisible();
+
+    await page.getByRole('button', {name: 'Connect a bank'}).click();
+    const picker = page.getByTestId('bank-connection-picker');
+
+    await picker.getByTestId('bank-connection-country-selector').click();
+    await page.getByPlaceholder('Search countries...').fill(TARGET_ASPSP.country);
+    await page.getByRole('option', {name: /Netherlands/}).click();
+
+    await picker.getByTestId('bank-connection-bank-selector').click();
+    await page.getByRole('option', {name: /Mock ASPSP/}).click();
+
+    await page.waitForURL((url) => url.hostname === 'tilisy-sandbox.enablebanking.com', {
+      timeout: 60000,
+    });
+    await expect(
+      page.getByRole('button', {name: /Continue with authentication|Doorgaan met authenticatie/}),
+    ).toBeVisible();
+    await page
+      .getByRole('button', {name: /Continue with authentication|Doorgaan met authenticatie/})
+      .click();
+
+    await page.waitForURL(
+      (url) => url.hostname === 'enablebanking.com' && url.pathname === '/cp/mock-aspsp/auth',
+      {timeout: 60000},
+    );
+    await expect(page.getByRole('heading', {name: /Please select the account/i})).toBeVisible();
+
+    const accountCheckboxes = page.locator('input[type="checkbox"]');
+    await expect(accountCheckboxes.first()).toBeVisible();
+    await accountCheckboxes.first().check();
+    await page.getByRole('button', {name: 'Authorize', exact: true}).click();
+
+    await page.waitForURL(
+      (url) =>
+        url.pathname === '/bank-connections' && url.searchParams.get('result') === 'connected',
+      {timeout: 120000},
+    );
+    await expect(page.getByText('Bank connection added', {exact: true})).toBeVisible();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === '/bank-connections' && url.search === '',
+    );
+
+    await expect
+      .poll(
+        async () => {
+          const connection = await findTargetConnection(page);
+          return connection?.status ?? null;
+        },
+        {timeout: 60000},
+      )
+      .toBe('AUTHORIZED');
+
+    const connection = await findTargetConnection(page);
+    expect(connection).toMatchObject({
+      aspspName: TARGET_ASPSP.name,
+      aspspCountry: TARGET_ASPSP.country,
+      status: 'AUTHORIZED',
+    });
+    expect(connection?.consentValidUntil).not.toBeNull();
+    expect(Date.parse(connection?.consentValidUntil ?? '')).toBeGreaterThan(Date.now());
+    expect(connection?.bankAccounts.length).toBeGreaterThan(0);
+
+    await expect(page.getByRole('heading', {name: TARGET_ASPSP.name})).toBeVisible();
+    await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
+    await expect(page.getByText('Connected', {exact: true})).toBeVisible();
+  });
+});
+
 test.describe('bank connection loading errors', () => {
   test.use({storageState: VERIFIED_USER_AUTH_FILE});
 
@@ -563,3 +664,32 @@ test.describe('bank connections without bank connections', () => {
     await expect(page.getByRole('button', {name: 'Connect a bank'})).toHaveCount(1);
   });
 });
+
+async function findTargetConnection(page: import('@playwright/test').Page) {
+  const connections = await listTargetConnections(page);
+  return connections[0];
+}
+
+async function listTargetConnections(page: import('@playwright/test').Page) {
+  const response = await page.request.get(`${API_URL}/bank-connections`);
+  expect(response.ok()).toBe(true);
+
+  const connections = (await response.json()) as BankConnection[];
+  return connections.filter(
+    (connection) =>
+      connection.aspspName === TARGET_ASPSP.name &&
+      connection.aspspCountry === TARGET_ASPSP.country,
+  );
+}
+
+async function removeTargetConnections(page: import('@playwright/test').Page) {
+  const connections = await listTargetConnections(page);
+  for (const connection of connections) {
+    const response = await page.request.delete(`${API_URL}/bank-connections/${connection.id}`, {
+      data: {confirmation: 'DELETE'},
+    });
+    expect(response.ok()).toBe(true);
+  }
+
+  await expect.poll(() => listTargetConnections(page), {timeout: 30000}).toHaveLength(0);
+}
