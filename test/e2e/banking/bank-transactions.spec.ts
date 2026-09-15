@@ -373,35 +373,21 @@ test.describe('bank transactions', () => {
       await expect(inspector.getByRole('heading', {level: 3, name: 'Account'})).toBeVisible();
       await expect(inspector.getByText('Expense', {exact: true})).toHaveCount(0);
       await expect(inspector.getByText('Direction', {exact: true})).toHaveCount(0);
-      const amountSection = inspector.locator('section[aria-label$="amount and status"]');
       const amount = inspector.getByTestId('bank-transaction-detail-amount');
-      const status = inspector.getByTestId('bank-transaction-detail-status');
+      const currency = inspector.getByTestId('bank-transaction-detail-currency');
       await expect(amount).toBeVisible();
-      await expect(status).toBeVisible();
-      const [amountBox, statusBox] = await Promise.all([
+      await expect(currency).toHaveText('EUR');
+      await expect(inspector.getByText('Booked', {exact: true})).toHaveCount(0);
+      await expect(inspector.getByTestId('bank-transaction-detail-status')).toHaveCount(0);
+      const [amountBox, currencyBox] = await Promise.all([
         amount.boundingBox(),
-        status.boundingBox(),
-      ]);
-      expect(amountBox).not.toBeNull();
-      expect(statusBox).not.toBeNull();
-      expect(statusBox!.x).toBeGreaterThan(amountBox!.x + amountBox!.width);
-      expect(statusBox!.y).toBeLessThan(amountBox!.y + amountBox!.height);
-      expect(statusBox!.y + statusBox!.height).toBeGreaterThan(amountBox!.y);
-      await expect(status).toHaveCSS('flex-direction', 'column');
-      const booked = amountSection.getByText('Booked', {exact: true});
-      const currency = amountSection.getByText('EUR', {exact: true});
-      await expect(booked).toBeVisible();
-      await expect(currency).toBeVisible();
-      const [bookedBox, currencyBox] = await Promise.all([
-        booked.boundingBox(),
         currency.boundingBox(),
       ]);
-      expect(bookedBox).not.toBeNull();
+      expect(amountBox).not.toBeNull();
       expect(currencyBox).not.toBeNull();
-      expect(currencyBox!.y).toBeGreaterThan(bookedBox!.y + bookedBox!.height);
-      expect(
-        Math.abs(bookedBox!.x + bookedBox!.width - (currencyBox!.x + currencyBox!.width)),
-      ).toBeLessThanOrEqual(1);
+      expect(currencyBox!.x).toBeGreaterThan(amountBox!.x + amountBox!.width);
+      expect(currencyBox!.y).toBeLessThan(amountBox!.y + amountBox!.height);
+      expect(currencyBox!.y + currencyBox!.height).toBeGreaterThan(amountBox!.y);
 
       if (viewport.width < 768) {
         const detailGrid = inspector

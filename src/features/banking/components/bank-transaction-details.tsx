@@ -1,13 +1,11 @@
 import * as React from 'react';
 
 import {CurrencyAmount} from '@/components/shared/currency-amount';
-import {Badge} from '@/components/ui/badge';
 import {cn} from '@/utils/cn';
 
 import {BankTransaction} from '../types/bank-transaction';
 import {
   formatBankTransactionDate,
-  formatBankTransactionStatus,
   formatBankTransactionType,
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
@@ -29,7 +27,7 @@ export function BankTransactionDetails({transaction}: BankTransactionDetailsProp
   return (
     <div data-testid='bank-transaction-details' className='min-w-0'>
       <section
-        aria-label={`${transactionTitle} amount and status`}
+        aria-label={`${transactionTitle} amount and currency`}
         className='border-b px-5 py-5 sm:px-6 sm:py-6'
       >
         <div className='flex items-end justify-between gap-3 sm:gap-4'>
@@ -44,15 +42,12 @@ export function BankTransactionDetails({transaction}: BankTransactionDetailsProp
               <CurrencyAmount amount={Number(transaction.amount)} currency={transaction.currency} />
             </p>
           </div>
-          <div
-            data-testid='bank-transaction-detail-status'
-            className='flex shrink-0 flex-col items-end gap-1 pb-1'
+          <span
+            data-testid='bank-transaction-detail-currency'
+            className='shrink-0 pb-1 text-sm text-muted-foreground'
           >
-            <Badge variant='outline' className='shrink-0'>
-              {formatBankTransactionStatus(transaction.transactionStatus)}
-            </Badge>
-            <span className='shrink-0 text-sm text-muted-foreground'>{transaction.currency}</span>
-          </div>
+            {transaction.currency}
+          </span>
         </div>
       </section>
 
