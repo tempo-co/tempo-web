@@ -21,10 +21,12 @@ import {
   BankTransactionFilterParams,
 } from '../types/bank-transaction';
 import {formatBankTransactionCategorySource} from '../utils/formatters';
+import {BankTransactionFilterSection} from './bank-transaction-filter-section';
 
 type BankTransactionCategorySourceFilterProps = {
   filters: BankTransactionFilterParams;
   setFilters: React.Dispatch<React.SetStateAction<BankTransactionFilterParams>>;
+  variant?: 'popover' | 'mobile';
   className?: string;
 };
 
@@ -35,6 +37,7 @@ function getSourceLabel(source: BankTransactionCategorizationSource) {
 export function BankTransactionCategorySourceFilter({
   filters,
   setFilters,
+  variant = 'popover',
   className,
 }: BankTransactionCategorySourceFilterProps) {
   const navigate = useNavigate({from: '/bank-transactions/'});
@@ -60,6 +63,55 @@ export function BankTransactionCategorySourceFilter({
     await navigate({search: (prev) => ({...prev, categorySources: undefined, pageIndex: 0})});
     setFilters((prev) => ({...prev, categorySources: []}));
   };
+
+  const sourceCommand = (
+    <Command>
+      <CommandList>
+        <CommandGroup>
+          {BANK_TRANSACTION_CATEGORIZATION_SOURCES.map((source) => {
+            const isSelected = selectedValues.includes(source);
+            return (
+              <CommandItem
+                key={source}
+                value={getSourceLabel(source)}
+                onSelect={() => handleSelect(source)}
+              >
+                <div
+                  className={cn(
+                    'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                    isSelected
+                      ? 'bg-primary text-primary-foreground'
+                      : 'opacity-50 [&_svg]:invisible',
+                  )}
+                >
+                  <Check />
+                </div>
+                <span className='truncate'>{getSourceLabel(source)}</span>
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+        {selectedValues.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem onSelect={handleReset} className='justify-center text-center'>
+                Reset
+              </CommandItem>
+            </CommandGroup>
+          </>
+        )}
+      </CommandList>
+    </Command>
+  );
+
+  if (variant === 'mobile') {
+    return (
+      <BankTransactionFilterSection label='Category source'>
+        <div className='overflow-hidden rounded-md border bg-background'>{sourceCommand}</div>
+      </BankTransactionFilterSection>
+    );
+  }
 
   return (
     <Popover>
@@ -104,44 +156,7 @@ export function BankTransactionCategorySourceFilter({
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-[240px] p-0' align='start'>
-        <Command>
-          <CommandList>
-            <CommandGroup>
-              {BANK_TRANSACTION_CATEGORIZATION_SOURCES.map((source) => {
-                const isSelected = selectedValues.includes(source);
-                return (
-                  <CommandItem
-                    key={source}
-                    value={getSourceLabel(source)}
-                    onSelect={() => handleSelect(source)}
-                  >
-                    <div
-                      className={cn(
-                        'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground'
-                          : 'opacity-50 [&_svg]:invisible',
-                      )}
-                    >
-                      <Check />
-                    </div>
-                    <span className='truncate'>{getSourceLabel(source)}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-            {selectedValues.length > 0 && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem onSelect={handleReset} className='justify-center text-center'>
-                    Reset
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
-          </CommandList>
-        </Command>
+        {sourceCommand}
       </PopoverContent>
     </Popover>
   );

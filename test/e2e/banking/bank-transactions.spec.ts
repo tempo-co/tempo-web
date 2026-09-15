@@ -589,12 +589,73 @@ test.describe('bank transactions', () => {
     const categoryList = page.getByRole('listbox');
     await expect(categoryList).toHaveCSS('max-height', 'none');
     await expect(categoryList).toHaveCSS('overflow-y', 'visible');
-    const categoryViewport = categoryList.locator(
-      'xpath=ancestor::*[@data-radix-scroll-area-viewport]',
-    );
+    const categoryViewport = categoryList.locator('[data-radix-scroll-area-viewport]');
     await expect(categoryViewport).toHaveCount(1);
     await categoryViewport.hover();
     await expect(page.locator('[data-orientation="vertical"][data-state="visible"]')).toBeVisible();
+  });
+
+  test('filters from the responsive mobile drawer and clears all values', async ({page}) => {
+    await page.setViewportSize({width: 393, height: 852});
+    await page.goto('/bank-transactions');
+
+    await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
+    const mobileFilters = page.getByTestId('bank-transaction-mobile-filters');
+    const categoriesSection = mobileFilters
+      .getByRole('heading', {name: 'Categories'})
+      .locator('..');
+    const categorySourceSection = mobileFilters
+      .getByRole('heading', {name: 'Category source'})
+      .locator('..');
+
+    await categoriesSection.getByRole('option', {name: 'Not categorized', exact: true}).click();
+    expect(JSON.parse(new URL(page.url()).searchParams.get('categories')!)).toEqual([
+      'UNCATEGORIZED',
+    ]);
+    await categorySourceSection.getByRole('option', {name: 'Manual', exact: true}).click();
+    expect(JSON.parse(new URL(page.url()).searchParams.get('categorySources')!)).toEqual([
+      'MANUAL',
+    ]);
+    await expect(
+      page.getByTestId('bank-transaction-mobile-filters-trigger').getByText('2', {exact: true}),
+    ).toBeVisible();
+
+    await mobileFilters.getByRole('button', {name: 'Clear all', exact: true}).click();
+    const clearedUrl = new URL(page.url());
+    expect(clearedUrl.searchParams.has('categories')).toBe(false);
+    expect(clearedUrl.searchParams.has('categorySources')).toBe(false);
+    await expect(page.getByText('Salary', {exact: true})).toBeVisible();
+  });
+
+  test('keeps mobile filter reset actions visible and attached to their controls', async ({
+    page,
+  }) => {
+    await page.setViewportSize({width: 393, height: 852});
+    await page.goto('/bank-transactions');
+
+    await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
+    const mobileFilters = page.getByTestId('bank-transaction-mobile-filters');
+    const categoriesSection = mobileFilters
+      .getByRole('heading', {name: 'Categories'})
+      .locator('..');
+    await categoriesSection.getByRole('option', {name: 'Not categorized', exact: true}).click();
+
+    const categoryViewport = categoriesSection.locator('[data-radix-scroll-area-viewport]');
+    await expect.poll(() => categoryViewport.evaluate((element) => element.scrollTop)).toBe(0);
+    await expect(categoriesSection.getByRole('option', {name: 'Reset', exact: true})).toBeVisible();
+    await categoriesSection.getByRole('option', {name: 'Reset', exact: true}).click();
+    await expect(categoryViewport).toHaveJSProperty('scrollTop', 0);
+
+    const calendarFrame = mobileFilters.getByTestId('bank-transaction-mobile-calendar');
+    const dayButtons = calendarFrame.locator(
+      'button[name="day"]:not([disabled]):not(.day-outside)',
+    );
+    await dayButtons.nth(0).click();
+    await dayButtons.nth(1).click();
+    const calendarReset = calendarFrame.getByRole('button', {name: 'Reset', exact: true});
+    await expect(calendarReset).toBeVisible();
+    await calendarReset.click();
+    await expect(calendarReset).toHaveCount(0);
   });
 
   test('reflows transaction records for a phone viewport', async ({page}) => {
@@ -619,21 +680,77 @@ test.describe('bank transactions', () => {
     expect(summaryBox).not.toBeNull();
     expect(summaryBox!.y).toBeLessThan(headingBox!.y + headingBox!.height);
     await expect(page.getByRole('button', {name: 'Bank accounts', exact: true})).not.toBeVisible();
-    const bookingDateFilter = page.getByRole('button', {name: 'Booking date', exact: true}).first();
-    await expect(bookingDateFilter).toBeVisible();
-    const bookingDateBox = await bookingDateFilter.boundingBox();
-    expect(bookingDateBox).not.toBeNull();
-    expect(bookingDateBox!.width).toBe(361);
-    await expect(bookingDateFilter).toHaveCSS('height', '48px');
-    await expect(page.getByRole('button', {name: 'Categories', exact: true})).toHaveCSS(
-      'height',
-      '48px',
+    await expect(page.getByTestId('bank-transaction-desktop-filters')).toBeHidden();
+    const mobileFiltersTrigger = page.getByTestId('bank-transaction-mobile-filters-trigger');
+    await expect(mobileFiltersTrigger).toBeVisible();
+    const mobileFiltersTriggerBox = await mobileFiltersTrigger.boundingBox();
+    expect(mobileFiltersTriggerBox).not.toBeNull();
+    expect(mobileFiltersTriggerBox!.width).toBeGreaterThanOrEqual(88);
+    await expect(mobileFiltersTrigger).toHaveCSS('height', '48px');
+    await mobileFiltersTrigger.click();
+    const mobileFilters = page.getByTestId('bank-transaction-mobile-filters');
+    await expect(mobileFilters).toBeVisible();
+    await expect(mobileFilters.getByRole('heading', {name: 'Filters'})).toBeVisible();
+    await expect(mobileFilters.getByRole('heading', {name: 'Booking date'})).toBeVisible();
+    await expect(mobileFilters.getByRole('heading', {name: 'Categories'})).toBeVisible();
+    await expect(mobileFilters.getByRole('heading', {name: 'Category source'})).toBeVisible();
+    const mobileFiltersBody = page.getByTestId('bank-transaction-mobile-filters-body');
+    await expect.poll(() => mobileFiltersBody.evaluate((element) => element.scrollTop)).toBe(0);
+    await expect(mobileFiltersBody).toHaveCSS('padding-top', '16px');
+    await expect(mobileFiltersBody).toHaveCSS('padding-bottom', '16px');
+    const mobileFiltersScrollArea = page.getByTestId('bank-transaction-mobile-filters-scroll-area');
+    const mobileFiltersViewport = mobileFiltersScrollArea.locator(
+      ':scope > [data-radix-scroll-area-viewport]',
     );
-    await expect(page.getByRole('button', {name: 'Category source', exact: true})).toHaveCSS(
-      'height',
-      '48px',
+    const mobileFiltersScrollbar = mobileFiltersScrollArea.locator(
+      ':scope > [data-orientation="vertical"]',
     );
+    await expect(mobileFiltersScrollbar).toBeVisible();
+    await expect(mobileFiltersScrollbar.locator('.bg-border')).toBeVisible();
+    const mobileFiltersViewportMetrics = await mobileFiltersViewport.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(mobileFiltersViewportMetrics.scrollHeight).toBeGreaterThan(
+      mobileFiltersViewportMetrics.clientHeight,
+    );
+    const calendarFrame = mobileFilters.getByTestId('bank-transaction-mobile-calendar');
+    const calendarTable = calendarFrame.locator('table');
+    const firstCalendarWeek = calendarTable.locator('tbody tr').first();
+    const [calendarTableBox, lastCalendarCellBox] = await Promise.all([
+      calendarTable.boundingBox(),
+      firstCalendarWeek.locator('td').last().boundingBox(),
+    ]);
+    expect(calendarTableBox).not.toBeNull();
+    expect(lastCalendarCellBox).not.toBeNull();
+    expect(lastCalendarCellBox!.width).toBeGreaterThan(40);
+    expect(lastCalendarCellBox!.x + lastCalendarCellBox!.width).toBeGreaterThan(
+      calendarTableBox!.x + calendarTableBox!.width - 24,
+    );
+    await expect(mobileFilters.getByText('Narrow the transactions in this list.')).toHaveCount(0);
+    await expect(mobileFilters.getByText('Any date', {exact: true})).toHaveCount(0);
+    await expect(mobileFilters.getByText('All categories', {exact: true})).toHaveCount(0);
+    await expect(mobileFilters.getByText('All sources', {exact: true})).toHaveCount(0);
+    const categoriesSection = mobileFilters
+      .getByRole('heading', {name: 'Categories'})
+      .locator('..');
+    const categorySourceSection = mobileFilters
+      .getByRole('heading', {name: 'Category source'})
+      .locator('..');
+    await expect(categoriesSection.getByPlaceholder('Search categories...')).toBeVisible();
+    await expect(categorySourceSection.getByPlaceholder('Search category sources...')).toHaveCount(
+      0,
+    );
+    await expect(categorySourceSection.getByRole('option')).toHaveCount(2);
+    await expect(mobileFilters.getByRole('button', {name: 'Done', exact: true})).toBeVisible();
+    await mobileFilters.getByRole('button', {name: 'Done', exact: true}).click();
+    await expect(mobileFilters).toBeHidden();
     await expect(firstTransactionRow).toBeVisible();
+    const lastTransactionRow = table
+      .locator('tbody tr[data-testid^="bank-transaction-row-"]')
+      .last();
+    await expect(lastTransactionRow).toBeVisible();
+    await expect(lastTransactionRow).toHaveCSS('border-top-width', '1px');
     await expect(firstTransactionRow.locator('td').nth(2)).toBeHidden();
     const [tableBox, firstTransactionRowBox] = await Promise.all([
       table.boundingBox(),
@@ -714,20 +831,21 @@ test.describe('bank transactions', () => {
     await page.setViewportSize({width: 320, height: 852});
     await page.goto('/bank-transactions');
 
-    await page.getByRole('button', {name: 'Booking date', exact: true}).first().click();
-    const dialog = page.getByRole('dialog');
-    let dayButtons = dialog.locator('button[name="day"]:not([disabled]):not(.day-outside)');
+    await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
+    const mobileFilters = page.getByTestId('bank-transaction-mobile-filters');
+    await expect(mobileFilters).toBeVisible();
+    let dayButtons = mobileFilters.locator('button[name="day"]:not([disabled]):not(.day-outside)');
     if ((await dayButtons.count()) < 2) {
-      await dialog.getByRole('button', {name: 'Go to previous month'}).click();
-      dayButtons = dialog.locator('button[name="day"]:not([disabled]):not(.day-outside)');
+      await mobileFilters.getByRole('button', {name: 'Go to previous month'}).click();
+      dayButtons = mobileFilters.locator('button[name="day"]:not([disabled]):not(.day-outside)');
     }
     await dayButtons.nth(0).click();
     await dayButtons.nth(1).click();
 
-    const bookingDate = page.getByRole('button', {name: /^Booking date/}).first();
-    await expect(bookingDate).toContainText(' - ');
-    await expect(bookingDate).toHaveAttribute('aria-label', /^Booking date: .+ - .+$/);
-    const metrics = await bookingDate.evaluate((element) => ({
+    const bookingDateSection = mobileFilters
+      .getByRole('heading', {name: 'Booking date'})
+      .locator('..');
+    const metrics = await bookingDateSection.evaluate((element) => ({
       scrollWidth: element.scrollWidth,
       clientWidth: element.clientWidth,
     }));

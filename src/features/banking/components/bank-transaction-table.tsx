@@ -37,6 +37,7 @@ import {BankTransactionAccountFilter} from './bank-transaction-account-filter';
 import {BankTransactionCategoryFilter} from './bank-transaction-category-filter';
 import {BankTransactionCategorySourceFilter} from './bank-transaction-category-source-filter';
 import {BankTransactionDateFilter} from './bank-transaction-date-filter';
+import {BankTransactionMobileFilters} from './bank-transaction-mobile-filters';
 import {bankTransactionTableColumns} from './bank-transaction-table-columns';
 
 type BankTransactionTableProps = {
@@ -186,7 +187,7 @@ export function BankTransactionTable({
   return (
     <>
       <div className='mb-5 flex flex-wrap items-center gap-3 max-md:mb-4 max-md:gap-2'>
-        <div className='relative min-w-[14rem] flex-1 md:max-w-sm'>
+        <div className='relative min-w-0 flex-1 md:min-w-[14rem] md:max-w-sm'>
           <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
           <Input
             value={searchInput}
@@ -197,7 +198,17 @@ export function BankTransactionTable({
             data-testid='bank-transactions-search'
           />
         </div>
-        <div className='flex w-full flex-col gap-2 md:contents'>
+        <BankTransactionMobileFilters
+          filters={filters}
+          setFilters={setFilters}
+          isFilteringApplied={isFilteringApplied}
+          onClearFilters={clearFilters}
+          className='md:hidden'
+        />
+        <div
+          className='hidden w-full flex-col gap-2 md:contents'
+          data-testid='bank-transaction-desktop-filters'
+        >
           <BankTransactionDateFilter
             filters={filters}
             setFilters={setFilters}
@@ -220,7 +231,12 @@ export function BankTransactionTable({
           />
         </div>
         {isFilteringApplied && (
-          <Button variant='secondary' size='sm' className='h-12 sm:h-8' onClick={clearFilters}>
+          <Button
+            variant='secondary'
+            size='sm'
+            className='hidden h-8 md:inline-flex'
+            onClick={clearFilters}
+          >
             Clear filters
           </Button>
         )}
@@ -298,7 +314,7 @@ export function BankTransactionTable({
                 return (
                   <TableRow
                     key={row.id}
-                    className='cursor-pointer focus-within:bg-accent hover:bg-card max-md:mb-1.5 max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-0.5 max-md:rounded-md max-md:border max-md:bg-card max-md:p-2'
+                    className='cursor-pointer focus-within:bg-accent hover:bg-card max-md:mb-1.5 max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-0.5 max-md:rounded-md max-md:!border max-md:bg-card max-md:p-2'
                     data-testid={`bank-transaction-row-${row.original.id}`}
                     onClick={(event) => {
                       if (event.target instanceof Element && event.target.closest('a,button')) {

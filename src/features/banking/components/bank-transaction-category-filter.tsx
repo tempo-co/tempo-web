@@ -26,16 +26,19 @@ import {
   BankTransactionFilterParams,
 } from '../types/bank-transaction';
 import {BankTransactionCategoryIcon} from './bank-transaction-category-icon';
+import {BankTransactionFilterSection} from './bank-transaction-filter-section';
 
 type BankTransactionCategoryFilterProps = {
   filters: BankTransactionFilterParams;
   setFilters: React.Dispatch<React.SetStateAction<BankTransactionFilterParams>>;
+  variant?: 'popover' | 'mobile';
   className?: string;
 };
 
 export function BankTransactionCategoryFilter({
   filters,
   setFilters,
+  variant = 'popover',
   className,
 }: BankTransactionCategoryFilterProps) {
   const navigate = useNavigate({from: '/bank-transactions/'});
@@ -65,6 +68,77 @@ export function BankTransactionCategoryFilter({
     await navigate({search: (prev) => ({...prev, categories: undefined, pageIndex: 0})});
     setFilters((prev) => ({...prev, categories: []}));
   };
+
+  const categoryCommand = (
+    <Command>
+      <CommandInput placeholder='Search categories...' />
+      <CommandList className='max-h-none overflow-visible'>
+        <ScrollArea className={variant === 'mobile' ? 'h-[240px]' : 'h-[300px]'}>
+          <CommandEmpty>No categories found.</CommandEmpty>
+          <CommandGroup>
+            <CommandItem
+              value='Not categorized'
+              onSelect={() => handleSelect(BANK_TRANSACTION_UNCATEGORIZED)}
+            >
+              <div
+                className={cn(
+                  'mr-1 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                  selectedValues.includes(BANK_TRANSACTION_UNCATEGORIZED)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'opacity-50 [&_svg]:invisible',
+                )}
+              >
+                <Check />
+              </div>
+              <Tags className='h-5 w-5 text-muted-foreground' />
+              <span className='truncate'>Not categorized</span>
+            </CommandItem>
+            {BANK_TRANSACTION_CATEGORIES.map((category) => {
+              const isSelected = selectedValues.includes(category);
+              return (
+                <CommandItem
+                  key={category}
+                  value={BANK_TRANSACTION_CATEGORY_LABELS[category]}
+                  onSelect={() => handleSelect(category)}
+                >
+                  <div
+                    className={cn(
+                      'mr-1 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'opacity-50 [&_svg]:invisible',
+                    )}
+                  >
+                    <Check />
+                  </div>
+                  <BankTransactionCategoryIcon category={category} className='h-5 w-5' />
+                  <span className='truncate'>{BANK_TRANSACTION_CATEGORY_LABELS[category]}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        </ScrollArea>
+        {selectedValues.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem onSelect={handleReset} className='justify-center text-center'>
+                Reset
+              </CommandItem>
+            </CommandGroup>
+          </>
+        )}
+      </CommandList>
+    </Command>
+  );
+
+  if (variant === 'mobile') {
+    return (
+      <BankTransactionFilterSection label='Categories'>
+        <div className='overflow-hidden rounded-md border bg-background'>{categoryCommand}</div>
+      </BankTransactionFilterSection>
+    );
+  }
 
   return (
     <Popover>
@@ -109,66 +183,7 @@ export function BankTransactionCategoryFilter({
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-[280px] p-0' align='start'>
-        <Command>
-          <CommandInput placeholder='Search categories...' />
-          <ScrollArea className='h-[300px]'>
-            <CommandList className='max-h-none overflow-visible'>
-              <CommandEmpty>No categories found.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value='Not categorized'
-                  onSelect={() => handleSelect(BANK_TRANSACTION_UNCATEGORIZED)}
-                >
-                  <div
-                    className={cn(
-                      'mr-1 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                      selectedValues.includes(BANK_TRANSACTION_UNCATEGORIZED)
-                        ? 'bg-primary text-primary-foreground'
-                        : 'opacity-50 [&_svg]:invisible',
-                    )}
-                  >
-                    <Check />
-                  </div>
-                  <Tags className='h-5 w-5 text-muted-foreground' />
-                  <span className='truncate'>Not categorized</span>
-                </CommandItem>
-                {BANK_TRANSACTION_CATEGORIES.map((category) => {
-                  const isSelected = selectedValues.includes(category);
-                  return (
-                    <CommandItem
-                      key={category}
-                      value={BANK_TRANSACTION_CATEGORY_LABELS[category]}
-                      onSelect={() => handleSelect(category)}
-                    >
-                      <div
-                        className={cn(
-                          'mr-1 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                          isSelected
-                            ? 'bg-primary text-primary-foreground'
-                            : 'opacity-50 [&_svg]:invisible',
-                        )}
-                      >
-                        <Check />
-                      </div>
-                      <BankTransactionCategoryIcon category={category} className='h-5 w-5' />
-                      <span className='truncate'>{BANK_TRANSACTION_CATEGORY_LABELS[category]}</span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-              {selectedValues.length > 0 && (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup>
-                    <CommandItem onSelect={handleReset} className='justify-center text-center'>
-                      Reset
-                    </CommandItem>
-                  </CommandGroup>
-                </>
-              )}
-            </CommandList>
-          </ScrollArea>
-        </Command>
+        {categoryCommand}
       </PopoverContent>
     </Popover>
   );
