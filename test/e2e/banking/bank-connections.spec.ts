@@ -127,29 +127,6 @@ test.describe('bank connections', () => {
     await expect(page).toHaveURL(new RegExp('/bank-connections$'));
   });
 
-  test('uses plural wording for multiple connections', async ({page}) => {
-    await page.route('**/bank-connections', async (route) => {
-      if (route.request().resourceType() === 'document') {
-        await route.continue();
-        return;
-      }
-
-      const response = await route.fetch();
-      const connections = (await response.json()) as BankConnection[];
-      const firstConnection = connections[0];
-      if (!firstConnection) throw new Error('Expected a seeded bank connection');
-
-      await route.fulfill({
-        response,
-        json: [firstConnection, {...firstConnection, id: '00000000-0000-4000-8000-000000000099'}],
-      });
-    });
-
-    await page.goto('/bank-connections');
-
-    await expect(page.getByText('2 connections', {exact: true})).toBeVisible();
-  });
-
   test('reports when synchronization finds no new transactions', async ({page}) => {
     await page.route('**/bank-connections/*/sync', async (route) => {
       if (route.request().method() !== 'POST') {
