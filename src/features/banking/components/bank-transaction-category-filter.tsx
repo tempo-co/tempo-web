@@ -1,5 +1,5 @@
 import {useNavigate} from '@tanstack/react-router';
-import {Check, ChevronDown, CircleHelp, Tags} from 'lucide-react';
+import {Check, ChevronDown, Tags} from 'lucide-react';
 import * as React from 'react';
 
 import {Badge} from '@/components/ui/badge';
@@ -21,7 +21,6 @@ import {cn} from '@/utils/cn';
 import {
   BANK_TRANSACTION_CATEGORIES,
   BANK_TRANSACTION_CATEGORY_LABELS,
-  BANK_TRANSACTION_NEEDS_REVIEW,
   BANK_TRANSACTION_UNCATEGORIZED,
   BankTransactionCategoryFilterValue,
   BankTransactionFilterParams,
@@ -47,9 +46,7 @@ export function BankTransactionCategoryFilter({
   const selectedLabels = selectedValues.map((value) =>
     value === BANK_TRANSACTION_UNCATEGORIZED
       ? 'Not categorized'
-      : value === BANK_TRANSACTION_NEEDS_REVIEW
-        ? 'Needs review'
-        : BANK_TRANSACTION_CATEGORY_LABELS[value],
+      : BANK_TRANSACTION_CATEGORY_LABELS[value],
   );
 
   const handleSelect = async (value: BankTransactionCategoryFilterValue) => {
@@ -95,23 +92,6 @@ export function BankTransactionCategoryFilter({
               </div>
               <Tags className='h-5 w-5 text-muted-foreground' />
               <span className='truncate'>Not categorized</span>
-            </CommandItem>
-            <CommandItem
-              value='Needs review'
-              onSelect={() => handleSelect(BANK_TRANSACTION_NEEDS_REVIEW)}
-            >
-              <div
-                className={cn(
-                  'mr-1 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                  selectedValues.includes(BANK_TRANSACTION_NEEDS_REVIEW)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'opacity-50 [&_svg]:invisible',
-                )}
-              >
-                <Check />
-              </div>
-              <CircleHelp className='h-5 w-5 text-muted-foreground' />
-              <span className='truncate'>Needs review</span>
             </CommandItem>
             {BANK_TRANSACTION_CATEGORIES.map((category) => {
               const isSelected = selectedValues.includes(category);

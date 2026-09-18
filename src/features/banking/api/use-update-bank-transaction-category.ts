@@ -4,7 +4,6 @@ import {toast} from 'sonner';
 import {HttpError, api} from '@/utils/api';
 
 import {
-  BANK_TRANSACTION_NEEDS_REVIEW,
   BANK_TRANSACTION_UNCATEGORIZED,
   BankTransaction,
   BankTransactionCategory,
@@ -87,10 +86,7 @@ function matchesBankTransactionFilters(
     categories.length > 0 &&
     !categories.some((category) => {
       if (category === BANK_TRANSACTION_UNCATEGORIZED) {
-        return transaction.category === null && transaction.categoryStatus !== 'NEEDS_REVIEW';
-      }
-      if (category === BANK_TRANSACTION_NEEDS_REVIEW) {
-        return transaction.categoryStatus === 'NEEDS_REVIEW';
+        return transaction.category === null;
       }
       return transaction.category === category;
     })

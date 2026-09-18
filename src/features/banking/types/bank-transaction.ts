@@ -39,17 +39,16 @@ export const BANK_TRANSACTION_CATEGORIES = [
   'REFUND',
   'TRANSFER_IN',
   'TRANSFER_OUT',
+  'NEEDS_REVIEW',
   'OTHER',
 ] as const;
 
 export type BankTransactionCategory = (typeof BANK_TRANSACTION_CATEGORIES)[number];
 
 export const BANK_TRANSACTION_UNCATEGORIZED = 'UNCATEGORIZED' as const;
-export const BANK_TRANSACTION_NEEDS_REVIEW = 'NEEDS_REVIEW' as const;
 export const BANK_TRANSACTION_CATEGORY_FILTER_VALUES = [
   ...BANK_TRANSACTION_CATEGORIES,
   BANK_TRANSACTION_UNCATEGORIZED,
-  BANK_TRANSACTION_NEEDS_REVIEW,
 ] as const;
 export type BankTransactionCategoryFilterValue =
   (typeof BANK_TRANSACTION_CATEGORY_FILTER_VALUES)[number];
@@ -73,6 +72,7 @@ export const BANK_TRANSACTION_CATEGORY_LABELS: Record<BankTransactionCategory, s
   REFUND: 'Refund',
   TRANSFER_IN: 'Transfer in',
   TRANSFER_OUT: 'Transfer out',
+  NEEDS_REVIEW: 'Needs review',
   OTHER: 'Other',
 };
 
@@ -81,7 +81,6 @@ export const BANK_TRANSACTION_CATEGORIZATION_STATUSES = [
   'PROCESSING',
   'COMPLETED',
   'FAILED',
-  'NEEDS_REVIEW',
 ] as const;
 
 export type BankTransactionCategorizationStatus =

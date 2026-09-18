@@ -70,7 +70,6 @@ export function formatBankTransactionCategoryStatus(
   const normalized = value?.toUpperCase();
   if (normalized === 'PENDING' || normalized === 'PROCESSING') return 'Categorizing…';
   if (normalized === 'FAILED') return 'Categorization failed. Choose a category manually.';
-  if (normalized === 'NEEDS_REVIEW') return 'Needs review. Choose a category manually.';
   if (normalized === 'COMPLETED') return 'Categorized';
   return 'Not categorized';
 }

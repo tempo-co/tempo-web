@@ -91,7 +91,7 @@ test.describe('bank transactions', () => {
     const categorySelect = inspector.getByRole('combobox', {name: 'Transaction category'});
     await expect(categorySelect).toBeVisible();
     await categorySelect.click();
-    await expect(page.getByRole('option')).toHaveCount(19);
+    await expect(page.getByRole('option')).toHaveCount(20);
     await expect(page.getByRole('option')).toHaveText([
       'Housing and utilities',
       'Food and drink',
@@ -111,9 +111,10 @@ test.describe('bank transactions', () => {
       'Refund',
       'Transfer in',
       'Transfer out',
+      'Needs review',
       'Other',
     ]);
-    await expect(page.getByRole('option').locator('svg')).toHaveCount(19);
+    await expect(page.getByRole('option').locator('svg')).toHaveCount(20);
     await expect(
       page.getByRole('option', {name: 'Food and drink', exact: true}).locator('svg').locator('..'),
     ).toHaveClass(/text-category-food-and-drink/);
@@ -522,8 +523,8 @@ test.describe('bank transactions', () => {
       const categorizedTransactions = [
         ...payload.transactions.map((transaction, index) => ({
           ...transaction,
-          category: index === 0 ? 'FOOD_AND_DRINK' : index === 1 ? 'SHOPPING' : null,
-          categoryStatus: index < 2 ? 'COMPLETED' : 'NEEDS_REVIEW',
+          category: index === 0 ? 'FOOD_AND_DRINK' : index === 1 ? 'SHOPPING' : 'NEEDS_REVIEW',
+          categoryStatus: 'COMPLETED',
           categorySource: index === 0 ? 'MANUAL' : 'AI',
         })),
         {
@@ -540,11 +541,7 @@ test.describe('bank transactions', () => {
         categoryValues.length > 0
           ? categorizedTransactions.filter((transaction) =>
               categoryValues.includes(
-                transaction.category === null
-                  ? transaction.categoryStatus === 'NEEDS_REVIEW'
-                    ? 'NEEDS_REVIEW'
-                    : 'UNCATEGORIZED'
-                  : String(transaction.category),
+                transaction.category === null ? 'UNCATEGORIZED' : String(transaction.category),
               ),
             )
           : categorizedTransactions;
@@ -601,7 +598,7 @@ test.describe('bank transactions', () => {
     const reviewRow = page
       .getByTestId(/^bank-transaction-row-/)
       .filter({hasText: 'Provider purchase'});
-    await expect(reviewRow).toContainText('Needs review. Choose a category manually.');
+    await expect(reviewRow).toContainText('Needs review');
 
     await page.getByRole('option', {name: 'Not categorized', exact: true}).click();
     const categoryWithUncategorizedParam = new URL(page.url()).searchParams.get('categories');
