@@ -1081,13 +1081,28 @@ test.describe('bank transactions', () => {
       0,
     );
 
+    let sort: string | null;
+    await amountHeaderButton.click();
+    sort = new URL(page.url()).searchParams.get('sort');
+    expect(sort).toBe(JSON.stringify({by: 'amount', order: 'DESC'}));
+    const salaryRow = page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Salary'});
+    await expect(salaryRow.getByRole('cell').nth(4)).toHaveText('€100.00');
+    await amountHeaderButton.click();
+    sort = new URL(page.url()).searchParams.get('sort');
+    expect(sort).toBe(JSON.stringify({by: 'amount', order: 'ASC'}));
+    const coffeeRow = page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Coffee shop'});
+    await expect(coffeeRow.getByRole('cell').nth(4)).toHaveText('-€4.50');
+
+    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
+    await expect(table.locator('tbody tr').first()).toBeVisible();
+
     const bookingDateButton = table
       .getByRole('columnheader', {name: 'Booking date'})
       .getByRole('button', {
         name: 'Booking date',
       });
     await bookingDateButton.click();
-    let sort = new URL(page.url()).searchParams.get('sort');
+    sort = new URL(page.url()).searchParams.get('sort');
     expect(sort).toBe(JSON.stringify({by: 'bookingDate', order: 'ASC'}));
     await bookingDateButton.click();
     sort = new URL(page.url()).searchParams.get('sort');
