@@ -107,14 +107,14 @@ export function BankTransactionDetails({transaction}: BankTransactionDetailsProp
                       }
                     />
                   )}
-                  {hasManualCategory ? (
+                  {hasManualCategory && !isInternalTransfer ? (
                     <BankTransactionCategorySelect transaction={transaction} />
-                  ) : (
+                  ) : !isInternalTransfer ? (
                     <Detail
                       label='Category'
                       value={formatBankTransactionCategoryStatus(transaction.categoryStatus)}
                     />
-                  )}
+                  ) : null}
                   <Detail
                     label='Cash-flow treatment'
                     value={formatBankTransactionCashFlowTreatment(transaction.cashFlowTreatment)}
