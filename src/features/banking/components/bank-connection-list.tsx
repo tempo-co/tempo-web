@@ -21,12 +21,10 @@ import {
 import {Skeleton} from '@/components/ui/skeleton';
 import {HttpError} from '@/utils/api';
 import {cn} from '@/utils/cn';
-import {formatRetryAfter} from '@/utils/retry-after';
 
 import {useDeleteBankConnection} from '../api/use-delete-bank-connection';
 import {useGetBankConnectionTransactions} from '../api/use-get-bank-connection-transactions';
 import {useStartBankConnection} from '../api/use-start-bank-connection';
-import {useSyncBankConnection} from '../api/use-sync-bank-connection';
 import {BankConnection, BankTransaction} from '../types/bank-connection';
 import {
   formatBankTransactionCompactDate,
@@ -246,7 +244,6 @@ function BankConnectionCard({
   const transactionsHeadingId = `bank-connection-${connection.id}-transactions`;
   const disclosureContentId = `bank-connection-${connection.id}-content`;
   const metadataHeadingId = `bank-connection-${connection.id}-meta`;
-  const {syncBankConnection, isPending: isSyncing} = useSyncBankConnection();
   const {deleteBankConnection, isPending: isRemoving} = useDeleteBankConnection();
   const {
     transactions,
@@ -260,46 +257,6 @@ function BankConnectionCard({
     connection.bankAccounts.length > 0 ||
     (isAuthorized && !!connection.lastSyncedAt) ||
     Boolean(connection.consentValidUntil);
-
-  const syncBank = async () => {
-    try {
-      const run = await syncBankConnection(connection.id);
-      if (run.rateLimitSource === 'enable-banking') {
-        toast.warning('Bank connection sync rate-limited', {
-          description: `The bank connection is temporarily limiting background access. ${formatRetryAfter(run.retryAfterSeconds)}`,
-          id: `bank-sync-rate-limit-${connection.id}`,
-        });
-      } else if (run.status === 'SUCCEEDED') {
-        const description =
-          run.transactionsAdded === undefined
-            ? 'Synchronization completed.'
-            : run.transactionsAdded === 0
-              ? 'No new transactions found.'
-              : `${run.transactionsAdded} new ${run.transactionsAdded === 1 ? 'transaction' : 'transactions'} added.`;
-
-        toast.success('Sync complete', {
-          description,
-          id: `bank-sync-success-${connection.id}`,
-        });
-      } else if (run.status === 'PARTIAL') {
-        toast.warning('Bank connection partially synchronized', {
-          description: 'Some bank connection data could not be synchronized.',
-          id: `bank-sync-partial-${connection.id}`,
-        });
-      } else {
-        toast.error('Bank connection synchronization failed', {
-          description: 'Please try again later.',
-          id: `bank-sync-failed-${connection.id}`,
-        });
-      }
-    } catch (error) {
-      if (error instanceof HttpError && error.status === 429) return;
-      toast.error('Unable to synchronize bank connection', {
-        description: 'Please try again in a moment.',
-        id: `bank-sync-request-failed-${connection.id}`,
-      });
-    }
-  };
 
   const removeBank = async (): Promise<boolean> => {
     try {
@@ -396,22 +353,6 @@ function BankConnectionCard({
           </div>
         )}
         <div className='flex w-full items-center justify-end gap-1.5 sm:w-auto sm:pl-4'>
-          {isAuthorized && (
-            <Button
-              variant='secondary'
-              size='sm'
-              onClick={(event) => {
-                event.stopPropagation();
-                void syncBank();
-              }}
-              disabled={isSyncing}
-              data-testid={`sync-bank-${connection.id}`}
-              className='max-sm:min-h-11 max-sm:flex-1 max-sm:gap-1 max-sm:px-2'
-            >
-              <RefreshCw className={isSyncing ? 'animate-slow-spin' : undefined} />
-              {isSyncing ? 'Syncing...' : 'Sync now'}
-            </Button>
-          )}
           {isRemovable &&
             (isDestructive ? (
               <DestructiveBankConnectionDialog
@@ -531,7 +472,7 @@ function BankConnectionCard({
               <h3 id={metadataHeadingId} className='sr-only'>
                 Bank connection details
               </h3>
-              <div className='flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1'>
+              <div className='flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1'>
                 {connection.lastSyncedAt && (
                   <span className='min-w-0'>
                     Last synchronized {formatDate(connection.lastSyncedAt)}
@@ -563,7 +504,10 @@ function ConsentBadge({value}: {value: string}) {
           className='inline-block h-2 w-2 shrink-0 rounded-full bg-warning'
         />
       )}
-      Consent valid until {formatDate(value)}
+      <span className='inline-flex min-w-0 shrink-0 items-center gap-2'>
+        <span aria-hidden='true'>·</span>
+        Consent valid until {formatDate(value)}
+      </span>
     </span>
   );
 }

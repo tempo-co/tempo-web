@@ -19,16 +19,16 @@ test.describe('bank connections', () => {
     await expect(page.getByTestId('bank-connection-freshness')).toContainText('Updated');
     const status = page.getByTestId('bank-connection-status');
     const freshness = page.getByTestId('bank-connection-freshness');
-    const syncButton = page.getByRole('button', {name: 'Sync now'});
-    const [statusBox, freshnessBox, syncButtonBox] = await Promise.all([
+    const removeButton = page.getByTestId(/^remove-bank-/);
+    const [statusBox, freshnessBox, removeButtonBox] = await Promise.all([
       status.boundingBox(),
       freshness.boundingBox(),
-      syncButton.boundingBox(),
+      removeButton.boundingBox(),
     ]);
     expect(statusBox).not.toBeNull();
     expect(freshnessBox).not.toBeNull();
-    expect(syncButtonBox).not.toBeNull();
-    const verticalCenters = [statusBox!, freshnessBox!, syncButtonBox!].map(
+    expect(removeButtonBox).not.toBeNull();
+    const verticalCenters = [statusBox!, freshnessBox!, removeButtonBox!].map(
       (box) => box.y + box.height / 2,
     );
     expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(14);
@@ -75,41 +75,6 @@ test.describe('bank connections', () => {
     await expect(accounts).toBeVisible();
     await expect(transactions).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  });
-
-  test('reports when synchronization finds no new transactions', async ({page}) => {
-    await page.route('**/bank-connections/*/sync', async (route) => {
-      if (route.request().method() !== 'POST') {
-        await route.continue();
-        return;
-      }
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: '00000000-0000-4000-8000-000000000099',
-          status: 'SUCCEEDED',
-          startedAt: '2026-09-09T00:00:00.000Z',
-          finishedAt: '2026-09-09T00:00:01.000Z',
-          requestedFrom: '2026-09-02',
-          requestedTo: '2026-09-09',
-          accountsFetched: 1,
-          balancesFetched: 1,
-          transactionsFetched: 17,
-          transactionsAdded: 0,
-          errorMessage: null,
-          rateLimitSource: null,
-          retryAfterSeconds: null,
-        }),
-      });
-    });
-
-    await page.goto('/bank-connections');
-    await page.getByRole('button', {name: 'Sync now'}).click();
-
-    await expect(page.getByText('Sync complete', {exact: true})).toBeVisible();
-    await expect(page.getByText('No new transactions found.', {exact: true})).toBeVisible();
   });
 
   test('removes an incomplete bank connection', async ({page}) => {
@@ -272,40 +237,38 @@ test.describe('bank connections', () => {
     const connectButton = page
       .getByRole('button', {name: /^Connect (ABN AMRO|Mock ASPSP)$/})
       .first();
-    const syncButton = page.getByRole('button', {name: 'Sync now'});
+    const removeButton = page.getByTestId(/^remove-bank-/);
     const status = page.getByTestId('bank-connection-status');
     const freshness = page.getByTestId('bank-connection-freshness');
 
     await expect(heading).toBeVisible();
     await expect(connectButton).toBeVisible();
-    await expect(syncButton).toBeVisible();
+    await expect(removeButton).toBeVisible();
     await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
 
-    const [headingBox, headingGroupBox, connectButtonBox, syncButtonBox, statusBox, freshnessBox] =
+    const [headingBox, headingGroupBox, connectButtonBox, removeButtonBox, statusBox, freshnessBox] =
       await Promise.all([
         heading.boundingBox(),
         headingGroup.boundingBox(),
         connectButton.boundingBox(),
-        syncButton.boundingBox(),
+        removeButton.boundingBox(),
         status.boundingBox(),
         freshness.boundingBox(),
       ]);
     expect(headingBox).not.toBeNull();
     expect(headingGroupBox).not.toBeNull();
     expect(connectButtonBox).not.toBeNull();
-    expect(syncButtonBox).not.toBeNull();
+    expect(removeButtonBox).not.toBeNull();
     expect(statusBox).not.toBeNull();
     expect(freshnessBox).not.toBeNull();
     expect(headingBox!.height).toBe(32);
     expect(headingGroupBox!.height).toBeLessThan(120);
     expect(connectButtonBox!.x).toBe(16);
-    expect(syncButtonBox!.height).toBeGreaterThanOrEqual(44);
+    expect(removeButtonBox!.height).toBeGreaterThanOrEqual(44);
     const statusCenter = statusBox!.y + statusBox!.height / 2;
     const freshnessCenter = freshnessBox!.y + freshnessBox!.height / 2;
-    const syncCenter = syncButtonBox!.y + syncButtonBox!.height / 2;
     expect(
-      Math.max(statusCenter, freshnessCenter, syncCenter) -
-        Math.min(statusCenter, freshnessCenter, syncCenter),
+      Math.max(statusCenter, freshnessCenter) - Math.min(statusCenter, freshnessCenter),
     ).toBeLessThan(80);
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
@@ -327,24 +290,24 @@ test.describe('bank connections', () => {
     const connectionCard = page
       .locator('[data-testid^="bank-connection-"][data-testid$="-card"]')
       .first();
-    const syncButton = page.getByRole('button', {name: 'Sync now'});
+    const removeButton = page.getByTestId(/^remove-bank-/);
     const sidebarTrigger = page.locator('[data-sidebar="trigger"]');
 
     await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
     await expect(page.getByRole('heading', {name: 'Transactions'})).toBeVisible();
-    await expect(syncButton).toBeVisible();
+    await expect(removeButton).toBeVisible();
     await expect(sidebarTrigger).toBeVisible();
 
-    const [connectionCardBox, syncButtonBox, sidebarTriggerBox] = await Promise.all([
+    const [connectionCardBox, removeButtonBox, sidebarTriggerBox] = await Promise.all([
       connectionCard.boundingBox(),
-      syncButton.boundingBox(),
+      removeButton.boundingBox(),
       sidebarTrigger.boundingBox(),
     ]);
     expect(connectionCardBox).not.toBeNull();
-    expect(syncButtonBox).not.toBeNull();
+    expect(removeButtonBox).not.toBeNull();
     expect(sidebarTriggerBox).not.toBeNull();
     expect(connectionCardBox!.x + connectionCardBox!.width).toBeLessThanOrEqual(320);
-    expect(syncButtonBox!.height).toBeGreaterThanOrEqual(44);
+    expect(removeButtonBox!.height).toBeGreaterThanOrEqual(44);
     expect(sidebarTriggerBox!.height).toBeGreaterThanOrEqual(44);
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
