@@ -3,6 +3,7 @@ import * as React from 'react';
 import {CurrencyAmount} from '@/components/shared/currency-amount';
 import {cn} from '@/utils/cn';
 
+import {useGetBankTransferLink} from '../api/use-get-bank-transfer-link';
 import {BankTransaction} from '../types/bank-transaction';
 import {
   formatBankTransactionCashFlowTreatment,
@@ -23,6 +24,8 @@ export function BankTransactionDetails({transaction}: BankTransactionDetailsProp
   const transactionTitle = resolveBankTransactionDisplayTitle(transaction);
   const financialEvent = formatBankTransactionFinancialEvent(transaction.financialEventType);
   const hasManualCategory = Boolean(financialEvent && transaction.categorySource === 'MANUAL');
+  const isInternalTransfer = transaction.financialEventType === 'INTERNAL_TRANSFER';
+  const {transferLink} = useGetBankTransferLink(transaction.id, isInternalTransfer);
   const detailsHeadingId = `transaction-${transaction.id}-details-heading`;
   const datesHeadingId = `transaction-${transaction.id}-dates-heading`;
   const accountHeadingId = `transaction-${transaction.id}-account-heading`;
@@ -94,6 +97,16 @@ export function BankTransactionDetails({transaction}: BankTransactionDetailsProp
               {financialEvent ? (
                 <>
                   <Detail label='Activity' value={financialEvent} />
+                  {isInternalTransfer && transferLink && (
+                    <Detail
+                      label='Transfer evidence'
+                      value={
+                        transferLink.evidence.matchedOn === 'COUNTERPARTY_ACCOUNT'
+                          ? `Matched counterparty account · ${transferLink.evidence.currency} · ${transferLink.evidence.dateDeltaDays} day(s) apart`
+                          : `Same connection transfer · ${transferLink.evidence.currency} · ${transferLink.evidence.dateDeltaDays} day(s) apart`
+                      }
+                    />
+                  )}
                   {hasManualCategory ? (
                     <BankTransactionCategorySelect transaction={transaction} />
                   ) : (
