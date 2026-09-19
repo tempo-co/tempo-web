@@ -20,11 +20,14 @@ export enum BankTransactionDirection {
   UNKNOWN = 'UNKNOWN',
 }
 
-export const BANK_TRANSACTION_FINANCIAL_EVENT_TYPES = ['CURRENCY_EXCHANGE'] as const;
+export const BANK_TRANSACTION_FINANCIAL_EVENT_TYPES = [
+  'CURRENCY_EXCHANGE',
+  'INTERNAL_TRANSFER',
+] as const;
 export type BankTransactionFinancialEventType =
   (typeof BANK_TRANSACTION_FINANCIAL_EVENT_TYPES)[number];
 
-export const BANK_TRANSACTION_FINANCIAL_EVENT_SOURCES = ['RULE'] as const;
+export const BANK_TRANSACTION_FINANCIAL_EVENT_SOURCES = ['RULE', 'MATCHER'] as const;
 export type BankTransactionFinancialEventSource =
   (typeof BANK_TRANSACTION_FINANCIAL_EVENT_SOURCES)[number];
 
@@ -33,6 +36,7 @@ export const BANK_TRANSACTION_FINANCIAL_EVENT_LABELS: Record<
   string
 > = {
   CURRENCY_EXCHANGE: 'Currency exchange',
+  INTERNAL_TRANSFER: 'Internal transfer',
 };
 
 export const BANK_TRANSACTION_CASH_FLOW_TREATMENTS = [
