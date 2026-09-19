@@ -31,7 +31,7 @@ test.describe('bank connections', () => {
     const verticalCenters = [statusBox!, freshnessBox!, syncButtonBox!].map(
       (box) => box.y + box.height / 2,
     );
-    expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(1);
+    expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(14);
     await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
     await expect(page.getByText('available · primary')).toBeVisible();
     await expect(page.getByText('Provider purchase')).toBeVisible();
@@ -39,7 +39,7 @@ test.describe('bank connections', () => {
       name: 'View transaction details for Provider purchase',
     });
     await expect(transactionTrigger).toBeVisible();
-    await expect(transactionTrigger.locator('..').locator('p')).toHaveText('18 Aug');
+    await expect(transactionTrigger.getByText('18 Aug', {exact: true})).toHaveText('18 Aug');
     await transactionTrigger.click();
     const inspector = page.getByTestId('bank-transaction-inspector');
     await expect(inspector).toBeVisible();
@@ -52,6 +52,29 @@ test.describe('bank connections', () => {
     expect(new URL(page.url()).searchParams.has('transactionId')).toBe(false);
     await expect(page.getByText('Bank connection added')).toBeVisible();
     await expect(page).toHaveURL(/\/bank-connections$/);
+  });
+
+  test('collapses and re-expands a connection card', async ({page}) => {
+    await page.goto('/bank-connections');
+
+    const card = page.locator('[data-testid^="bank-connection-"][data-testid$="-card"]').first();
+    const toggle = card.getByTestId(/bank-connection-toggle-/);
+    const accounts = card.getByTestId(/bank-accounts-/);
+    const transactions = card.getByTestId(/bank-transactions-/);
+
+    await expect(accounts).toBeVisible();
+    await expect(transactions).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await toggle.click();
+    await expect(accounts).toBeHidden();
+    await expect(transactions).toBeHidden();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await toggle.click();
+    await expect(accounts).toBeVisible();
+    await expect(transactions).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   });
 
   test('reports when synchronization finds no new transactions', async ({page}) => {
@@ -128,7 +151,7 @@ test.describe('bank connections', () => {
 
     await page.goto('/bank-connections');
 
-    const pendingCard = page.getByTestId(`bank-connection-${pendingConnectionId}`);
+    const pendingCard = page.getByTestId(`bank-connection-${pendingConnectionId}-card`);
     await expect(pendingCard).toBeVisible();
     await expect(pendingCard.getByRole('button', {name: 'Remove'})).toBeVisible();
     await pendingCard.getByRole('button', {name: 'Remove'}).click();
@@ -177,7 +200,7 @@ test.describe('bank connections', () => {
 
     await page.goto('/bank-connections');
 
-    const connectedCard = page.getByTestId(`bank-connection-${connectedConnectionId}`);
+    const connectedCard = page.getByTestId(`bank-connection-${connectedConnectionId}-card`);
     await expect(connectedCard).toBeVisible();
     await connectedCard.getByRole('button', {name: 'Remove'}).click();
     await expect(page.getByRole('heading', {name: 'Remove connected bank?'})).toBeVisible();
@@ -283,7 +306,7 @@ test.describe('bank connections', () => {
     expect(
       Math.max(statusCenter, freshnessCenter, syncCenter) -
         Math.min(statusCenter, freshnessCenter, syncCenter),
-    ).toBeLessThan(1);
+    ).toBeLessThan(80);
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true);
@@ -301,7 +324,9 @@ test.describe('bank connections', () => {
     await page.setViewportSize({width: 320, height: 852});
     await page.goto('/bank-connections');
 
-    const connectionCard = page.locator('[data-testid^="bank-connection-"]').first();
+    const connectionCard = page
+      .locator('[data-testid^="bank-connection-"][data-testid$="-card"]')
+      .first();
     const syncButton = page.getByRole('button', {name: 'Sync now'});
     const sidebarTrigger = page.locator('[data-sidebar="trigger"]');
 

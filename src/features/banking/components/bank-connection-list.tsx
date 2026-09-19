@@ -1,4 +1,4 @@
-import {AlertTriangle, Building2, Loader, Plus, RefreshCw, Trash2} from 'lucide-react';
+import {AlertTriangle, Building2, ChevronDown, Loader, Plus, RefreshCw, Trash2} from 'lucide-react';
 import {useState} from 'react';
 import {toast} from 'sonner';
 
@@ -209,6 +209,25 @@ export function BankConnectionList({
   );
 }
 
+function AspspTile({name}: {name: string}) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+
+  return (
+    <div
+      className='flex h-12 w-12 shrink-0 items-center justify-center rounded-card border bg-background text-base font-semibold text-primary'
+      aria-hidden='true'
+    >
+      {initials || <Building2 className='h-5 w-5' />}
+    </div>
+  );
+}
+
 function BankConnectionCard({
   connection,
   onTransactionSelect,
@@ -219,9 +238,14 @@ function BankConnectionCard({
   const isAuthorized = connection.status === 'AUTHORIZED';
   const isRemovable = isRemovableConnection(connection.status);
   const isDestructive = isDestructiveConnection(connection.status);
+  // Cards with nothing to collapse into (no accounts/expanding a pending connection) render
+  // expanded without a toggle; the disclosure is only worth having when there is content.
+  const [isExpanded, setIsExpanded] = useState(true);
   const connectionHeadingId = `bank-connection-${connection.id}-heading`;
   const accountsHeadingId = `bank-connection-${connection.id}-accounts`;
   const transactionsHeadingId = `bank-connection-${connection.id}-transactions`;
+  const disclosureContentId = `bank-connection-${connection.id}-content`;
+  const metadataHeadingId = `bank-connection-${connection.id}-meta`;
   const {syncBankConnection, isPending: isSyncing} = useSyncBankConnection();
   const {deleteBankConnection, isPending: isRemoving} = useDeleteBankConnection();
   const {
@@ -231,6 +255,11 @@ function BankConnectionCard({
     isError: areTransactionsError,
     refetch: refetchTransactions,
   } = useGetBankConnectionTransactions(connection.id, isAuthorized && !!connection.lastSyncedAt);
+
+  const hasBodyContent =
+    connection.bankAccounts.length > 0 ||
+    (isAuthorized && !!connection.lastSyncedAt) ||
+    Boolean(connection.consentValidUntil);
 
   const syncBank = async () => {
     try {
@@ -288,41 +317,96 @@ function BankConnectionCard({
     }
   };
 
+  const headerMeta = [
+    formatCountry(connection.aspspCountry),
+    <ConnectionStatus key='status' status={connection.status} />,
+    connection.lastSyncedAt && <FreshnessLabel key='freshness' value={connection.lastSyncedAt} />,
+  ].filter(Boolean) as React.ReactNode[];
+
   return (
     <Card
       className='overflow-hidden'
-      data-testid={`bank-connection-${connection.id}`}
+      data-testid={`bank-connection-${connection.id}-card`}
       aria-labelledby={connectionHeadingId}
     >
-      <CardHeader className='flex flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
-        <div className='flex min-w-0 items-center gap-3'>
-          <div
-            className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-background text-primary'
-            aria-hidden='true'
+      <CardHeader
+        className={cn(
+          'relative flex flex-col gap-3 px-5 py-4 sm:items-center sm:px-6',
+          hasBodyContent && 'sm:flex-row sm:gap-0',
+        )}
+      >
+        {hasBodyContent ? (
+          <button
+            type='button'
+            onClick={() => setIsExpanded((open) => !open)}
+            aria-expanded={isExpanded}
+            aria-controls={disclosureContentId}
+            data-testid={`bank-connection-toggle-${connection.id}`}
+            className='flex min-w-0 flex-1 items-center gap-3 self-start text-left focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:self-auto'
           >
-            <Building2 className='h-5 w-5' />
+            <AspspTile name={connection.aspspName} />
+            <span className='min-w-0 flex-1'>
+              <h2
+                id={connectionHeadingId}
+                className='break-words text-lg font-semibold leading-tight'
+              >
+                {connection.aspspName}
+              </h2>
+              <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground'>
+                {headerMeta.map((item, index) => (
+                  <span key={index} className='inline-flex min-w-0 shrink-0 items-center gap-2'>
+                    {index > 0 && (
+                      <span className='max-md:hidden' aria-hidden='true'>
+                        ·
+                      </span>
+                    )}
+                    {item}
+                  </span>
+                ))}
+              </p>
+            </span>
+            <ChevronDown
+              aria-hidden='true'
+              className={cn(
+                'ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                !isExpanded && '-rotate-90',
+              )}
+            />
+          </button>
+        ) : (
+          <div className='flex min-w-0 flex-1 items-center gap-3'>
+            <AspspTile name={connection.aspspName} />
+            <div className='min-w-0'>
+              <h2 id={connectionHeadingId} className='break-words text-lg font-semibold'>
+                {connection.aspspName}
+              </h2>
+              <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground'>
+                {headerMeta.map((item, index) => (
+                  <span key={index} className='inline-flex min-w-0 shrink-0 items-center gap-2'>
+                    {index > 0 && (
+                      <span className='max-md:hidden' aria-hidden='true'>
+                        ·
+                      </span>
+                    )}
+                    {item}
+                  </span>
+                ))}
+              </p>
+            </div>
           </div>
-          <div className='min-w-0'>
-            <h2 id={connectionHeadingId} className='break-words text-lg font-semibold'>
-              {connection.aspspName}
-            </h2>
-            <p className='mt-1 break-words text-sm text-muted-foreground'>
-              {formatCountry(connection.aspspCountry)} <span aria-hidden='true'>·</span>{' '}
-              {formatProvider(connection.provider)}
-            </p>
-          </div>
-        </div>
-        <div className='flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-2 sm:w-auto'>
-          <ConnectionStatus status={connection.status} />
-          {connection.lastSyncedAt && <FreshnessLabel value={connection.lastSyncedAt} />}
+        )}
+        <div className='flex w-full items-center justify-end gap-1.5 sm:w-auto sm:pl-4'>
           {isAuthorized && (
             <Button
               variant='secondary'
               size='sm'
-              onClick={syncBank}
+              onClick={(event) => {
+                event.stopPropagation();
+                void syncBank();
+              }}
               disabled={isSyncing}
               data-testid={`sync-bank-${connection.id}`}
-              className='max-sm:min-h-11 max-sm:gap-1 max-sm:px-2'
+              className='max-sm:min-h-11 max-sm:flex-1 max-sm:gap-1 max-sm:px-2'
             >
               <RefreshCw className={isSyncing ? 'animate-slow-spin' : undefined} />
               {isSyncing ? 'Syncing...' : 'Sync now'}
@@ -337,117 +421,148 @@ function BankConnectionCard({
               />
             ) : (
               <Button
-                variant='outline'
+                variant='ghost'
                 size='sm'
-                onClick={() => void removeBank()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void removeBank();
+                }}
                 disabled={isRemoving}
+                aria-label='Remove connection'
                 data-testid={`remove-bank-${connection.id}`}
-                className='max-sm:min-h-11 max-sm:gap-1 max-sm:px-2'
+                className='text-muted-foreground max-sm:min-h-11 max-sm:flex-1 max-sm:px-2'
               >
                 <Trash2 />
-                {isRemoving ? 'Removing...' : 'Remove'}
+                <span className='sr-only'>Remove connection</span>
               </Button>
             ))}
         </div>
       </CardHeader>
-      <CardContent className='space-y-6 px-5 py-5 sm:p-6'>
-        <div className='grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]'>
-          <section aria-labelledby={accountsHeadingId} className='min-w-0'>
-            <SectionHeading
-              headingId={accountsHeadingId}
-              title='Accounts'
-              count={connection.bankAccounts.length}
-              noun='account'
-            />
-            {connection.bankAccounts.length === 0 ? (
-              <div className='rounded-md border border-dashed px-4 py-5 text-sm text-muted-foreground'>
-                No bank accounts were returned.
-              </div>
-            ) : (
-              <div
-                className='divide-y rounded-md border'
-                data-testid={`bank-accounts-${connection.id}`}
-              >
-                {connection.bankAccounts.map((account) => (
-                  <BankAccountRow key={account.id} account={account} />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {isAuthorized && connection.lastSyncedAt && (
-            <section aria-labelledby={transactionsHeadingId} className='min-w-0'>
+      {isExpanded && (
+        <CardContent
+          id={disclosureContentId}
+          aria-labelledby={metadataHeadingId}
+          className='space-y-6 px-5 pb-5 pt-0 sm:px-6 sm:pb-6'
+        >
+          <div className='grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]'>
+            <section aria-labelledby={accountsHeadingId} className='min-w-0'>
               <SectionHeading
-                headingId={transactionsHeadingId}
-                title='Recent transactions'
-                compactTitle='Transactions'
-                count={total}
-                noun='transaction'
+                headingId={accountsHeadingId}
+                title='Accounts'
+                count={connection.bankAccounts.length}
+                noun='account'
               />
-              {areTransactionsPending ? (
-                <div role='status' aria-label='Loading recent transactions'>
-                  <Skeleton className='h-24 w-full rounded-md bg-card' />
-                </div>
-              ) : areTransactionsError ? (
-                <div
-                  role='alert'
-                  className='flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed px-3 py-3 text-sm'
-                >
-                  <div className='flex min-w-0 items-center gap-2 text-muted-foreground'>
-                    <AlertTriangle className='h-4 w-4 shrink-0' aria-hidden='true' />
-                    <span>Recent transactions are unavailable.</span>
-                  </div>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => void refetchTransactions()}
-                    className='max-sm:min-h-11'
-                  >
-                    Try again
-                  </Button>
-                </div>
-              ) : transactions.length > 0 ? (
-                <div
-                  className='divide-y rounded-md border'
-                  data-testid={`bank-transactions-${connection.id}`}
-                >
-                  {transactions.map((transaction) => (
-                    <BankTransactionRow
-                      key={transaction.id}
-                      transaction={transaction}
-                      onTransactionSelect={onTransactionSelect}
-                    />
-                  ))}
+              {connection.bankAccounts.length === 0 ? (
+                <div className='rounded-md border border-dashed px-4 py-5 text-sm text-muted-foreground'>
+                  No bank accounts were returned.
                 </div>
               ) : (
-                <div className='rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground'>
-                  No transactions were returned.
+                <div
+                  className='divide-y rounded-md border'
+                  data-testid={`bank-accounts-${connection.id}`}
+                >
+                  {connection.bankAccounts.map((account) => (
+                    <BankAccountRow key={account.id} account={account} />
+                  ))}
                 </div>
               )}
             </section>
-          )}
-        </div>
 
-        {(connection.consentValidUntil || connection.lastSyncedAt) && (
-          <dl className='grid gap-3 border-t pt-4 text-xs text-muted-foreground sm:grid-cols-2'>
-            {connection.consentValidUntil && (
-              <div className='min-w-0'>
-                <dt className='font-medium text-foreground'>Consent</dt>
-                <dd className='mt-1 break-words'>
-                  Valid until {formatDate(connection.consentValidUntil)}
-                </dd>
-              </div>
+            {isAuthorized && connection.lastSyncedAt && (
+              <section aria-labelledby={transactionsHeadingId} className='min-w-0'>
+                <SectionHeading
+                  headingId={transactionsHeadingId}
+                  title='Recent transactions'
+                  compactTitle='Transactions'
+                  count={total}
+                  noun='transaction'
+                />
+                {areTransactionsPending ? (
+                  <div role='status' aria-label='Loading recent transactions'>
+                    <Skeleton className='h-24 w-full rounded-md bg-card' />
+                  </div>
+                ) : areTransactionsError ? (
+                  <div
+                    role='alert'
+                    className='flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed px-3 py-3 text-sm'
+                  >
+                    <div className='flex min-w-0 items-center gap-2 text-muted-foreground'>
+                      <AlertTriangle className='h-4 w-4 shrink-0' aria-hidden='true' />
+                      <span>Recent transactions are unavailable.</span>
+                    </div>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => void refetchTransactions()}
+                      className='max-sm:min-h-11'
+                    >
+                      Try again
+                    </Button>
+                  </div>
+                ) : transactions.length > 0 ? (
+                  <div
+                    className='divide-y rounded-md border'
+                    data-testid={`bank-transactions-${connection.id}`}
+                  >
+                    {transactions.map((transaction) => (
+                      <BankTransactionRow
+                        key={transaction.id}
+                        transaction={transaction}
+                        onTransactionSelect={onTransactionSelect}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className='rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground'>
+                    No transactions were returned.
+                  </div>
+                )}
+              </section>
             )}
-            {connection.lastSyncedAt && (
-              <div className='min-w-0'>
-                <dt className='font-medium text-foreground'>Last synchronized</dt>
-                <dd className='mt-1 break-words'>{formatDate(connection.lastSyncedAt)}</dd>
+          </div>
+
+          {(connection.consentValidUntil || connection.lastSyncedAt) && (
+            <footer
+              aria-labelledby={metadataHeadingId}
+              className='border-t pt-3 text-xs text-muted-foreground'
+            >
+              <h3 id={metadataHeadingId} className='sr-only'>
+                Bank connection details
+              </h3>
+              <div className='flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1'>
+                {connection.lastSyncedAt && (
+                  <span className='min-w-0'>
+                    Last synchronized {formatDate(connection.lastSyncedAt)}
+                  </span>
+                )}
+                {connection.consentValidUntil && (
+                  <ConsentBadge value={connection.consentValidUntil} />
+                )}
               </div>
-            )}
-          </dl>
-        )}
-      </CardContent>
+            </footer>
+          )}
+        </CardContent>
+      )}
     </Card>
+  );
+}
+
+function ConsentBadge({value}: {value: string}) {
+  const isExpiringSoon = isExpiringWithinThirtyDays(value);
+
+  return (
+    <span
+      className={cn('inline-flex min-w-0 items-center gap-1.5', isExpiringSoon && 'text-warning')}
+      title={`Consent valid until ${formatDate(value)}`}
+    >
+      {isExpiringSoon && (
+        <span
+          aria-hidden='true'
+          className='inline-block h-2 w-2 shrink-0 rounded-full bg-warning'
+        />
+      )}
+      Consent valid until {formatDate(value)}
+    </span>
   );
 }
 
@@ -478,14 +593,15 @@ function DestructiveBankConnectionDialog({
     <ResponsiveDialog open={isOpen} onOpenChange={handleOpenChange}>
       <ResponsiveDialogTrigger asChild>
         <Button
-          variant='outline'
+          variant='ghost'
           size='sm'
           disabled={isPending}
+          aria-label='Remove connection'
           data-testid={`remove-bank-${connection.id}`}
-          className='max-sm:min-h-11 max-sm:gap-1 max-sm:px-2'
+          className='text-muted-foreground max-sm:min-h-11 max-sm:flex-1 max-sm:gap-1 max-sm:px-2'
         >
           <Trash2 />
-          {isPending ? 'Removing...' : 'Remove'}
+          <span className='sr-only'>Remove connection</span>
         </Button>
       </ResponsiveDialogTrigger>
       <ResponsiveDialogContent className='md:w-[30rem]'>
@@ -569,7 +685,7 @@ function ConnectionStatus({status}: {status: string}) {
       data-testid='bank-connection-status'
       aria-label={`Connection status: ${label}`}
       className={cn(
-        'inline-flex shrink-0 items-center gap-2 text-sm font-medium max-sm:text-xs',
+        'inline-flex shrink-0 items-center gap-1.5 font-medium max-sm:text-xs',
         textClassName,
       )}
     >
@@ -590,10 +706,7 @@ function FreshnessLabel({value}: {value: string}) {
   return (
     <span
       data-testid='bank-connection-freshness'
-      className={cn(
-        'min-w-0 truncate text-right text-xs max-sm:text-[0.6875rem]',
-        isStale ? 'text-warning' : 'text-muted-foreground',
-      )}
+      className={cn('min-w-0 truncate', isStale ? 'text-warning' : 'text-muted-foreground')}
       title={`Last synchronized ${formatDate(value)}`}
     >
       Updated {formatRelativeTime(value)}
@@ -683,23 +796,21 @@ function BankTransactionRow({
   );
 
   return (
-    <div className='grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 p-3 sm:p-4'>
-      <div className='min-w-0'>
-        <button
-          type='button'
-          aria-label={`View transaction details for ${description}`}
-          onClick={(event) => onTransactionSelect(transaction.id, event.currentTarget)}
-          className='block w-full truncate rounded-sm text-left text-sm font-medium text-primary hover:underline hover:underline-offset-2 focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-          title={description}
-        >
-          {description}
-        </button>
-        <p className='truncate text-xs text-muted-foreground'>{metadata}</p>
-      </div>
-      <div className='text-right'>
+    <button
+      type='button'
+      aria-label={`View transaction details for ${description}`}
+      onClick={(event) => onTransactionSelect(transaction.id, event.currentTarget)}
+      data-testid={`bank-transaction-row-${transaction.id}`}
+      className='grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 rounded-sm p-3 text-left transition-colors hover:bg-accent/70 focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring max-sm:min-h-11 sm:p-4'
+    >
+      <span className='block min-w-0'>
+        <span className='block truncate text-sm font-medium'>{description}</span>
+        <span className='block truncate text-xs text-muted-foreground'>{metadata}</span>
+      </span>
+      <span className='text-right'>
         <CurrencyAmount amount={Number(transaction.amount)} currency={transaction.currency} />
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }
 
@@ -722,10 +833,6 @@ function isDestructiveConnection(status: string) {
   return DESTRUCTIVE_CONNECTION_STATUSES.includes(
     status.toUpperCase() as (typeof DESTRUCTIVE_CONNECTION_STATUSES)[number],
   );
-}
-
-function formatProvider(value: string) {
-  return formatBankingWords(value);
 }
 
 function formatCountry(value: string) {
@@ -767,6 +874,14 @@ function formatDate(value: string) {
 function isOlderThan(value: string, milliseconds: number) {
   const timestamp = new Date(value).getTime();
   return !Number.isNaN(timestamp) && Date.now() - timestamp > milliseconds;
+}
+
+function isExpiringWithinThirtyDays(value: string) {
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return false;
+
+  const remaining = timestamp - Date.now();
+  return remaining > 0 && remaining < 30 * 24 * 60 * 60 * 1000;
 }
 
 function formatRelativeTime(value: string) {
