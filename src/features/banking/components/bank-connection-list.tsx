@@ -218,10 +218,10 @@ function AspspTile({name}: {name: string}) {
 
   return (
     <div
-      className='flex h-12 w-12 shrink-0 items-center justify-center rounded-card border bg-background text-base font-semibold text-primary'
+      className='flex h-14 w-14 shrink-0 items-center justify-center rounded-card border bg-background text-lg font-semibold text-primary'
       aria-hidden='true'
     >
-      {initials || <Building2 className='h-5 w-5' />}
+      {initials || <Building2 className='h-6 w-6' />}
     </div>
   );
 }
@@ -288,7 +288,7 @@ function BankConnectionCard({
     >
       <CardHeader
         className={cn(
-          'relative flex flex-col gap-3 px-5 py-4 sm:items-center sm:px-6',
+          'relative flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-0',
           hasBodyContent && 'sm:flex-row sm:gap-0',
         )}
       >
@@ -299,7 +299,7 @@ function BankConnectionCard({
             aria-expanded={isExpanded}
             aria-controls={disclosureContentId}
             data-testid={`bank-connection-toggle-${connection.id}`}
-            className='flex min-w-0 flex-1 items-center gap-3 self-start text-left focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:self-auto'
+            className='flex w-full min-w-0 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:self-auto'
           >
             <AspspTile name={connection.aspspName} />
             <span className='min-w-0 flex-1'>
@@ -309,14 +309,9 @@ function BankConnectionCard({
               >
                 {connection.aspspName}
               </h2>
-              <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground'>
+              <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
                 {headerMeta.map((item, index) => (
-                  <span key={index} className='inline-flex min-w-0 shrink-0 items-center gap-2'>
-                    {index > 0 && (
-                      <span className='max-md:hidden' aria-hidden='true'>
-                        ·
-                      </span>
-                    )}
+                  <span key={index} className='inline-flex min-w-0 shrink-0 items-center'>
                     {item}
                   </span>
                 ))}
@@ -337,14 +332,9 @@ function BankConnectionCard({
               <h2 id={connectionHeadingId} className='break-words text-lg font-semibold'>
                 {connection.aspspName}
               </h2>
-              <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground'>
+              <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
                 {headerMeta.map((item, index) => (
-                  <span key={index} className='inline-flex min-w-0 shrink-0 items-center gap-2'>
-                    {index > 0 && (
-                      <span className='max-md:hidden' aria-hidden='true'>
-                        ·
-                      </span>
-                    )}
+                  <span key={index} className='inline-flex min-w-0 shrink-0 items-center'>
                     {item}
                   </span>
                 ))}
@@ -465,7 +455,7 @@ function BankConnectionCard({
                 disabled={isRemoving}
                 aria-label='Remove connection'
                 data-testid={`remove-bank-${connection.id}`}
-                className='-mr-2 text-muted-foreground'
+                className='-mr-2 min-h-11 text-muted-foreground'
               >
                 <Trash2 />
                 <span className='sr-only'>Remove connection</span>
@@ -482,13 +472,18 @@ function ConsentBadge({value}: {value: string}) {
 
   return (
     <span
-      className='inline-flex min-w-0 items-center gap-2'
+      className={cn(
+        'inline-flex min-w-0 items-center gap-2 text-xs',
+        isExpiringSoon && 'text-warning',
+      )}
       title={`Consent valid until ${formatDate(value)}`}
     >
-      <span
-        aria-hidden='true'
-        className={cn('inline-block h-2 w-2 shrink-0 rounded-full', isExpiringSoon && 'bg-warning')}
-      />
+      {isExpiringSoon && (
+        <span
+          aria-hidden='true'
+          className='inline-block h-2 w-2 shrink-0 rounded-full bg-warning'
+        />
+      )}
       Consent valid until {formatDate(value)}
     </span>
   );
@@ -526,7 +521,7 @@ function DestructiveBankConnectionFooterButton({
           disabled={isPending}
           aria-label='Remove connection'
           data-testid={`remove-bank-${connection.id}`}
-          className='-mr-2 text-muted-foreground'
+          className='-mr-2 min-h-11 text-muted-foreground'
         >
           <Trash2 />
           <span className='sr-only'>Remove connection</span>

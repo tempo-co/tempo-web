@@ -70,6 +70,165 @@ test.describe('bank transactions', () => {
     expect(new URL(page.url()).searchParams.has('transactionId')).toBe(false);
   });
 
+  test('renders currency exchanges as internal activity rather than categories', async ({page}) => {
+    let exchangeTransaction: Record<string, unknown> | undefined;
+
+    await page.route('**/bank-transactions/currency-exchange-fixture', async (route) => {
+      if (!exchangeTransaction) {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(exchangeTransaction),
+      });
+    });
+
+    await page.route('**/bank-transactions?*', async (route) => {
+      if (!['fetch', 'xhr'].includes(route.request().resourceType())) {
+        await route.continue();
+        return;
+      }
+      const url = new URL(route.request().url());
+
+      if (url.searchParams.get('filter[financialEventTypes][]') === 'CURRENCY_EXCHANGE') {
+        const pageIndex = url.searchParams.get('pagination[pageIndex]');
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            transactions: pageIndex === '0' ? [exchangeTransaction] : [],
+            total: 1,
+          }),
+        });
+        return;
+      }
+
+      const response = await route.fetch();
+      const payload = (await response.json()) as {
+        transactions: Array<Record<string, unknown>>;
+        total: number;
+      };
+      const existingExchangeTransaction = payload.transactions.find(
+        (transaction) => transaction.financialEventType === 'CURRENCY_EXCHANGE',
+      );
+      exchangeTransaction = existingExchangeTransaction ?? {
+        ...payload.transactions[0],
+        id: 'currency-exchange-fixture',
+        description: 'Exchanged to GBP',
+        displayDescription: 'Exchanged to GBP',
+        amount: '-10.00000000',
+        currency: 'EUR',
+        creditDebitIndicator: 'DBIT',
+        direction: 'EXPENSE',
+        category: null,
+        categoryStatus: 'NOT_APPLICABLE',
+        categorySource: null,
+        financialEventType: 'CURRENCY_EXCHANGE',
+        financialEventSource: 'RULE',
+        financialEventRuleVersion: 'provider-currency-exchange-v1',
+        cashFlowTreatment: 'INTERNAL',
+        exchangeRate: null,
+        instructedAmount: null,
+        instructedCurrency: null,
+      };
+      const pageIndex = url.searchParams.get('pagination[pageIndex]');
+      const shouldInjectExchange = pageIndex === '0' || pageIndex === '1';
+      await route.fulfill({
+        response,
+        json: {
+          ...payload,
+          transactions:
+            existingExchangeTransaction || !shouldInjectExchange
+              ? payload.transactions
+              : [exchangeTransaction, ...payload.transactions],
+          total: existingExchangeTransaction ? payload.total : payload.total + 1,
+        },
+      });
+    });
+
+    await page.goto('/bank-transactions?pageIndex=1&pageSize=10');
+
+    const exchangeRow = page
+      .getByTestId(/^bank-transaction-row-/)
+      .filter({hasText: 'Currency exchange'});
+    await expect(exchangeRow).toHaveCount(1);
+    await expect(exchangeRow.getByRole('cell').nth(2)).toContainText('Currency exchange');
+    await expect(exchangeRow.getByRole('cell').nth(2)).toContainText('Category not applicable');
+    await expect(exchangeRow.getByRole('cell').nth(2)).toContainText('Internal movement');
+
+    await exchangeRow
+      .getByRole('button', {name: 'View Exchanged to GBP transaction details'})
+      .click();
+    const inspector = page.getByTestId('bank-transaction-inspector');
+    await expect(inspector).toBeVisible();
+    await expect(inspector.getByText('Currency exchange', {exact: true}).first()).toBeVisible();
+    await expect(inspector.getByText('Internal movement', {exact: true})).toBeVisible();
+    await expect(
+      inspector.getByText('Category not applicable', {exact: true}).first(),
+    ).toBeVisible();
+    await expect(inspector.getByRole('combobox', {name: 'Transaction category'})).toHaveCount(0);
+    await expect(inspector.getByText('Rate unavailable', {exact: true})).toBeVisible();
+    await inspector.getByRole('button', {name: 'Close transaction details'}).click();
+
+    await page.getByRole('button', {name: 'Activity'}).click();
+    const activityOption = page.getByRole('option', {name: 'Currency exchange', exact: true});
+    await expect(activityOption).toHaveAttribute('data-filter-selected', 'false');
+    await activityOption.click();
+    await expect(activityOption).toHaveAttribute('data-filter-selected', 'true');
+    await expect(page.getByTestId(/^bank-transaction-row-/)).toHaveCount(1);
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Currency exchange'}),
+    ).toHaveCount(1);
+    expect(new URL(page.url()).searchParams.get('pageIndex')).toBe('0');
+
+    await page.goto(
+      '/bank-transactions?pageIndex=1&pageSize=10&financialEventTypes=%5B%22CURRENCY_EXCHANGE%22%5D',
+    );
+    await page.getByRole('button', {name: 'Clear filters', exact: true}).first().click();
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Coffee shop'}),
+    ).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('pageIndex')).toBe('0');
+
+    await page.goto(
+      '/bank-transactions?pageIndex=1&pageSize=10&financialEventTypes=%5B%22CURRENCY_EXCHANGE%22%5D',
+    );
+    await page.getByRole('button', {name: /Activity/}).click();
+    await page.getByRole('option', {name: 'Reset', exact: true}).click();
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Coffee shop'}),
+    ).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('pageIndex')).toBe('0');
+
+    await page.goto('/bank-transactions?pageIndex=99&pageSize=50');
+    await expect(page).toHaveURL(/pageIndex=0/);
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Coffee shop'}),
+    ).toBeVisible();
+
+    await page.goto('/bank-transactions');
+    await page.getByRole('button', {name: 'Activity', exact: true}).click();
+    await page.getByRole('option', {name: 'Currency exchange', exact: true}).click();
+    await expect(page.getByTestId(/^bank-transaction-row-/)).toHaveCount(1);
+    await page.goBack();
+    await expect(page.getByRole('button', {name: 'Activity', exact: true})).toBeVisible();
+    await expect(
+      page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Coffee shop'}),
+    ).toBeVisible();
+
+    await page.setViewportSize({width: 393, height: 852});
+    await page.goto('/bank-transactions');
+    await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
+    const mobileFilters = page.getByTestId('bank-transaction-mobile-filters');
+    const activitySection = mobileFilters.getByRole('heading', {name: 'Activity'}).locator('..');
+    await activitySection.getByRole('option', {name: 'Currency exchange', exact: true}).click();
+    await expect(page.getByTestId('bank-transaction-mobile-meta')).toContainText(
+      'Currency exchange · Internal movement',
+    );
+  });
+
   test('classifies a transaction from the detail inspector', async ({page}) => {
     await page.goto('/bank-transactions');
     const firstTransactionRow = page
@@ -91,7 +250,7 @@ test.describe('bank transactions', () => {
     const categorySelect = inspector.getByRole('combobox', {name: 'Transaction category'});
     await expect(categorySelect).toBeVisible();
     await categorySelect.click();
-    await expect(page.getByRole('option')).toHaveCount(19);
+    await expect(page.getByRole('option')).toHaveCount(20);
     await expect(page.getByRole('option')).toHaveText([
       'Housing and utilities',
       'Food and drink',
@@ -111,9 +270,10 @@ test.describe('bank transactions', () => {
       'Refund',
       'Transfer in',
       'Transfer out',
+      'Needs review',
       'Other',
     ]);
-    await expect(page.getByRole('option').locator('svg')).toHaveCount(19);
+    await expect(page.getByRole('option').locator('svg')).toHaveCount(20);
     await expect(
       page.getByRole('option', {name: 'Food and drink', exact: true}).locator('svg').locator('..'),
     ).toHaveClass(/text-category-food-and-drink/);
@@ -512,6 +672,10 @@ test.describe('bank transactions', () => {
       const requestUrl = new URL(route.request().url());
       const categoryValues = requestUrl.searchParams.getAll('filter[categories][]');
       const categorySourceValues = requestUrl.searchParams.getAll('filter[categorySources][]');
+      if (categoryValues.length === 0 && categorySourceValues.length === 0) {
+        await route.continue();
+        return;
+      }
       requestUrl.searchParams.delete('filter[categories][]');
       requestUrl.searchParams.delete('filter[categorySources][]');
       const response = await route.fetch({url: requestUrl.toString()});
@@ -519,12 +683,23 @@ test.describe('bank transactions', () => {
         transactions: Array<Record<string, unknown>>;
         total: number;
       };
-      const categorizedTransactions = payload.transactions.map((transaction, index) => ({
-        ...transaction,
-        category: index === 0 ? 'FOOD_AND_DRINK' : index === 1 ? 'SHOPPING' : null,
-        categoryStatus: index < 2 ? 'COMPLETED' : 'PENDING',
-        categorySource: index === 0 ? 'MANUAL' : index === 1 ? 'AI' : null,
-      }));
+      const categorizedTransactions = [
+        ...payload.transactions.map((transaction, index) => ({
+          ...transaction,
+          category: index === 0 ? 'FOOD_AND_DRINK' : index === 1 ? 'SHOPPING' : 'NEEDS_REVIEW',
+          categoryStatus: 'COMPLETED',
+          categorySource: index === 0 ? 'MANUAL' : 'AI',
+        })),
+        {
+          ...payload.transactions[payload.transactions.length - 1],
+          id: '00000000-0000-4000-8000-000000000099',
+          description: 'Uncategorized purchase',
+          displayDescription: 'Uncategorized purchase',
+          category: null,
+          categoryStatus: 'PENDING',
+          categorySource: null,
+        },
+      ];
       const transactions =
         categoryValues.length > 0
           ? categorizedTransactions.filter((transaction) =>
@@ -554,7 +729,7 @@ test.describe('bank transactions', () => {
     const categoryFilter = page.getByRole('button', {name: 'Categories', exact: true});
     await expect(categoryFilter).toBeVisible();
     await categoryFilter.click();
-    await expect(page.getByRole('option')).toHaveCount(20);
+    await expect(page.getByRole('option')).toHaveCount(21);
     await page.getByRole('option', {name: 'Food and drink', exact: true}).click();
 
     const singleCategoryParam = new URL(page.url()).searchParams.get('categories');
@@ -575,17 +750,32 @@ test.describe('bank transactions', () => {
       page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Salary'}),
     ).toBeVisible();
 
+    await page.getByRole('option', {name: 'Needs review', exact: true}).click();
+    const categoryWithNeedsReviewParam = new URL(page.url()).searchParams.get('categories');
+    expect(categoryWithNeedsReviewParam).not.toBeNull();
+    expect(JSON.parse(categoryWithNeedsReviewParam!)).toEqual([
+      'FOOD_AND_DRINK',
+      'SHOPPING',
+      'NEEDS_REVIEW',
+    ]);
+    const reviewRow = page
+      .getByTestId(/^bank-transaction-row-/)
+      .filter({hasText: 'Provider purchase'});
+    await expect(reviewRow).toContainText('Needs review');
+
     await page.getByRole('option', {name: 'Not categorized', exact: true}).click();
     const categoryWithUncategorizedParam = new URL(page.url()).searchParams.get('categories');
     expect(categoryWithUncategorizedParam).not.toBeNull();
     expect(JSON.parse(categoryWithUncategorizedParam!)).toEqual([
       'FOOD_AND_DRINK',
       'SHOPPING',
+      'NEEDS_REVIEW',
       'UNCATEGORIZED',
     ]);
     await expect(
       page.getByTestId(/^bank-transaction-row-/).filter({hasText: 'Salary'}),
     ).toBeVisible();
+    await expect(page.getByText('Uncategorized purchase', {exact: true})).toBeVisible();
 
     const categorySourceFilter = page.getByRole('button', {
       name: 'Category source',
@@ -606,6 +796,7 @@ test.describe('bank transactions', () => {
     expect(clearedUrl.searchParams.has('categories')).toBe(false);
     expect(clearedUrl.searchParams.has('categorySources')).toBe(false);
     await expect(page.getByText('Salary', {exact: true})).toBeVisible();
+    await page.unrouteAll({behavior: 'ignoreErrors'});
   });
 
   test('filters from the responsive mobile drawer and clears all values', async ({page}) => {
@@ -624,6 +815,11 @@ test.describe('bank transactions', () => {
     await categoriesSection.getByRole('option', {name: 'Not categorized', exact: true}).click();
     expect(JSON.parse(new URL(page.url()).searchParams.get('categories')!)).toEqual([
       'UNCATEGORIZED',
+    ]);
+    await categoriesSection.getByRole('option', {name: 'Needs review', exact: true}).click();
+    expect(JSON.parse(new URL(page.url()).searchParams.get('categories')!)).toEqual([
+      'UNCATEGORIZED',
+      'NEEDS_REVIEW',
     ]);
     await categorySourceSection.getByRole('option', {name: 'Manual', exact: true}).click();
     expect(JSON.parse(new URL(page.url()).searchParams.get('categorySources')!)).toEqual([
@@ -676,6 +872,7 @@ test.describe('bank transactions', () => {
     await expect(mobileFilters.getByRole('heading', {name: 'Booking date'})).toBeVisible();
     await expect(mobileFilters.getByRole('heading', {name: 'Categories'})).toBeVisible();
     await expect(mobileFilters.getByRole('heading', {name: 'Category source'})).toBeVisible();
+    await expect(mobileFilters.getByRole('heading', {name: 'Activity'})).toBeVisible();
     const mobileFiltersBody = page.getByTestId('bank-transaction-mobile-filters-body');
     await expect.poll(() => mobileFiltersBody.evaluate((element) => element.scrollTop)).toBe(0);
     await expect(mobileFiltersBody).toHaveCSS('padding-top', '16px');
@@ -884,13 +1081,57 @@ test.describe('bank transactions', () => {
       0,
     );
 
+    let sort: string | null;
+    const readSortedTransactions = async (order: 'ASC' | 'DESC') => {
+      const matchesAmountSort = (rawUrl: string) => {
+        const url = new URL(rawUrl);
+        return (
+          url.pathname.endsWith('/bank-transactions') &&
+          url.searchParams.get('sort[by]') === 'amount' &&
+          url.searchParams.get('sort[order]') === order
+        );
+      };
+      const requestPromise = page.waitForRequest((request) => matchesAmountSort(request.url()));
+      const responsePromise = page.waitForResponse((response) => matchesAmountSort(response.url()));
+      await amountHeaderButton.click();
+      const [request, response] = await Promise.all([requestPromise, responsePromise]);
+      expect(new URL(request.url()).searchParams.get('sort[by]')).toBe('amount');
+      expect(new URL(request.url()).searchParams.get('sort[order]')).toBe(order);
+      expect(response.ok()).toBe(true);
+      const responseUrl = new URL(response.url());
+      expect(responseUrl.searchParams.get('sort[by]')).toBe('amount');
+      expect(responseUrl.searchParams.get('sort[order]')).toBe(order);
+      const payload = (await response.json()) as {
+        transactions: Array<{id: string; description: string; amount: string; currency: string}>;
+        total: number;
+      };
+      await expect(table.locator('tbody tr').first()).toHaveAttribute(
+        'data-testid',
+        `bank-transaction-row-${payload.transactions[0].id}`,
+      );
+      return payload;
+    };
+
+    const descendingPayload = await readSortedTransactions('DESC');
+    sort = new URL(page.url()).searchParams.get('sort');
+    expect(sort).toBe(JSON.stringify({by: 'amount', order: 'DESC'}));
+
+    const ascendingPayload = await readSortedTransactions('ASC');
+    sort = new URL(page.url()).searchParams.get('sort');
+    expect(sort).toBe(JSON.stringify({by: 'amount', order: 'ASC'}));
+
+    expect(descendingPayload.transactions[0].id).not.toBe(ascendingPayload.transactions[0].id);
+
+    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
+    await expect(table.locator('tbody tr').first()).toBeVisible();
+
     const bookingDateButton = table
       .getByRole('columnheader', {name: 'Booking date'})
       .getByRole('button', {
         name: 'Booking date',
       });
     await bookingDateButton.click();
-    let sort = new URL(page.url()).searchParams.get('sort');
+    sort = new URL(page.url()).searchParams.get('sort');
     expect(sort).toBe(JSON.stringify({by: 'bookingDate', order: 'ASC'}));
     await bookingDateButton.click();
     sort = new URL(page.url()).searchParams.get('sort');
@@ -905,6 +1146,72 @@ test.describe('bank transactions', () => {
       expect(column.x).toBeCloseTo(firstPageColumns[index].x, 0);
       expect(column.width).toBeCloseTo(firstPageColumns[index].width, 0);
     });
+  });
+
+  test('preserves original values for mixed-currency amount results', async ({page}) => {
+    await page.route('**/bank-transactions?*', async (route) => {
+      if (!['fetch', 'xhr'].includes(route.request().resourceType())) {
+        await route.continue();
+        return;
+      }
+
+      const url = new URL(route.request().url());
+      const sortBy = url.searchParams.get('sort[by]');
+      const sortOrder = url.searchParams.get('sort[order]') as 'ASC' | 'DESC' | null;
+      if (sortBy !== 'amount' || !sortOrder) {
+        await route.continue();
+        return;
+      }
+
+      const response = await route.fetch();
+      const payload = (await response.json()) as {
+        transactions: Array<Record<string, unknown>>;
+        total: number;
+      };
+      const template = payload.transactions[0];
+      const ronTransaction = {
+        ...template,
+        id: '00000000-0000-4000-8000-000000000201',
+        description: 'Synthetic RON purchase',
+        displayDescription: 'Synthetic RON purchase',
+        amount: '100.00000000',
+        currency: 'RON',
+      };
+      const eurTransaction = {
+        ...template,
+        id: '00000000-0000-4000-8000-000000000202',
+        description: 'Synthetic EUR purchase',
+        displayDescription: 'Synthetic EUR purchase',
+        amount: '30.00000000',
+        currency: 'EUR',
+      };
+      await route.fulfill({
+        response,
+        json: {
+          ...payload,
+          transactions:
+            sortOrder === 'DESC'
+              ? [eurTransaction, ronTransaction]
+              : [ronTransaction, eurTransaction],
+          total: 2,
+        },
+      });
+    });
+
+    await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
+    const table = page.getByTestId('bank-transactions-table');
+    const amountHeaderButton = table
+      .getByRole('columnheader', {name: 'Amount'})
+      .getByRole('button', {name: 'Amount'});
+    await amountHeaderButton.click();
+
+    const rows = table.getByTestId(/^bank-transaction-row-/);
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('Synthetic EUR purchase');
+    await expect(rows.nth(0).locator('td').nth(4)).toHaveText('€30.00');
+    await expect(rows.nth(1)).toContainText('Synthetic RON purchase');
+    await expect(rows.nth(1).locator('td').nth(4)).toContainText('RON');
+    await expect(rows.nth(1).locator('td').nth(4)).toContainText('100.00');
   });
 
   test('sorts the category and source columns', async ({page}) => {

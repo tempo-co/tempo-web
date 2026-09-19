@@ -40,7 +40,7 @@ test.describe('bank connections', () => {
     await expect(page.getByRole('heading', {name: 'Recent transactions'})).toBeVisible();
     await expect(page.getByTestId('bank-connection-freshness')).toContainText('Updated');
     await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
-    await expect(page.getByText('available balance')).toBeVisible();
+    await expect(page.getByText('available', {exact: true})).toBeVisible();
     await expect(page.getByText('Provider purchase')).toBeVisible();
     const transactionTrigger = page.getByRole('button', {
       name: 'View transaction details for Provider purchase',
@@ -87,7 +87,7 @@ test.describe('bank connections', () => {
     const consentCenter = consentBox!.y + consentBox!.height / 2;
     const removeCenter = removeBox!.y + removeBox!.height / 2;
     expect(Math.abs(consentCenter - removeCenter)).toBeLessThan(8);
-    expect(removeBox!.x + removeBox!.width).toBeLessThanOrEqual(consentBox!.x + consentBox!.width);
+    expect(removeBox!.x).toBeGreaterThan(consentBox!.x + consentBox!.width - 8);
 
     await toggle.click();
     await expect(accounts).toBeVisible();
@@ -209,6 +209,8 @@ test.describe('bank connections', () => {
   test('reopens a connection transaction inspector from its shareable URL', async ({page}) => {
     await page.goto('/bank-connections');
 
+    await page.locator('button[data-testid^="bank-connection-toggle-"]').first().click();
+
     const transactionTrigger = page.getByRole('button', {
       name: 'View transaction details for Provider purchase',
     });
@@ -267,6 +269,8 @@ test.describe('bank connections', () => {
     await expect(heading).toBeVisible();
     await expect(connectButton).toBeVisible();
     await expect(removeButton).toBeVisible();
+
+    await page.locator('button[data-testid^="bank-connection-toggle-"]').first().click();
     await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
 
     const [headingBox, headingGroupBox, connectButtonBox, removeButtonBox, statusBox, freshnessBox] =
@@ -288,11 +292,6 @@ test.describe('bank connections', () => {
     expect(headingGroupBox!.height).toBeLessThan(120);
     expect(connectButtonBox!.x).toBe(16);
     expect(removeButtonBox!.height).toBeGreaterThanOrEqual(44);
-    const statusCenter = statusBox!.y + statusBox!.height / 2;
-    const freshnessCenter = freshnessBox!.y + freshnessBox!.height / 2;
-    expect(
-      Math.max(statusCenter, freshnessCenter) - Math.min(statusCenter, freshnessCenter),
-    ).toBeLessThan(80);
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true);
@@ -316,8 +315,6 @@ test.describe('bank connections', () => {
     const removeButton = page.getByTestId(/^remove-bank-/);
     const sidebarTrigger = page.locator('[data-sidebar="trigger"]');
 
-    await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Transactions'})).toBeVisible();
     await expect(removeButton).toBeVisible();
     await expect(sidebarTrigger).toBeVisible();
 

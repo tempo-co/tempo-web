@@ -1,8 +1,17 @@
-import type {BankTransactionCategorizationFields} from './bank-transaction';
+import type {
+  BankTransactionCategorizationFields,
+  BankTransactionFinancialEventFields,
+} from './bank-transaction';
 
 export type BankConnectionAuthorizationRequest = {
   aspspName: string;
   aspspCountry: string;
+};
+
+export type BankConnectionAspsp = {
+  name: string;
+  country: string;
+  logoUrl?: string;
 };
 
 export type BankConnectionAuthorizationResponse = {
@@ -44,41 +53,30 @@ export type BankConnection = {
   status: string;
   consentValidUntil: string | null;
   lastSyncedAt: string | null;
+  lastSyncError: string | null;
+  nextSyncAt: string | null;
+  syncStatus:
+    'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'PARTIAL' | 'FAILED' | 'RATE_LIMITED' | 'EXPIRED';
   bankAccounts: BankAccount[];
 };
 
-export type BankTransaction = BankTransactionCategorizationFields & {
-  id: string;
-  bookingDate: string | null;
-  valueDate: string | null;
-  amount: string;
-  currency: string;
-  creditDebitIndicator: string | null;
-  transactionStatus: string | null;
-  description: string | null;
-  displayDescription?: string | null;
-  counterpartyName: string | null;
-  merchantCategoryCode: string | null;
-  remittanceInformation: string | null;
-};
+export type BankTransaction = BankTransactionCategorizationFields &
+  BankTransactionFinancialEventFields & {
+    id: string;
+    bookingDate: string | null;
+    valueDate: string | null;
+    amount: string;
+    currency: string;
+    creditDebitIndicator: string | null;
+    transactionStatus: string | null;
+    description: string | null;
+    displayDescription?: string | null;
+    counterpartyName: string | null;
+    merchantCategoryCode: string | null;
+    remittanceInformation: string | null;
+  };
 
 export type BankTransactionsResponse = {
   transactions: BankTransaction[];
   total: number;
-};
-
-export type BankSyncRun = {
-  id: string;
-  status: string;
-  startedAt: string;
-  finishedAt: string | null;
-  requestedFrom: string | null;
-  requestedTo: string | null;
-  accountsFetched: number;
-  balancesFetched: number;
-  transactionsFetched: number;
-  transactionsAdded?: number;
-  errorMessage: string | null;
-  rateLimitSource: 'enable-banking' | null;
-  retryAfterSeconds: number | null;
 };
