@@ -11,29 +11,36 @@ test.describe('bank connections', () => {
   test('shows seeded connection data and callback success feedback', async ({page}) => {
     await page.goto('/bank-connections?result=connected');
 
+    const card = page.locator('[data-testid^="bank-connection-"][data-testid$="-card"]').first();
+    const toggle = card.getByTestId(/bank-connection-toggle-/);
+
     await expect(page.getByRole('heading', {name: 'Bank connections'})).toBeVisible();
     await expect(page.getByRole('heading', {name: 'ABN AMRO'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Recent transactions'})).toBeVisible();
-    await expect(page.getByText('Connected', {exact: true})).toBeVisible();
-    await expect(page.getByTestId('bank-connection-freshness')).toContainText('Updated');
-    const status = page.getByTestId('bank-connection-status');
-    const freshness = page.getByTestId('bank-connection-freshness');
-    const removeButton = page.getByTestId(/^remove-bank-/);
-    const [statusBox, freshnessBox, removeButtonBox] = await Promise.all([
+    await expect(card.getByText('Connected', {exact: true})).toBeVisible();
+    await expect(card.getByTestId('bank-connection-freshness')).toContainText('Updated');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    const status = card.getByTestId('bank-connection-status');
+    const freshness = card.getByTestId('bank-connection-freshness');
+    const toggleBox = toggle.boundingBox();
+    const [statusBox, freshnessBox, toggleBoundingBox] = await Promise.all([
       status.boundingBox(),
       freshness.boundingBox(),
-      removeButton.boundingBox(),
+      toggleBox,
     ]);
     expect(statusBox).not.toBeNull();
     expect(freshnessBox).not.toBeNull();
-    expect(removeButtonBox).not.toBeNull();
-    const verticalCenters = [statusBox!, freshnessBox!, removeButtonBox!].map(
-      (box) => box.y + box.height / 2,
-    );
+    expect(toggleBoundingBox).not.toBeNull();
+    const verticalCenters = [statusBox!, freshnessBox!].map((box) => box.y + box.height / 2);
     expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(14);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('heading', {name: 'Accounts'})).toBeVisible();
+    await expect(page.getByRole('heading', {name: 'Recent transactions'})).toBeVisible();
+    await expect(page.getByTestId('bank-connection-freshness')).toContainText('Updated');
     await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
-    await expect(page.getByText('available · primary')).toBeVisible();
+    await expect(page.getByText('available balance')).toBeVisible();
     await expect(page.getByText('Provider purchase')).toBeVisible();
     const transactionTrigger = page.getByRole('button', {
       name: 'View transaction details for Provider purchase',
@@ -54,14 +61,35 @@ test.describe('bank connections', () => {
     await expect(page).toHaveURL(/\/bank-connections$/);
   });
 
-  test('collapses and re-expands a connection card', async ({page}) => {
+  test('collapses and re-expands a connection card with footer actions', async ({page}) => {
     await page.goto('/bank-connections');
 
     const card = page.locator('[data-testid^="bank-connection-"][data-testid$="-card"]').first();
     const toggle = card.getByTestId(/bank-connection-toggle-/);
     const accounts = card.getByTestId(/bank-accounts-/);
     const transactions = card.getByTestId(/bank-transactions-/);
+    const removeButton = card.getByTestId(/^remove-bank-/);
+    const consentText = card.getByText(/Consent valid until/);
 
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(accounts).toBeHidden();
+    await expect(transactions).toBeHidden();
+    await expect(removeButton).toBeVisible();
+    await expect(consentText).toBeVisible();
+
+    // Footer row: consent text and remove button share one aligned row.
+    const [consentBox, removeBox] = await Promise.all([
+      consentText.boundingBox(),
+      removeButton.boundingBox(),
+    ]);
+    expect(consentBox).not.toBeNull();
+    expect(removeBox).not.toBeNull();
+    const consentCenter = consentBox!.y + consentBox!.height / 2;
+    const removeCenter = removeBox!.y + removeBox!.height / 2;
+    expect(Math.abs(consentCenter - removeCenter)).toBeLessThan(8);
+    expect(removeBox!.x + removeBox!.width).toBeLessThanOrEqual(consentBox!.x + consentBox!.width);
+
+    await toggle.click();
     await expect(accounts).toBeVisible();
     await expect(transactions).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -70,11 +98,6 @@ test.describe('bank connections', () => {
     await expect(accounts).toBeHidden();
     await expect(transactions).toBeHidden();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-    await toggle.click();
-    await expect(accounts).toBeVisible();
-    await expect(transactions).toBeVisible();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   });
 
   test('removes an incomplete bank connection', async ({page}) => {

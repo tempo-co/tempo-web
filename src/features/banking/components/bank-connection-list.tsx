@@ -236,9 +236,9 @@ function BankConnectionCard({
   const isAuthorized = connection.status === 'AUTHORIZED';
   const isRemovable = isRemovableConnection(connection.status);
   const isDestructive = isDestructiveConnection(connection.status);
-  // Cards with nothing to collapse into (no accounts/expanding a pending connection) render
-  // expanded without a toggle; the disclosure is only worth having when there is content.
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Collapsed by default: the header already carries state, so the body is opt-in.
+  // Cards without a collapsible body render expanded without a toggle.
+  const [isExpanded, setIsExpanded] = useState(false);
   const connectionHeadingId = `bank-connection-${connection.id}-heading`;
   const accountsHeadingId = `bank-connection-${connection.id}-accounts`;
   const transactionsHeadingId = `bank-connection-${connection.id}-transactions`;
@@ -352,32 +352,6 @@ function BankConnectionCard({
             </div>
           </div>
         )}
-        <div className='flex w-full items-center justify-end gap-1.5 sm:w-auto sm:pl-4'>
-          {isRemovable &&
-            (isDestructive ? (
-              <DestructiveBankConnectionDialog
-                connection={connection}
-                isPending={isRemoving}
-                onConfirm={removeBank}
-              />
-            ) : (
-              <Button
-                variant='ghost'
-                size='sm'
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void removeBank();
-                }}
-                disabled={isRemoving}
-                aria-label='Remove connection'
-                data-testid={`remove-bank-${connection.id}`}
-                className='text-muted-foreground max-sm:min-h-11 max-sm:flex-1 max-sm:px-2'
-              >
-                <Trash2 />
-                <span className='sr-only'>Remove connection</span>
-              </Button>
-            ))}
-        </div>
       </CardHeader>
       {isExpanded && (
         <CardContent
@@ -463,28 +437,41 @@ function BankConnectionCard({
               </section>
             )}
           </div>
-
-          {(connection.consentValidUntil || connection.lastSyncedAt) && (
-            <footer
-              aria-labelledby={metadataHeadingId}
-              className='border-t pt-3 text-xs text-muted-foreground'
-            >
-              <h3 id={metadataHeadingId} className='sr-only'>
-                Bank connection details
-              </h3>
-              <div className='flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1'>
-                {connection.lastSyncedAt && (
-                  <span className='min-w-0'>
-                    Last synchronized {formatDate(connection.lastSyncedAt)}
-                  </span>
-                )}
-                {connection.consentValidUntil && (
-                  <ConsentBadge value={connection.consentValidUntil} />
-                )}
-              </div>
-            </footer>
-          )}
         </CardContent>
+      )}
+      {(connection.consentValidUntil || isRemovable) && (
+        <footer
+          aria-labelledby={connection.consentValidUntil ? metadataHeadingId : undefined}
+          className='flex min-w-0 items-center justify-between gap-2 border-t px-5 pb-4 pt-3 text-xs text-muted-foreground sm:px-6'
+        >
+          {connection.consentValidUntil && (
+            <h3 id={metadataHeadingId} className='sr-only'>
+              Bank connection details
+            </h3>
+          )}
+          {connection.consentValidUntil && <ConsentBadge value={connection.consentValidUntil} />}
+          {isRemovable &&
+            (isDestructive ? (
+              <DestructiveBankConnectionFooterButton
+                connection={connection}
+                isPending={isRemoving}
+                onConfirm={removeBank}
+              />
+            ) : (
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => void removeBank()}
+                disabled={isRemoving}
+                aria-label='Remove connection'
+                data-testid={`remove-bank-${connection.id}`}
+                className='-mr-2 text-muted-foreground'
+              >
+                <Trash2 />
+                <span className='sr-only'>Remove connection</span>
+              </Button>
+            ))}
+        </footer>
       )}
     </Card>
   );
@@ -495,24 +482,19 @@ function ConsentBadge({value}: {value: string}) {
 
   return (
     <span
-      className={cn('inline-flex min-w-0 items-center gap-1.5', isExpiringSoon && 'text-warning')}
+      className='inline-flex min-w-0 items-center gap-2'
       title={`Consent valid until ${formatDate(value)}`}
     >
-      {isExpiringSoon && (
-        <span
-          aria-hidden='true'
-          className='inline-block h-2 w-2 shrink-0 rounded-full bg-warning'
-        />
-      )}
-      <span className='inline-flex min-w-0 shrink-0 items-center gap-2'>
-        <span aria-hidden='true'>·</span>
-        Consent valid until {formatDate(value)}
-      </span>
+      <span
+        aria-hidden='true'
+        className={cn('inline-block h-2 w-2 shrink-0 rounded-full', isExpiringSoon && 'bg-warning')}
+      />
+      Consent valid until {formatDate(value)}
     </span>
   );
 }
 
-function DestructiveBankConnectionDialog({
+function DestructiveBankConnectionFooterButton({
   connection,
   isPending,
   onConfirm,
@@ -544,7 +526,7 @@ function DestructiveBankConnectionDialog({
           disabled={isPending}
           aria-label='Remove connection'
           data-testid={`remove-bank-${connection.id}`}
-          className='text-muted-foreground max-sm:min-h-11 max-sm:flex-1 max-sm:gap-1 max-sm:px-2'
+          className='-mr-2 text-muted-foreground'
         >
           <Trash2 />
           <span className='sr-only'>Remove connection</span>
@@ -710,21 +692,27 @@ function BankAccountRow({account}: {account: BankConnection['bankAccounts'][numb
           {account.currency}
         </Badge>
       </div>
-      {(account.latestBalances ?? []).length > 0 && (
-        <dl className='mt-4 grid min-w-0 grid-cols-2 gap-x-4 gap-y-3'>
-          {(account.latestBalances ?? []).map((balance) => (
-            <div key={`${account.id}-${balance.balanceType}`} className='min-w-0'>
+      {(() => {
+        const balances = account.latestBalances ?? [];
+        const primaryBalance = balances.find((balance) => balance.isPrimary) ?? balances[0];
+        if (!primaryBalance) return null;
+
+        return (
+          <dl className='mt-4 grid min-w-0 grid-cols-2 gap-x-4 gap-y-3'>
+            <div className='min-w-0'>
               <dt className='text-xs uppercase text-muted-foreground'>
-                {formatBalanceType(balance.balanceType)}
-                {balance.isPrimary ? ' · primary' : ''}
+                {formatBalanceType(primaryBalance.balanceType)}
               </dt>
               <dd className='mt-1 text-sm'>
-                <CurrencyAmount amount={Number(balance.amount)} currency={balance.currency} />
+                <CurrencyAmount
+                  amount={Number(primaryBalance.amount)}
+                  currency={primaryBalance.currency}
+                />
               </dd>
             </div>
-          ))}
-        </dl>
-      )}
+          </dl>
+        );
+      })()}
     </div>
   );
 }
