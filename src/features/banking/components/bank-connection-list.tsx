@@ -522,20 +522,14 @@ function AutomaticSyncStatus({connection}: {connection: BankConnection}) {
     connection.lastSyncedAt,
     isStale,
   );
-  const isProblem =
-    isStale ||
-    status === 'FAILED' ||
-    status === 'PARTIAL' ||
-    status === 'RATE_LIMITED' ||
-    status === 'EXPIRED';
 
   return (
     <div
       data-testid='bank-connection-sync-status'
-      role={isProblem ? 'alert' : undefined}
+      role={details.isProblem ? 'alert' : undefined}
       className={cn(
         'rounded-md border px-3 py-3 text-sm',
-        isProblem ? 'border-warning/40 bg-warning/5' : 'bg-muted/20',
+        details.isProblem ? 'border-warning/40 bg-warning/5' : 'bg-muted/20',
       )}
     >
       <p className='font-medium'>{details.title}</p>
@@ -572,6 +566,7 @@ function getAutomaticSyncDetails(
     return {
       title: 'Automatic sync is overdue',
       description: 'Saved bank data may be stale while the next background refresh is queued.',
+      isProblem: true,
     };
   }
 
@@ -580,31 +575,37 @@ function getAutomaticSyncDetails(
       return {
         title: 'Automatic sync is rate-limited',
         description: 'The bank is temporarily limiting background access.',
+        isProblem: true,
       };
     case 'EXPIRED':
       return {
         title: 'Re-authorization required',
         description: 'Consent expired. Re-authorize this bank connection to resume automatic sync.',
+        isProblem: true,
       };
     case 'RUNNING':
       return {
         title: 'Automatic sync is in progress',
         description: 'Bank data is being refreshed in the background.',
+        isProblem: false,
       };
     case 'QUEUED':
       return {
         title: 'Automatic sync is queued',
         description: 'The next bank refresh will run in the background.',
+        isProblem: false,
       };
     case 'FAILED':
       return {
         title: 'Automatic sync needs attention',
         description: error || 'The next automatic attempt will retry in the background.',
+        isProblem: true,
       };
     case 'PARTIAL':
       return {
         title: 'Automatic sync is partial',
         description: error || 'Some bank data could not be refreshed.',
+        isProblem: true,
       };
     case 'SUCCEEDED':
       return {
@@ -612,11 +613,13 @@ function getAutomaticSyncDetails(
         description: lastSyncedAt
           ? 'Bank data is refreshed automatically.'
           : 'The first bank refresh is running in the background.',
+        isProblem: false,
       };
     default:
       return {
         title: 'Automatic sync is pending',
         description: 'The first bank refresh will run in the background.',
+        isProblem: false,
       };
   }
 }
