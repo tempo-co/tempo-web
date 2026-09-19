@@ -8,6 +8,7 @@ import {AppBodyLayout} from '@/components/shared/layout/app-body';
 import {AppHeaderLayout} from '@/components/shared/layout/app-header-layout';
 import {LoadingBar} from '@/components/shared/loading-bar';
 import {useGetAllBankConnections} from '@/features/banking/api/use-get-all-bank-connections';
+import {BankConnectionBreadcrumb} from '@/features/banking/components/bank-connection-breadcrumb';
 import {BankConnectionList} from '@/features/banking/components/bank-connection-list';
 import {BankTransactionDetailsDialog} from '@/features/banking/components/bank-transaction-details-dialog';
 import {useBankTransactionInspector} from '@/hooks/use-bank-transaction-inspector';
@@ -60,7 +61,7 @@ function BankConnectionsIndex() {
     <>
       <LoadingBar isPending={isPending} />
       <AppHeaderLayout>
-        <span className='text-sm font-medium'>Bank connections</span>
+        <BankConnectionBreadcrumb />
       </AppHeaderLayout>
       <AppBodyLayout className='max-md:my-6'>
         <BankConnectionList

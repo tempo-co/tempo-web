@@ -270,28 +270,29 @@ test.describe('bank connections', () => {
     await expect(connectButton).toBeVisible();
     await expect(removeButton).toBeVisible();
 
+    const removeButtonCollapsibleBox = await removeButton.boundingBox();
+    expect(removeButtonCollapsibleBox).not.toBeNull();
+    expect(removeButtonCollapsibleBox!.height).toBeGreaterThanOrEqual(44);
+
     await page.locator('button[data-testid^="bank-connection-toggle-"]').first().click();
     await expect(page.getByText('Daily spending', {exact: true})).toBeVisible();
 
-    const [headingBox, headingGroupBox, connectButtonBox, removeButtonBox, statusBox, freshnessBox] =
+    const [headingBox, headingGroupBox, connectButtonBox, statusBox, freshnessBox] =
       await Promise.all([
         heading.boundingBox(),
         headingGroup.boundingBox(),
         connectButton.boundingBox(),
-        removeButton.boundingBox(),
         status.boundingBox(),
         freshness.boundingBox(),
       ]);
     expect(headingBox).not.toBeNull();
     expect(headingGroupBox).not.toBeNull();
     expect(connectButtonBox).not.toBeNull();
-    expect(removeButtonBox).not.toBeNull();
-    expect(statusBox).not.toBeNull();
-    expect(freshnessBox).not.toBeNull();
     expect(headingBox!.height).toBe(32);
     expect(headingGroupBox!.height).toBeLessThan(120);
     expect(connectButtonBox!.x).toBe(16);
-    expect(removeButtonBox!.height).toBeGreaterThanOrEqual(44);
+    expect(statusBox).not.toBeNull();
+    expect(freshnessBox).not.toBeNull();
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true);

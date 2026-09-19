@@ -54,6 +54,10 @@ const MOCK_ASPSP = {
 
 const targetBank = import.meta.env.MODE === 'development' ? MOCK_ASPSP : ABN_AMRO;
 
+function formatConnectionCount(count: number) {
+  return `${count} ${count === 1 ? 'connection' : 'connections'}`;
+}
+
 const DESTRUCTIVE_CONNECTION_STATUSES = ['AUTHORIZED', 'EXPIRED'] as const;
 const REMOVABLE_CONNECTION_STATUSES = [
   'PENDING_AUTHORIZATION',
@@ -96,11 +100,13 @@ function ConnectBankButton({
 function ConnectionPageFrame({
   children,
   connectBank,
+  connectionCount,
   isStarting,
   showConnect = true,
 }: {
   children: React.ReactNode;
   connectBank: () => void;
+  connectionCount: number;
   isStarting: boolean;
   showConnect?: boolean;
 }) {
@@ -113,7 +119,7 @@ function ConnectionPageFrame({
         <div className='min-w-0'>
           <h1 className='text-2xl font-semibold'>Bank connections</h1>
           <p className='mt-1 text-sm text-muted-foreground'>
-            Read-only connections to your financial institutions.
+            {formatConnectionCount(connectionCount)}
           </p>
         </div>
         {showConnect && (
@@ -156,6 +162,7 @@ export function BankConnectionList({
   return (
     <ConnectionPageFrame
       connectBank={connectBank}
+      connectionCount={bankConnections.length}
       isStarting={isStarting}
       showConnect={!isPending && !isError}
     >
@@ -218,10 +225,10 @@ function AspspTile({name}: {name: string}) {
 
   return (
     <div
-      className='flex h-14 w-14 shrink-0 items-center justify-center rounded-card border bg-background text-lg font-semibold text-primary'
+      className='flex h-16 w-16 shrink-0 items-center justify-center rounded-card border bg-background text-xl font-semibold text-primary'
       aria-hidden='true'
     >
-      {initials || <Building2 className='h-6 w-6' />}
+      {initials || <Building2 className='h-7 w-7' />}
     </div>
   );
 }
@@ -429,10 +436,10 @@ function BankConnectionCard({
           </div>
         </CardContent>
       )}
-      {(connection.consentValidUntil || isRemovable) && (
+      {(connection.consentValidUntil || isRemovable) && !isExpanded && (
         <footer
           aria-labelledby={connection.consentValidUntil ? metadataHeadingId : undefined}
-          className='flex min-w-0 items-center justify-between gap-2 border-t px-5 pb-4 pt-3 text-xs text-muted-foreground sm:px-6'
+          className='flex min-w-0 items-center justify-between gap-2 border-t px-4 pb-4 pt-3 text-xs text-muted-foreground sm:px-6'
         >
           {connection.consentValidUntil && (
             <h3 id={metadataHeadingId} className='sr-only'>
