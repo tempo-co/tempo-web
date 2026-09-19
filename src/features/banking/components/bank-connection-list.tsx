@@ -441,7 +441,9 @@ function BankConnectionCard({
       {isExpanded && (
         <CardContent
           id={disclosureContentId}
-          aria-labelledby={metadataHeadingId}
+          aria-labelledby={
+            connection.consentValidUntil || connection.lastSyncedAt ? metadataHeadingId : undefined
+          }
           className='space-y-6 px-5 pb-5 pt-0 sm:px-6 sm:pb-6'
         >
           <div className='grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]'>
