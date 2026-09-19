@@ -117,7 +117,7 @@ function ConnectionPageFrame({
         className='flex items-end justify-between gap-4 max-md:flex-col max-md:items-stretch max-md:gap-3'
       >
         <div className='min-w-0'>
-          <h1 className='text-2xl font-semibold'>Bank connections</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>Bank connections</h1>
           <p className='mt-1 text-sm text-muted-foreground'>
             {formatConnectionCount(connectionCount)}
           </p>
