@@ -28,6 +28,11 @@ import {useGetSupportedBanks} from '../api/use-get-supported-banks';
 import {useStartBankConnection} from '../api/use-start-bank-connection';
 import {BankConnection, BankConnectionAspsp, BankTransaction} from '../types/bank-connection';
 import {
+  getAutomaticSyncDetails,
+  isReauthorizationRequired,
+  isStaleAutomaticSync,
+} from '../utils/bank-sync-status';
+import {
   formatBankTransactionCompactDate,
   formatBankingWords,
   resolveBankTransactionDisplayTitle,
@@ -543,87 +548,6 @@ function AutomaticSyncStatus({connection}: {connection: BankConnection}) {
   );
 }
 
-function isStaleAutomaticSync(
-  connection: BankConnection,
-  status: BankConnection['syncStatus'] | 'EXPIRED',
-) {
-  return (
-    connection.status === 'AUTHORIZED' &&
-    status === 'SUCCEEDED' &&
-    connection.lastSyncedAt !== null &&
-    connection.nextSyncAt !== null &&
-    new Date(connection.nextSyncAt).getTime() <= Date.now()
-  );
-}
-
-function getAutomaticSyncDetails(
-  status: BankConnection['syncStatus'] | 'EXPIRED',
-  error: string | null,
-  lastSyncedAt: string | null,
-  isStale: boolean,
-) {
-  if (isStale) {
-    return {
-      title: 'Automatic sync is overdue',
-      description: 'Saved bank data may be stale while the next background refresh is queued.',
-      isProblem: true,
-    };
-  }
-
-  switch (status) {
-    case 'RATE_LIMITED':
-      return {
-        title: 'Automatic sync is rate-limited',
-        description: 'The bank is temporarily limiting background access.',
-        isProblem: true,
-      };
-    case 'EXPIRED':
-      return {
-        title: 'Re-authorization required',
-        description: 'Consent expired. Re-authorize this bank connection to resume automatic sync.',
-        isProblem: true,
-      };
-    case 'RUNNING':
-      return {
-        title: 'Automatic sync is in progress',
-        description: 'Bank data is being refreshed in the background.',
-        isProblem: false,
-      };
-    case 'QUEUED':
-      return {
-        title: 'Automatic sync is queued',
-        description: 'The next bank refresh will run in the background.',
-        isProblem: false,
-      };
-    case 'FAILED':
-      return {
-        title: 'Automatic sync needs attention',
-        description: error || 'The next automatic attempt will retry in the background.',
-        isProblem: true,
-      };
-    case 'PARTIAL':
-      return {
-        title: 'Automatic sync is partial',
-        description: error || 'Some bank data could not be refreshed.',
-        isProblem: true,
-      };
-    case 'SUCCEEDED':
-      return {
-        title: lastSyncedAt ? 'Automatic sync is active' : 'Automatic sync is pending',
-        description: lastSyncedAt
-          ? 'Bank data is refreshed automatically.'
-          : 'The first bank refresh is running in the background.',
-        isProblem: false,
-      };
-    default:
-      return {
-        title: 'Automatic sync is pending',
-        description: 'The first bank refresh will run in the background.',
-        isProblem: false,
-      };
-  }
-}
-
 function ConnectionStatus({status}: {status: string}) {
   const isAuthorized = status === 'AUTHORIZED';
   const label = formatConnectionStatus(status);
@@ -784,15 +708,6 @@ function formatConnectionStatus(value: string) {
   if (normalized === 'PENDING') return 'Pending';
   if (normalized === 'EXPIRED') return 'Expired';
   return formatBankingWords(value);
-}
-
-function isReauthorizationRequired(connection: BankConnection) {
-  if (connection.status === 'EXPIRED' || connection.syncStatus === 'EXPIRED') return true;
-  if (connection.status !== 'AUTHORIZED') return false;
-  if (!connection.consentValidUntil) return true;
-
-  const consentValidUntil = Date.parse(connection.consentValidUntil);
-  return !Number.isFinite(consentValidUntil) || consentValidUntil <= Date.now();
 }
 
 function isRemovableConnection(status: string) {
