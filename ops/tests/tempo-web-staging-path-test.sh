@@ -17,6 +17,8 @@ assert 'location /staging/' not in production
 assert 'proxy_pass http://mailpit:8025/staging/mailpit/;' not in production
 assert 'ARG NGINX_CONFIG=tempo.conf' in dockerfile
 assert 'pwaManifestPlugin' in Path(sys.argv[4]).read_text(encoding='utf-8')
+public_manifest = Path(sys.argv[1]).parent.parent / 'public/manifest.webmanifest'
+assert json.loads(public_manifest.read_text(encoding='utf-8'))['start_url'] == '/'
 
 if os.environ.get('CHECK_STAGING_BUILD') == '1':
     manifest = Path(repo_root := Path(sys.argv[1]).parent.parent / 'dist/manifest.webmanifest')
