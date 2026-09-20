@@ -19,6 +19,9 @@ required = [
     'statuses: read',
     'head_sha',
     'check-runs',
+    'missing_checks=',
+    'Lint & Format',
+    'E2E Tests',
     'docker/build-push-action@',
     'outputs:',
     'digest: ${{ steps.build.outputs.digest }}',
@@ -31,6 +34,9 @@ required = [
     'VITE_API_URL=/staging/api',
     'VITE_BASE_PATH=/staging/',
     'NGINX_CONFIG=tempo-staging.conf',
+    'Run staging path contracts',
+    'Install web dependencies',
+    'CHECK_STAGING_BUILD=1',
 ]
 for fragment in required:
     assert fragment in workflow, fragment
