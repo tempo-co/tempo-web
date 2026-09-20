@@ -34,6 +34,7 @@ required = [
     'VITE_API_URL=/staging/api',
     'VITE_BASE_PATH=/staging/',
     'NGINX_CONFIG=tempo-staging.conf',
+    'persist-credentials: false',
     'Run staging path contracts',
     'Install web dependencies',
     'CHECK_STAGING_BUILD=1',
