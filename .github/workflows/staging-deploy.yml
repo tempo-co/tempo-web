@@ -66,14 +66,11 @@ jobs:
           bash ops/tests/tempo-web-staging-workflow-test.sh
 
   build:
-    name: Build and publish web image
+    name: Build web image artifact
     runs-on: ubuntu-latest
     needs: [verify-pr]
     permissions:
       contents: read
-      packages: write
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -96,15 +93,7 @@ jobs:
           VITE_API_URL=/staging/api VITE_BASE_PATH=/staging/ npm run build
           CHECK_STAGING_BUILD=1 bash ops/tests/tempo-web-staging-path-test.sh
 
-      - name: Log in to GitHub Container registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and publish immutable web image
-        id: build
+      - name: Build immutable web image locally
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
@@ -114,16 +103,71 @@ jobs:
             VITE_API_URL=/staging/api
             VITE_BASE_PATH=/staging/
             NGINX_CONFIG=tempo-staging.conf
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/tempo-web:staging-pr-${{ inputs.pr_number }}-${{ needs.verify-pr.outputs.head_sha }}
+          load: true
+          tags: tempo-staging-web:${{ needs.verify-pr.outputs.head_sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ needs.verify-pr.outputs.head_sha }}
 
+      - name: Save web image artifact
+        run: docker save "tempo-staging-web:${{ needs.verify-pr.outputs.head_sha }}" | gzip > "$RUNNER_TEMP/tempo-web-image.tar.gz"
+
+      - name: Upload web image artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: tempo-web-image-${{ needs.verify-pr.outputs.head_sha }}
+          path: ${{ runner.temp }}/tempo-web-image.tar.gz
+          retention-days: 1
+
+  publish:
+    name: Publish web image
+    runs-on: ubuntu-latest
+    needs: [verify-pr, build]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+    steps:
+      - name: Download web image artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: tempo-web-image-${{ needs.verify-pr.outputs.head_sha }}
+          path: ${{ runner.temp }}/tempo-web-image
+
+      - name: Load web image artifact
+        run: gzip -dc "$RUNNER_TEMP/tempo-web-image/tempo-web-image.tar.gz" | docker load
+
+      - name: Log in to GitHub Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push immutable web image
+        env:
+          IMAGE_TAG: ghcr.io/${{ github.repository_owner }}/tempo-web:staging-pr-${{ inputs.pr_number }}-${{ needs.verify-pr.outputs.head_sha }}
+          LOCAL_TAG: tempo-staging-web:${{ needs.verify-pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          docker tag "$LOCAL_TAG" "$IMAGE_TAG"
+          docker push "$IMAGE_TAG"
+
+      - name: Resolve pushed web digest
+        id: digest
+        env:
+          IMAGE_TAG: ghcr.io/${{ github.repository_owner }}/tempo-web:staging-pr-${{ inputs.pr_number }}-${{ needs.verify-pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          digest="$(docker manifest inspect --verbose "$IMAGE_TAG" | jq -r 'if type == "array" then .[0].Descriptor.digest else .Descriptor.digest end')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+
   deploy:
     name: Promote web image to staging
     runs-on: ubuntu-latest
-    needs: [verify-pr, build]
+    needs: [verify-pr, publish]
     environment: staging
     steps:
       - name: Connect GitHub runner to the tailnet
@@ -151,7 +195,7 @@ jobs:
           DEPLOY_USER: ${{ vars.STAGING_DEPLOY_USER }}
           PR_NUMBER: ${{ inputs.pr_number }}
           HEAD_SHA: ${{ needs.verify-pr.outputs.head_sha }}
-          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+          IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
         run: |
           set -euo pipefail
           [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
