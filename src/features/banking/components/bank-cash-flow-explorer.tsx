@@ -79,15 +79,18 @@ export function BankCashFlowExplorer() {
     }
   }, [selectedBucketStart, selectedSeries]);
 
+  const displayedGranularity = data
+    ? (data.granularity.toLowerCase() as BankCashFlowGranularity)
+    : granularity;
   const points = useMemo<CashFlowPoint[]>(
     () =>
       (selectedSeries?.buckets ?? []).map((bucket) => ({
         ...bucket,
-        label: formatBucketLabel(bucket.startDate, granularity),
+        label: formatBucketLabel(bucket.startDate, displayedGranularity),
         incomeValue: toChartNumber(bucket.income),
         expensesValue: toChartNumber(bucket.expenses),
       })),
-    [granularity, selectedSeries],
+    [displayedGranularity, selectedSeries],
   );
   const selectedBucket =
     selectedSeries?.buckets.find((bucket) => bucket.startDate === selectedBucketStart) ??
@@ -188,7 +191,9 @@ export function BankCashFlowExplorer() {
         ) : isError ? (
           <CashFlowErrorState onRetry={() => void refetch()} />
         ) : !data || !selectedSeries ? (
-          <CashFlowEmptyState />
+          <CashFlowEmptyState
+            missingBookingDateCount={data?.dataQuality.missingBookingDateCount ?? 0}
+          />
         ) : (
           <>
             <Card className='overflow-hidden'>
@@ -246,7 +251,7 @@ export function BankCashFlowExplorer() {
                           content={
                             <ChartTooltipContent
                               labelFormatter={(value) =>
-                                formatBucketLabel(String(value), granularity)
+                                formatBucketLabel(String(value), displayedGranularity)
                               }
                               formatter={(_value, _name, item) => {
                                 const point = item.payload as CashFlowPoint | undefined;
@@ -297,7 +302,9 @@ export function BankCashFlowExplorer() {
                     {selectedBucket ? (
                       <div className='mt-4 space-y-4'>
                         <div>
-                          <p className='font-medium'>{formatPeriod(selectedBucket, granularity)}</p>
+                          <p className='font-medium'>
+                            {formatPeriod(selectedBucket, displayedGranularity)}
+                          </p>
                           <p className='mt-1 text-xs text-muted-foreground'>
                             {selectedBucket.transactionCount} transaction
                             {selectedBucket.transactionCount === 1 ? '' : 's'}
@@ -428,7 +435,7 @@ export function BankCashFlowExplorer() {
                               }
                               onClick={() => setSelectedBucketStart(bucket.startDate)}
                             >
-                              {formatPeriod(bucket, granularity)}
+                              {formatPeriod(bucket, displayedGranularity)}
                             </button>
                           </th>
                           <td className='whitespace-nowrap px-1 py-3 text-right font-mono text-xs text-success sm:px-3 sm:py-3 sm:text-sm'>
@@ -522,15 +529,17 @@ function CashFlowErrorState({onRetry}: {onRetry: () => void}) {
   );
 }
 
-function CashFlowEmptyState() {
+function CashFlowEmptyState({missingBookingDateCount}: {missingBookingDateCount: number}) {
+  const missingDateMessage =
+    missingBookingDateCount > 0
+      ? `${missingBookingDateCount} transaction${missingBookingDateCount === 1 ? '' : 's'} have no booking date and are not charted.`
+      : 'Once a bank connection has transactions with booking dates, this view will show money in, money out, and the periods behind them.';
+
   return (
     <Card>
       <CardContent className='p-6'>
         <h2 className='font-medium'>No dated transactions yet</h2>
-        <p className='mt-1 max-w-xl text-sm text-muted-foreground'>
-          Once a bank connection has transactions with booking dates, this view will show money in,
-          money out, and the periods behind them.
-        </p>
+        <p className='mt-1 max-w-xl text-sm text-muted-foreground'>{missingDateMessage}</p>
       </CardContent>
     </Card>
   );
@@ -567,17 +576,99 @@ function isUnknownArray(value: unknown): value is readonly unknown[] {
 }
 
 function formatAmount(value: string, currency: string) {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
+  const parsed = parseDisplayAmount(value);
+  if (!parsed) {
     return `${value} ${currency}`;
   }
-  return new Intl.NumberFormat(undefined, {
-    currency,
-    currencyDisplay: 'symbol',
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-    style: 'currency',
-  }).format(numericValue);
+
+  try {
+    const currencyFormatter = new Intl.NumberFormat(undefined, {
+      currency,
+      currencyDisplay: 'symbol',
+      style: 'currency',
+    });
+    const minimumFractionDigits = currencyFormatter.resolvedOptions().minimumFractionDigits ?? 0;
+    const fraction = parsed.fraction.padEnd(minimumFractionDigits, '0');
+    const groupedInteger = formatDisplayInteger(parsed.integer);
+    const parts = currencyFormatter.formatToParts(parsed.negative ? -1 : 1);
+    const decimalSeparator =
+      new Intl.NumberFormat(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})
+        .formatToParts(1.1)
+        .find((part) => part.type === 'decimal')?.value ?? '.';
+    const hasFractionPart = parts.some((part) => part.type === 'fraction');
+
+    return parts
+      .map((part) => {
+        if (part.type === 'integer') {
+          return hasFractionPart || !fraction
+            ? groupedInteger
+            : `${groupedInteger}${decimalSeparator}${fraction}`;
+        }
+        if (part.type === 'decimal') {
+          return fraction ? part.value : '';
+        }
+        if (part.type === 'fraction') {
+          return fraction;
+        }
+        return part.value;
+      })
+      .join('');
+  } catch {
+    return `${parsed.negative ? '-' : ''}${parsed.integer}${parsed.fraction ? `.${parsed.fraction}` : ''} ${currency}`;
+  }
+}
+
+type ParsedDisplayAmount = {
+  negative: boolean;
+  integer: string;
+  fraction: string;
+};
+
+function parseDisplayAmount(value: string): ParsedDisplayAmount | undefined {
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+
+  const integer = match[2].replace(/^0+(?=\d)/, '');
+  const fraction = match[3] ?? '';
+  const isZero = integer === '0' && /^0*$/.test(fraction);
+
+  return {
+    negative: match[1] === '-' && !isZero,
+    integer,
+    fraction,
+  };
+}
+
+function formatDisplayInteger(value: string) {
+  const parts = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
+    useGrouping: true,
+  }).formatToParts(123456789012345);
+  const groupSeparator = parts.find((part) => part.type === 'group')?.value;
+  const integerPartLengths = parts
+    .filter((part) => part.type === 'integer')
+    .map((part) => part.value.length);
+
+  if (!groupSeparator || integerPartLengths.length < 2) {
+    return value;
+  }
+
+  const primaryGroupSize = integerPartLengths.at(-1) ?? 3;
+  const secondaryGroupSize = integerPartLengths.at(-2) ?? primaryGroupSize;
+  const groups: string[] = [];
+  let end = value.length;
+  let groupSize = primaryGroupSize;
+
+  while (end > groupSize) {
+    groups.unshift(value.slice(end - groupSize, end));
+    end -= groupSize;
+    groupSize = secondaryGroupSize;
+  }
+  groups.unshift(value.slice(0, end));
+
+  return groups.join(groupSeparator);
 }
 
 function formatCompactAmount(value: number, currency: string) {

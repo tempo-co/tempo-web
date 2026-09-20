@@ -49,6 +49,15 @@ test.describe('cash-flow dashboard', () => {
     await expect(page.getByTestId('cash-flow-period-detail')).toBeVisible();
   });
 
+  test('preserves currency-specific precision for large amounts', async ({page}) => {
+    await installCashFlowFixture(page);
+    await page.goto('/');
+
+    await page.getByRole('combobox', {name: 'Currency'}).click();
+    await page.getByRole('option', {name: 'KWD'}).click();
+    await expect(page.getByText(/12,345,678,901,234,567,890\.123/).first()).toBeVisible();
+  });
+
   test('keeps the chart and period table usable on a narrow viewport', async ({page}) => {
     await installCashFlowFixture(page);
     await page.setViewportSize({width: 393, height: 852});
@@ -75,13 +84,16 @@ test.describe('cash-flow dashboard', () => {
           from: '2026-04-01',
           to: '2026-09-30',
           series: [],
-          dataQuality: {missingBookingDateCount: 0},
+          dataQuality: {missingBookingDateCount: 2},
         }),
       });
     });
 
     await page.goto('/');
     await expect(page.getByRole('heading', {name: 'No dated transactions yet'})).toBeVisible();
+    await expect(
+      page.getByText('2 transactions have no booking date and are not charted.'),
+    ).toBeVisible();
 
     await page.route('**/bank-transactions/cash-flow?*', async (route) => {
       await route.fulfill({status: 500, contentType: 'application/json', body: '{}'});
@@ -157,6 +169,26 @@ function createCashFlowFixture(granularity: string) {
           net: '85.5',
           transactionCount: 4,
           includedTransactionCount: 4,
+          internalCount: 0,
+          unknownCount: 0,
+        },
+      },
+      {
+        currency: 'KWD',
+        buckets: bucketRows.map((bucket) => ({
+          ...bucket,
+          income: bucket.startDate === '2026-08-01' ? '12345678901234567890.123' : '0',
+          expenses: '0',
+          net: bucket.startDate === '2026-08-01' ? '12345678901234567890.123' : '0',
+          transactionCount: bucket.startDate === '2026-08-01' ? 1 : 0,
+          includedTransactionCount: bucket.startDate === '2026-08-01' ? 1 : 0,
+        })),
+        totals: {
+          income: '12345678901234567890.123',
+          expenses: '0',
+          net: '12345678901234567890.123',
+          transactionCount: 1,
+          includedTransactionCount: 1,
           internalCount: 0,
           unknownCount: 0,
         },
