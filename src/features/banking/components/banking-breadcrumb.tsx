@@ -9,7 +9,11 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 
-export function BankConnectionBreadcrumb() {
+type BankingBreadcrumbProps = {
+  pageLabel: string;
+};
+
+export function BankingBreadcrumb({pageLabel}: BankingBreadcrumbProps) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -20,7 +24,7 @@ export function BankConnectionBreadcrumb() {
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          <BreadcrumbPage>Bank connections</BreadcrumbPage>
+          <BreadcrumbPage>{pageLabel}</BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>
