@@ -1,5 +1,5 @@
-import {AlertTriangle, Building2, ChevronDown, Loader, Plus, RefreshCw, Trash2} from 'lucide-react';
-import {useState} from 'react';
+import {AlertTriangle, Building2, ChevronDown, Loader, RefreshCw, Trash2} from 'lucide-react';
+import {useMemo, useState} from 'react';
 import {toast} from 'sonner';
 
 import {CurrencyAmount} from '@/components/shared/currency-amount';
@@ -24,13 +24,23 @@ import {cn} from '@/utils/cn';
 
 import {useDeleteBankConnection} from '../api/use-delete-bank-connection';
 import {useGetBankConnectionTransactions} from '../api/use-get-bank-connection-transactions';
+import {useGetSupportedBanks} from '../api/use-get-supported-banks';
 import {useStartBankConnection} from '../api/use-start-bank-connection';
-import {BankConnection, BankTransaction} from '../types/bank-connection';
+import {BankConnection, BankConnectionAspsp, BankTransaction} from '../types/bank-connection';
 import {
+  getAutomaticSyncDetails,
+  isReauthorizationRequired,
+  isStaleAutomaticSync,
+} from '../utils/bank-sync-status';
+import {
+  formatBankTransactionCashFlowTreatment,
   formatBankTransactionCompactDate,
+  formatBankTransactionFinancialEvent,
   formatBankingWords,
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
+import {BankConnectionPicker} from './bank-connection-picker';
+import {BankLogo} from './bank-logo';
 
 type BankConnectionListProps = {
   bankConnections: BankConnection[];
@@ -40,19 +50,9 @@ type BankConnectionListProps = {
   onTransactionSelect: (transactionId: BankTransaction['id'], trigger: HTMLButtonElement) => void;
 };
 
-const ABN_AMRO = {
-  request: {aspspName: 'ABN AMRO', aspspCountry: 'NL'},
-  displayName: 'ABN AMRO',
-  testId: 'connect-abn-amro-button',
-};
-
-const MOCK_ASPSP = {
-  request: {aspspName: 'Mock ASPSP', aspspCountry: 'NL'},
-  displayName: 'Mock ASPSP',
-  testId: 'connect-mock-aspsp-button',
-};
-
-const targetBank = import.meta.env.MODE === 'development' ? MOCK_ASPSP : ABN_AMRO;
+function aspspKey(name: string, country: string) {
+  return `${country.trim().toUpperCase()}:${name.trim().toLowerCase()}`;
+}
 
 function formatConnectionCount(count: number) {
   return `${count} ${count === 1 ? 'connection' : 'connections'}`;
@@ -66,37 +66,6 @@ const REMOVABLE_CONNECTION_STATUSES = [
   ...DESTRUCTIVE_CONNECTION_STATUSES,
 ] as const;
 
-type ConnectBankButtonProps = {
-  onClick: () => void;
-  isPending: boolean;
-  className?: string;
-  testId?: string;
-  showIcon?: boolean;
-};
-
-function ConnectBankButton({
-  onClick,
-  isPending,
-  className,
-  testId,
-  showIcon = false,
-}: ConnectBankButtonProps) {
-  return (
-    <Button
-      className={cn(
-        'max-md:h-auto max-md:min-h-11 max-md:max-w-full max-md:whitespace-normal',
-        className,
-      )}
-      onClick={onClick}
-      disabled={isPending}
-      data-testid={testId}
-    >
-      {showIcon && (isPending ? <Loader className='animate-slow-spin' /> : <Plus />)}
-      {isPending ? 'Connecting...' : `Connect ${targetBank.displayName}`}
-    </Button>
-  );
-}
-
 function ConnectionPageFrame({
   children,
   connectBank,
@@ -105,7 +74,7 @@ function ConnectionPageFrame({
   showConnect = true,
 }: {
   children: React.ReactNode;
-  connectBank: () => void;
+  connectBank: (bank: BankConnectionAspsp) => void | Promise<void>;
   connectionCount: number;
   isStarting: boolean;
   showConnect?: boolean;
@@ -123,11 +92,9 @@ function ConnectionPageFrame({
           </p>
         </div>
         {showConnect && (
-          <ConnectBankButton
-            onClick={connectBank}
-            isPending={isStarting}
-            testId={targetBank.testId}
-            showIcon
+          <BankConnectionPicker
+            onBankSelect={connectBank}
+            isStarting={isStarting}
             className='max-md:self-start'
           />
         )}
@@ -145,10 +112,21 @@ export function BankConnectionList({
   onTransactionSelect,
 }: BankConnectionListProps) {
   const {startBankConnection, isPending: isStarting} = useStartBankConnection();
+  const {supportedBanks} = useGetSupportedBanks(!isPending && !isError);
+  const bankLogos = useMemo(() => {
+    const logos = new Map<string, string>();
+    for (const bank of supportedBanks ?? []) {
+      if (bank.logoUrl) logos.set(aspspKey(bank.name, bank.country), bank.logoUrl);
+    }
+    return logos;
+  }, [supportedBanks]);
 
-  const connectBank = async () => {
+  const connectBank = async (bank: BankConnectionAspsp) => {
     try {
-      const {authorizationUrl} = await startBankConnection(targetBank.request);
+      const {authorizationUrl} = await startBankConnection({
+        aspspName: bank.name,
+        aspspCountry: bank.country,
+      });
       window.location.assign(authorizationUrl);
     } catch (error) {
       if (error instanceof HttpError && error.status === 429) return;
@@ -158,6 +136,9 @@ export function BankConnectionList({
       });
     }
   };
+
+  const reauthorizeBank = (connection: BankConnection) =>
+    connectBank({name: connection.aspspName, country: connection.aspspCountry});
 
   return (
     <ConnectionPageFrame
@@ -196,8 +177,8 @@ export function BankConnectionList({
             <Building2 className='mb-5 h-12 w-12 text-muted-foreground' />
             <h2 className='text-xl font-semibold'>No bank connections</h2>
             <p className='mt-2 max-w-md text-sm text-muted-foreground'>
-              Connect {targetBank.displayName} to make its available bank accounts part of your
-              financial history.
+              Connect a supported bank to make its available bank accounts part of your financial
+              history.
             </p>
           </CardContent>
         </Card>
@@ -206,6 +187,9 @@ export function BankConnectionList({
           <BankConnectionCard
             key={connection.id}
             connection={connection}
+            logoUrl={bankLogos.get(aspspKey(connection.aspspName, connection.aspspCountry))}
+            isStarting={isStarting}
+            onReauthorize={reauthorizeBank}
             onTransactionSelect={onTransactionSelect}
           />
         ))
@@ -214,30 +198,17 @@ export function BankConnectionList({
   );
 }
 
-function AspspTile({name}: {name: string}) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase();
-
-  return (
-    <div
-      className='flex h-16 w-16 shrink-0 items-center justify-center rounded-card border bg-background text-xl font-semibold text-primary'
-      aria-hidden='true'
-    >
-      {initials || <Building2 className='h-7 w-7' />}
-    </div>
-  );
-}
-
 function BankConnectionCard({
   connection,
+  logoUrl,
+  isStarting,
+  onReauthorize,
   onTransactionSelect,
 }: {
   connection: BankConnection;
+  logoUrl?: string;
+  isStarting: boolean;
+  onReauthorize: (connection: BankConnection) => void | Promise<void>;
   onTransactionSelect: BankConnectionListProps['onTransactionSelect'];
 }) {
   const isAuthorized = connection.status === 'AUTHORIZED';
@@ -258,12 +229,30 @@ function BankConnectionCard({
     isPending: areTransactionsPending,
     isError: areTransactionsError,
     refetch: refetchTransactions,
-  } = useGetBankConnectionTransactions(connection.id, isAuthorized && !!connection.lastSyncedAt);
+  } = useGetBankConnectionTransactions(
+    connection.id,
+    isAuthorized && !!connection.lastSyncedAt,
+    connection.lastSyncedAt,
+  );
 
   const hasBodyContent =
     connection.bankAccounts.length > 0 ||
     (isAuthorized && !!connection.lastSyncedAt) ||
     Boolean(connection.consentValidUntil);
+
+  // Sync status is only a card when it needs attention; that warning must stay
+  // discoverable even while the card is collapsed, so it renders as a strip
+  // between the header and footer.
+  const isSyncProblem = (() => {
+    if (connection.status !== 'AUTHORIZED' && connection.status !== 'EXPIRED') return false;
+    const status = isReauthorizationRequired(connection) ? 'EXPIRED' : connection.syncStatus;
+    return getAutomaticSyncDetails(
+      status,
+      connection.lastSyncError,
+      connection.lastSyncedAt,
+      isStaleAutomaticSync(connection, status),
+    ).isProblem;
+  })();
 
   const removeBank = async (): Promise<boolean> => {
     try {
@@ -290,7 +279,7 @@ function BankConnectionCard({
   return (
     <Card
       className='overflow-hidden'
-      data-testid={`bank-connection-${connection.id}-card`}
+      data-testid={`bank-connection-${connection.id}`}
       aria-labelledby={connectionHeadingId}
     >
       <CardHeader
@@ -305,17 +294,30 @@ function BankConnectionCard({
             onClick={() => setIsExpanded((open) => !open)}
             aria-expanded={isExpanded}
             aria-controls={disclosureContentId}
-            data-testid={`bank-connection-toggle-${connection.id}`}
-            className='flex w-full min-w-0 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:self-auto'
+            data-testid={`connection-card-toggle-${connection.id}`}
+            className={cn(
+              'flex w-full min-w-0 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:self-auto',
+              isReauthorizationRequired(connection) && 'sm:w-[calc(100%-8.5rem)] sm:shrink',
+            )}
           >
-            <AspspTile name={connection.aspspName} />
+            <BankLogo
+              bank={{name: connection.aspspName, logoUrl}}
+              className='h-[64px] w-[64px]'
+              testId='bank-connection-logo'
+            />
             <span className='min-w-0 flex-1'>
-              <h2
-                id={connectionHeadingId}
-                className='break-words text-lg font-semibold leading-tight'
-              >
-                {connection.aspspName}
-              </h2>
+              <div className='flex min-w-0 items-baseline justify-between gap-3'>
+                <h2
+                  id={connectionHeadingId}
+                  className='min-w-0 break-words text-lg font-semibold leading-tight'
+                >
+                  {connection.aspspName}
+                </h2>
+                <ConnectionBalanceSummary
+                  accounts={connection.bankAccounts}
+                  className='justify-end text-right max-sm:max-w-[60%] max-sm:shrink sm:shrink-0'
+                />
+              </div>
               <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
                 {headerMeta.map((item, index) => (
                   <span key={index} className='inline-flex min-w-0 shrink-0 items-center'>
@@ -327,18 +329,29 @@ function BankConnectionCard({
             <ChevronDown
               aria-hidden='true'
               className={cn(
-                'ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                'ml-2 mr-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                isReauthorizationRequired(connection) ? 'sm:ml-1' : 'text-muted-foreground',
                 !isExpanded && '-rotate-90',
               )}
             />
           </button>
         ) : (
           <div className='flex min-w-0 flex-1 items-center gap-3'>
-            <AspspTile name={connection.aspspName} />
-            <div className='min-w-0'>
-              <h2 id={connectionHeadingId} className='break-words text-lg font-semibold'>
-                {connection.aspspName}
-              </h2>
+            <BankLogo
+              bank={{name: connection.aspspName, logoUrl}}
+              className='h-[64px] w-[64px]'
+              testId='bank-connection-logo'
+            />
+            <div className='min-w-0 flex-1'>
+              <div className='flex min-w-0 items-baseline justify-between gap-3'>
+                <h2 id={connectionHeadingId} className='min-w-0 break-words text-lg font-semibold'>
+                  {connection.aspspName}
+                </h2>
+                <ConnectionBalanceSummary
+                  accounts={connection.bankAccounts}
+                  className='justify-end text-right max-sm:max-w-[60%] max-sm:shrink sm:shrink-0'
+                />
+              </div>
               <p className='mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
                 {headerMeta.map((item, index) => (
                   <span key={index} className='inline-flex min-w-0 shrink-0 items-center'>
@@ -349,16 +362,29 @@ function BankConnectionCard({
             </div>
           </div>
         )}
+        {isReauthorizationRequired(connection) && (
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => void onReauthorize(connection)}
+            disabled={isStarting}
+            className='max-sm:min-h-11 max-sm:gap-1 max-sm:self-end max-sm:px-2'
+          >
+            {isStarting ? 'Starting...' : 'Re-authorize'}
+          </Button>
+        )}
       </CardHeader>
+      {!isExpanded && isSyncProblem && <AutomaticSyncStatus connection={connection} />}
       {isExpanded && (
         <CardContent
           id={disclosureContentId}
           aria-labelledby={
             connection.consentValidUntil || connection.lastSyncedAt ? metadataHeadingId : undefined
           }
-          className='space-y-6 px-5 pb-5 pt-0 sm:px-6 sm:pb-6'
+          className='space-y-6 px-4 pb-5 pt-4'
         >
-          <div className='grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]'>
+          {isSyncProblem && <AutomaticSyncStatus connection={connection} />}
+          <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'>
             <section aria-labelledby={accountsHeadingId} className='min-w-0'>
               <SectionHeading
                 headingId={accountsHeadingId}
@@ -436,10 +462,10 @@ function BankConnectionCard({
           </div>
         </CardContent>
       )}
-      {(connection.consentValidUntil || isRemovable) && !isExpanded && (
+      {(connection.consentValidUntil || isRemovable) && (!hasBodyContent || isExpanded) && (
         <footer
           aria-labelledby={connection.consentValidUntil ? metadataHeadingId : undefined}
-          className='flex min-w-0 items-center justify-between gap-2 border-t px-4 pb-4 pt-3 text-xs text-muted-foreground sm:px-6'
+          className='flex min-w-0 items-center justify-between gap-2 border-t px-4 pb-4 pt-3 text-xs text-muted-foreground'
         >
           {connection.consentValidUntil && (
             <h3 id={metadataHeadingId} className='sr-only'>
@@ -457,12 +483,12 @@ function BankConnectionCard({
             ) : (
               <Button
                 variant='ghost'
-                size='sm'
+                size='icon'
                 onClick={() => void removeBank()}
                 disabled={isRemoving}
                 aria-label='Remove connection'
                 data-testid={`remove-bank-${connection.id}`}
-                className='-mr-2 min-h-11 text-muted-foreground'
+                className='h-11 w-11 text-muted-foreground'
               >
                 <Trash2 />
                 <span className='sr-only'>Remove connection</span>
@@ -524,11 +550,11 @@ function DestructiveBankConnectionFooterButton({
       <ResponsiveDialogTrigger asChild>
         <Button
           variant='ghost'
-          size='sm'
+          size='icon'
           disabled={isPending}
           aria-label='Remove connection'
           data-testid={`remove-bank-${connection.id}`}
-          className='-mr-2 min-h-11 text-muted-foreground'
+          className='h-11 w-11 text-muted-foreground'
         >
           <Trash2 />
           <span className='sr-only'>Remove connection</span>
@@ -566,7 +592,7 @@ function DestructiveBankConnectionFooterButton({
                 data-testid={`remove-bank-confirmation-${connection.id}`}
               />
             </div>
-            <div className='mt-2 flex flex-col justify-end gap-4 md:flex-row'>
+            <div className='mt-2 flex flex-col justify-end gap-4 pb-4 md:flex-row md:pb-0'>
               <Button
                 type='submit'
                 variant='destructive'
@@ -642,6 +668,94 @@ function FreshnessLabel({value}: {value: string}) {
       Updated {formatRelativeTime(value)}
     </span>
   );
+}
+
+function AutomaticSyncStatus({connection}: {connection: BankConnection}) {
+  if (connection.status !== 'AUTHORIZED' && connection.status !== 'EXPIRED') return null;
+
+  const status = isReauthorizationRequired(connection) ? 'EXPIRED' : connection.syncStatus;
+  const isStale = isStaleAutomaticSync(connection, status);
+  const details = getAutomaticSyncDetails(
+    status,
+    connection.lastSyncError,
+    connection.lastSyncedAt,
+    isStale,
+  );
+
+  // Background sync is automatic and silent by design: only surface it when it
+  // actually needs attention (rate-limited, overdue, failed, expired consent).
+  if (!details.isProblem) return null;
+
+  return (
+    <div
+      data-testid='bank-connection-sync-status'
+      role='alert'
+      className='rounded-md border border-warning/40 bg-warning/5 px-3 py-3 text-sm'
+    >
+      <p className='font-medium'>{details.title}</p>
+      <p className='mt-1 text-muted-foreground'>{details.description}</p>
+    </div>
+  );
+}
+
+function ConnectionBalanceSummary({
+  accounts,
+  className,
+}: {
+  accounts: BankConnection['bankAccounts'];
+  className?: string;
+}) {
+  const totals = summarizeConnectionBalances(accounts);
+  if (totals.length === 0) return null;
+
+  return (
+    <span
+      className={cn(
+        'flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm max-sm:gap-x-1 max-sm:text-xs',
+        className,
+      )}
+      data-testid='bank-connection-total'
+      aria-label={`Total balance ${totals.map(({currency, amount}) => `${amount} ${currency}`).join(', ')}`}
+      title='Total balance'
+    >
+      <span className='shrink-0 text-muted-foreground'>
+        <span className='max-sm:hidden'>Total balance</span>
+        <span className='hidden max-sm:inline'>Total</span>
+      </span>
+      {totals.map(({currency, amount}, index) => (
+        <span key={currency} className='inline-flex min-w-0 items-baseline gap-2 max-sm:gap-1'>
+          {index > 0 && (
+            <span aria-hidden='true' className='text-muted-foreground'>
+              ·
+            </span>
+          )}
+          <CurrencyAmount amount={amount} currency={currency} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function summarizeConnectionBalances(accounts: BankConnection['bankAccounts']) {
+  const totals = new Map<string, number>();
+
+  for (const account of accounts) {
+    const balances = account.latestBalances ?? [];
+    const primaryBalance = balances.find((balance) => balance.isPrimary) ?? balances[0];
+    const currentAmount = account.currentBalanceAmount?.trim();
+    const amountValue = currentAmount || primaryBalance?.amount;
+    if (!amountValue) continue;
+
+    const amount = Number(amountValue);
+    if (!Number.isFinite(amount)) continue;
+
+    const currency = currentAmount
+      ? account.currency
+      : (primaryBalance?.currency ?? account.currency);
+    totals.set(currency, (totals.get(currency) ?? 0) + amount);
+  }
+
+  return Array.from(totals, ([currency, amount]) => ({currency, amount}));
 }
 
 function SectionHeading({
@@ -730,6 +844,7 @@ function BankTransactionRow({
   const metadata = formatBankTransactionCompactDate(
     transaction.bookingDate || transaction.valueDate,
   );
+  const financialEvent = formatBankTransactionFinancialEvent(transaction.financialEventType);
 
   return (
     <button
@@ -742,6 +857,13 @@ function BankTransactionRow({
       <span className='block min-w-0'>
         <span className='block truncate text-sm font-medium'>{description}</span>
         <span className='block truncate text-xs text-muted-foreground'>{metadata}</span>
+        {financialEvent && (
+          <span className='block truncate text-xs text-foreground'>
+            {financialEvent}
+            <span aria-hidden='true'> · </span>
+            {formatBankTransactionCashFlowTreatment(transaction.cashFlowTreatment)}
+          </span>
+        )}
       </span>
       <span className='text-right'>
         <CurrencyAmount amount={Number(transaction.amount)} currency={transaction.currency} />
