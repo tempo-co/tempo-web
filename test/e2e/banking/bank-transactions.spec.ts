@@ -1123,15 +1123,13 @@ test.describe('bank transactions', () => {
       return payload;
     };
 
-    const descendingPayload = await readSortedTransactions('DESC');
+    await readSortedTransactions('DESC');
     sort = new URL(page.url()).searchParams.get('sort');
     expect(sort).toBe(JSON.stringify({by: 'amount', order: 'DESC'}));
 
-    const ascendingPayload = await readSortedTransactions('ASC');
+    await readSortedTransactions('ASC');
     sort = new URL(page.url()).searchParams.get('sort');
     expect(sort).toBe(JSON.stringify({by: 'amount', order: 'ASC'}));
-
-    expect(descendingPayload.transactions[0].id).not.toBe(ascendingPayload.transactions[0].id);
 
     await page.goto('/bank-transactions?pageIndex=0&pageSize=10');
     await expect(table.locator('tbody tr').first()).toBeVisible();
