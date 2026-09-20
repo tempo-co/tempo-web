@@ -1,5 +1,6 @@
 import type {PaginationParams} from '@/types/pagination';
 
+import type {BankCashFlowGranularity} from '../types/bank-cash-flow';
 import type {
   BankTransactionFilterParams,
   BankTransactionSortParams,
@@ -16,4 +17,6 @@ export const bankQueryKeys = {
     sort: BankTransactionSortParams,
   ) => ['bank-transactions', pagination, filters, sort] as const,
   transactionsRoot: ['bank-transactions'] as const,
+  cashFlow: (granularity: BankCashFlowGranularity, from: string, to: string) =>
+    ['bank-cash-flow', granularity, from, to] as const,
 };

@@ -41,6 +41,7 @@ export function BankTransactionMobileFilters({
   const mobileFiltersScrollAreaRef = React.useRef<HTMLDivElement>(null);
   const activeFilterCount = [
     Boolean(filters.bookingDate),
+    Boolean(filters.currency),
     (filters.bankAccountIds?.length ?? 0) > 0,
     (filters.categories?.length ?? 0) > 0,
     (filters.categorySources?.length ?? 0) > 0,

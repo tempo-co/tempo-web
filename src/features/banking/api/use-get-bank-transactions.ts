@@ -32,6 +32,7 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
   const routeFilters = useMemo<BankTransactionFilterParams>(
     () => ({
       bookingDate: searchParams.bookingDate,
+      currency: searchParams.currency,
       bankAccountIds: searchParams.bankAccountIds,
       categories: searchParams.categories,
       categorySources: searchParams.categorySources,
@@ -41,6 +42,7 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
     [
       searchParams.bankAccountIds,
       searchParams.bookingDate,
+      searchParams.currency,
       searchParams.categories,
       searchParams.categorySources,
       searchParams.financialEventTypes,
@@ -87,6 +89,9 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
         }
         if (filters.bookingDate?.to) {
           params.append('filter[bookingDate][to]', format(filters.bookingDate.to, 'yyyy-MM-dd'));
+        }
+        if (filters.currency) {
+          params.append('filter[currency]', filters.currency);
         }
         appendArrayFilter(params, 'filter[bankAccountIds][]', filters.bankAccountIds);
         appendArrayFilter(params, 'filter[categories][]', filters.categories);

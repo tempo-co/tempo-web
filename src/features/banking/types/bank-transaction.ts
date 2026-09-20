@@ -123,6 +123,10 @@ export const bankTransactionSearchParamsSchema = paginationSearchParamsSchema.ex
       to: z.preprocess(toDate, z.date()).optional(),
     })
     .optional(),
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
   bankAccountIds: z.array(z.string().uuid()).optional(),
   categories: z.array(z.enum(BANK_TRANSACTION_CATEGORY_FILTER_VALUES)).optional(),
   categorySources: z.array(z.enum(BANK_TRANSACTION_CATEGORIZATION_SOURCES)).optional(),
@@ -142,6 +146,7 @@ export type BankTransactionSearchParams = z.infer<typeof bankTransactionSearchPa
 export type BankTransactionFilterParams = Pick<
   BankTransactionSearchParams,
   | 'bookingDate'
+  | 'currency'
   | 'bankAccountIds'
   | 'categories'
   | 'categorySources'
