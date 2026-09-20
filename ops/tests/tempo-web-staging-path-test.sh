@@ -1,31 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-config_file=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/nginx/tempo.conf
-python3 - "$config_file" <<'PY'
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+python3 - "$repo_root/nginx/tempo.conf" "$repo_root/nginx/tempo-staging.conf" "$repo_root/Dockerfile.production" "$repo_root/vite.config.ts" <<'PY'
+import json
+import os
 import sys
+from pathlib import Path
 
-config = open(sys.argv[1], encoding='utf-8').read()
-required = [
-    'location = /tempo {',
-    'location /tempo/api/ {',
-    'location /tempo/ {',
-    'location = /staging {',
-    'location = /staging/mailpit {',
-    'location /staging/mailpit/ {',
-    'proxy_pass http://mailpit:8025/staging/mailpit/;',
-    'location = /staging/bank-connections/callback {',
-    'location = /staging/api {',
-    'location /staging/api/ {',
-    'location /staging/ {',
-    'rewrite ^/staging/(.*)$ /$1 break;',
-    'rewrite ^/staging/api/?(.*)$ /$1 break;',
-]
-for fragment in required:
-    assert fragment in config, fragment
+production, staging, dockerfile, vite_config = [Path(path).read_text(encoding='utf-8') for path in sys.argv[1:]]
+for fragment in ['location = /tempo {', 'location /tempo/api/ {', 'location /tempo/ {']:
+    assert fragment in production, fragment
+for fragment in ['location = /staging {', 'location = /staging/mailpit {', 'location /staging/mailpit/ {', 'location = /staging/bank-connections/callback {', 'location = /staging/api {', 'location /staging/api/ {', 'location /staging/ {', 'proxy_pass http://mailpit:8025/staging/mailpit/;', 'rewrite ^/staging/(.*)$ /$1 break;', 'rewrite ^/staging/api/?(.*)$ /$1 break;']:
+    assert fragment in staging, fragment
+assert 'location /staging/' not in production
+assert 'proxy_pass http://mailpit:8025/staging/mailpit/;' not in production
+assert 'ARG NGINX_CONFIG=tempo.conf' in dockerfile
+assert 'pwaManifestPlugin' in Path(sys.argv[4]).read_text(encoding='utf-8')
 
-assert config.count('    location /tempo/ {') == 1
-assert config.count('    location /staging/ {') == 1
-assert 'proxy_pass http://api:3000;' in config
-print('tempo web staging path contract: PASS')
+if os.environ.get('CHECK_STAGING_BUILD') == '1':
+    manifest = Path(repo_root := Path(sys.argv[1]).parent.parent / 'dist/manifest.webmanifest')
+    assert manifest.exists()
+    data = json.loads(manifest.read_text(encoding='utf-8'))
+    assert data['id'].startswith('/staging/')
+    assert data['start_url'] == '/staging/'
+    assert data['scope'] == '/staging/'
+    assert all(icon['src'].startswith('/staging/') for icon in data['icons'])
+print('tempo web staging path and production isolation contract: PASS')
 PY

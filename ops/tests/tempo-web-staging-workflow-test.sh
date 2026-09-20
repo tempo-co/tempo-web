@@ -11,7 +11,11 @@ required = [
     'pr_number:',
     'runs-on: ubuntu-latest',
     'gh api "repos/$repo/pulls/$pr"',
+    '[[ "$GITHUB_REF" == refs/heads/main ]]',
     '[[ "$head_repo" == "$repo" ]]',
+    'gh api --paginate --slurp',
+    'pull-requests: read',
+    'statuses: read',
     'head_sha',
     'check-runs',
     'docker/build-push-action@',
@@ -25,6 +29,7 @@ required = [
     'IMAGE_DIGEST: ${{ needs.build.outputs.digest }}',
     'VITE_API_URL=/staging/api',
     'VITE_BASE_PATH=/staging/',
+    'NGINX_CONFIG=tempo-staging.conf',
 ]
 for fragment in required:
     assert fragment in workflow, fragment
