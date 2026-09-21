@@ -11,7 +11,7 @@ from pathlib import Path
 production, staging, dockerfile, vite_config = [Path(path).read_text(encoding='utf-8') for path in sys.argv[1:]]
 for fragment in ['location = /tempo {', 'location /tempo/api/ {', 'location /tempo/ {']:
     assert fragment in production, fragment
-for fragment in ['location = /staging {', 'location = /staging/mailpit {', 'location /staging/mailpit/ {', 'location = /staging/bank-connections/callback {', 'location = /staging/api {', 'location /staging/api/ {', 'location /staging/ {', 'proxy_pass http://mailpit:8025/staging/mailpit/;', 'rewrite ^/staging/(.*)$ /$1 break;', 'rewrite ^/staging/api/?(.*)$ /$1 break;']:
+for fragment in ['absolute_redirect off;', 'location = /staging {', 'location = /staging/mailpit {', 'location /staging/mailpit/ {', 'location = /staging/bank-connections/callback {', 'location = /staging/api {', 'location /staging/api/ {', 'location /staging/ {', 'proxy_pass http://mailpit:8025/staging/mailpit/;', 'rewrite ^/staging/(.*)$ /$1 break;', 'rewrite ^/staging/api/?(.*)$ /$1 break;']:
     assert fragment in staging, fragment
 assert 'location /staging/' not in production
 assert 'proxy_pass http://mailpit:8025/staging/mailpit/;' not in production
