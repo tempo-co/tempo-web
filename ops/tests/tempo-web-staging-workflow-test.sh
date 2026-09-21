@@ -32,6 +32,8 @@ required = [
     'actions: read',
     'pull-requests: read',
     'statuses: read',
+    'merged_at=',
+    'state" != open',
     'head_sha',
     'check-runs',
     'missing_checks=',
