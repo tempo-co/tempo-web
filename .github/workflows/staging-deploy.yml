@@ -124,6 +124,44 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ needs.verify-pr.outputs.head_sha }}
 
+      - name: Probe staging mount redirects
+        env:
+          IMAGE_TAG: tempo-staging-web:${{ needs.verify-pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          container="tempo-staging-web-route-probe-${GITHUB_RUN_ID}"
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run --detach --name "$container" \
+            --publish 127.0.0.1::8080 \
+            --add-host api:127.0.0.1 \
+            --add-host mailpit:127.0.0.1 \
+            "$IMAGE_TAG" >/dev/null
+          port=''
+          ready=0
+          for _ in $(seq 1 30); do
+            port="$(docker port "$container" 8080/tcp | sed -n 's#127.0.0.1:\([0-9][0-9]*\)$#\1#p')"
+            if [[ -n "$port" ]] && curl -fsS "http://127.0.0.1:$port/staging/" >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          (( ready == 1 ))
+          root_headers="$(curl -sS -D - -o /dev/null "http://127.0.0.1:$port/staging")"
+          mailpit_headers="$(curl -sS -D - -o /dev/null "http://127.0.0.1:$port/staging/mailpit")"
+          asset_headers="$(curl -sS -D - -o /dev/null "http://127.0.0.1:$port/staging/assets")"
+          printf '%s\n' "$root_headers" "$mailpit_headers" "$asset_headers"
+          printf '%s\n' "$root_headers" | grep -Fqi 'location: /staging/'
+          printf '%s\n' "$mailpit_headers" | grep -Fqi 'location: /staging/mailpit/'
+          printf '%s\n' "$asset_headers" | grep -Fqi 'HTTP/1.1 200'
+          if printf '%s\n' "$asset_headers" | grep -Eiq '^location: .*/assets/'; then
+            printf '%s\n' 'staging asset redirect dropped mount prefix' >&2
+            exit 1
+          fi
+
       - name: Save web image artifact
         run: docker save "tempo-staging-web:${{ needs.verify-pr.outputs.head_sha }}" | gzip > "$RUNNER_TEMP/tempo-web-image.tar.gz"
 

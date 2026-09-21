@@ -57,6 +57,9 @@ required = [
     'Run staging path contracts',
     'Install web dependencies',
     'CHECK_STAGING_BUILD=1',
+    'Probe staging mount redirects',
+    'docker port',
+    'staging asset redirect dropped mount prefix',
 ]
 for fragment in required:
     assert fragment in workflow, fragment

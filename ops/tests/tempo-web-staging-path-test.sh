@@ -14,7 +14,9 @@ for fragment in ['location = /tempo {', 'location /tempo/api/ {', 'location /tem
 for fragment in ['absolute_redirect off;', 'location = /staging {', 'location = /staging/mailpit {', 'location /staging/mailpit/ {', 'location = /staging/bank-connections/callback {', 'location = /staging/api {', 'location /staging/api/ {', 'location /staging/ {', 'proxy_pass http://mailpit:8025/staging/mailpit/;', 'rewrite ^/staging/(.*)$ /$1 break;', 'rewrite ^/staging/api/?(.*)$ /$1 break;']:
     assert fragment in staging, fragment
 assert 'location /staging/' not in production
-assert 'proxy_pass http://mailpit:8025/staging/mailpit/;' not in production
+staging_spa = staging.split('location /staging/ {', 1)[1].split('location / {', 1)[0]
+assert 'try_files $uri /index.html;' in staging_spa
+assert 'try_files $uri $uri/ /index.html;' not in staging_spa
 assert 'ARG NGINX_CONFIG=tempo.conf' in dockerfile
 assert 'pwaManifestPlugin' in Path(sys.argv[4]).read_text(encoding='utf-8')
 public_manifest = Path(sys.argv[1]).parent.parent / 'public/manifest.webmanifest'
