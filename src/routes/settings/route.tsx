@@ -1,5 +1,5 @@
 import {Link, Outlet, createFileRoute, useMatchRoute} from '@tanstack/react-router';
-import {Shield, SunMoon, User} from 'lucide-react';
+import {ListFilter, Shield, SunMoon, User} from 'lucide-react';
 
 import {AppBodyLayout} from '@/components/shared/layout/app-body';
 import {AppHeaderLayout} from '@/components/shared/layout/app-header-layout';
@@ -19,6 +19,7 @@ const navItems = [
   {label: 'Account', route: '/settings/account', breadcrumb: '/account', icon: User},
   {label: 'Security', route: '/settings/security', breadcrumb: '/security', icon: Shield},
   {label: 'Appearance', route: '/settings/appearance', breadcrumb: '/appearance', icon: SunMoon},
+  {label: 'Rules', route: '/settings/rules', breadcrumb: '/rules', icon: ListFilter},
 ] as const;
 
 function SettingsIndex() {

@@ -13,6 +13,7 @@ const ROUTE_LABELS = {
   '/account': 'Account',
   '/security': 'Security',
   '/appearance': 'Appearance',
+  '/rules': 'Rules',
 } as const;
 
 type SettingsBreadcrumbProps = {

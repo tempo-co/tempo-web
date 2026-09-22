@@ -16,4 +16,5 @@ export const bankQueryKeys = {
     sort: BankTransactionSortParams,
   ) => ['bank-transactions', pagination, filters, sort] as const,
   transactionsRoot: ['bank-transactions'] as const,
+  rules: ['bank-transaction-rules'] as const,
 };

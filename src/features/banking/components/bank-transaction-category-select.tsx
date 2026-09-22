@@ -20,6 +20,7 @@ import {
   isBankTransactionCategory,
 } from '../utils/formatters';
 import {BankTransactionCategoryIcon} from './bank-transaction-category-icon';
+import {BankTransactionRuleDialog} from './bank-transaction-rule-dialog';
 
 type BankTransactionCategorySelectProps = {
   transaction: BankTransaction;
@@ -34,7 +35,10 @@ export function BankTransactionCategorySelect({transaction}: BankTransactionCate
       ? transaction.category
       : undefined;
   const statusLabel = formatBankTransactionCategoryStatus(transaction.categoryStatus);
-  const sourceLabel = formatBankTransactionCategorySource(transaction.categorySource);
+  const sourceLabel =
+    transaction.categorySource === 'RULE' && transaction.categoryRuleName
+      ? `Applied by “${transaction.categoryRuleName}”`
+      : formatBankTransactionCategorySource(transaction.categorySource);
 
   const handleValueChange = (value: string) => {
     if (!isBankTransactionCategory(value)) return;
@@ -82,6 +86,11 @@ export function BankTransactionCategorySelect({transaction}: BankTransactionCate
           </>
         )}
       </dd>
+      {transaction.categorySource === 'MANUAL' && selectedCategory && (
+        <dd className='mt-2'>
+          <BankTransactionRuleDialog transaction={transaction} />
+        </dd>
+      )}
     </div>
   );
 }

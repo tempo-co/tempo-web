@@ -99,5 +99,6 @@ export function formatBankTransactionCategorySource(
   const normalized = value?.toUpperCase();
   if (normalized === 'AI') return 'Suggested by AI';
   if (normalized === 'MANUAL') return 'Manual';
+  if (normalized === 'RULE') return 'Applied by rule';
   return null;
 }
