@@ -32,6 +32,8 @@ if 'TEMPO_API_E2E_IMAGE' not in workflow or 'sha256:' not in workflow:
     raise SystemExit('web CI must require an immutable API E2E image')
 if 'packages: read' not in workflow or 'docker/login-action@' not in workflow or 'password: ${{ github.token }}' not in workflow:
     raise SystemExit('web CI must authenticate read-only to GHCR for the API E2E image')
+if 'VITE_EMAIL_UI_URL=http://localhost:8025' not in workflow:
+    raise SystemExit('web CI must provide the local Mailpit URL after env history scrub')
 if 'docker pull "$TEMPO_API_E2E_IMAGE"' not in workflow or 'docker logout ghcr.io' not in workflow:
     raise SystemExit('web CI must clear GHCR credentials before running PR-controlled E2E commands')
 if 'pull_policy: never' not in compose:

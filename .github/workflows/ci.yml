@@ -85,6 +85,7 @@ jobs:
       - name: Export environment variables
         run: |
           echo '${{ toJson(vars) }}' | jq -c '.' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          echo 'VITE_EMAIL_UI_URL=http://localhost:8025' >> $GITHUB_ENV
 
       - name: Validate immutable API E2E image
         shell: bash
