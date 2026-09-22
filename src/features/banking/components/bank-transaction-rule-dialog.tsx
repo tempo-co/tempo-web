@@ -195,10 +195,10 @@ export function BankTransactionRuleDialog({transaction}: {transaction: BankTrans
                 className='mt-1 h-4 w-4 accent-primary'
               />
               <span>
-                <span className='block font-medium'>Apply to existing non-manual matches</span>
+                <span className='block font-medium'>Apply to eligible existing matches</span>
                 <span className='mt-1 block text-xs text-muted-foreground'>
-                  Existing manual categories will not be changed. Without this option, the rule is
-                  future-only.
+                  Only uncategorized and AI-categorized transactions update. Manual categories and
+                  matches already assigned by a rule stay unchanged. Otherwise this is future-only.
                 </span>
               </span>
             </label>
@@ -234,8 +234,9 @@ export function BankTransactionRuleDialog({transaction}: {transaction: BankTrans
                   <p className='text-sm'>
                     This rule matches <strong>{preview.totalMatches}</strong> existing transaction
                     {preview.totalMatches === 1 ? '' : 's'}. {preview.existingEligibleMatches} are
-                    eligible to update; {preview.existingManualMatches} manual categorization
-                    {preview.existingManualMatches === 1 ? '' : 's'} will remain unchanged.
+                    eligible to update; {preview.existingManualMatches} manual and{' '}
+                    {preview.existingRuleMatches} already rule-applied matches will remain
+                    unchanged.
                   </p>
                   {preview.conflictingRuleNames.length > 0 && (
                     <div
@@ -249,12 +250,21 @@ export function BankTransactionRuleDialog({transaction}: {transaction: BankTrans
                       </span>
                     </div>
                   )}
-                  <div className='text-xs text-muted-foreground'>
+                  <div className='break-words text-xs text-muted-foreground [overflow-wrap:anywhere]'>
                     {preview.direction === 'EXPENSE' ? 'Outgoing' : 'Incoming'}{' '}
                     {preview.transactionType} · exactly {preview.amount} {preview.currency} ·{' '}
                     {BANK_TRANSACTION_RULE_MATCH_FIELD_LABELS[preview.matchField]} contains “
                     {preview.matchText}”
                   </div>
+                  <p className='break-all font-mono text-xs text-muted-foreground'>
+                    Account ID: {preview.bankAccountId}
+                  </p>
+                  {preview.matches.length < preview.totalMatches && (
+                    <p className='text-xs text-muted-foreground'>
+                      Showing {preview.matches.length} of {preview.totalMatches} matching
+                      transactions.
+                    </p>
+                  )}
                   {preview.matches.length > 0 && (
                     <ul className='divide-y border' aria-label='Matching transactions'>
                       {preview.matches.map((match) => (

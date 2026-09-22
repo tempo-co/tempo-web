@@ -1,5 +1,5 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {ListFilter, Loader2, PauseCircle, RefreshCw} from 'lucide-react';
+import {ListFilter, Loader2, PauseCircle, PlayCircle, RefreshCw} from 'lucide-react';
 import {toast} from 'sonner';
 
 import {Badge} from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import {Skeleton} from '@/components/ui/skeleton';
 import {
   useDeactivateBankTransactionRule,
   useGetBankTransactionRules,
+  useUpdateBankTransactionRule,
 } from '@/features/banking/api/use-bank-transaction-rules';
 import {
   BANK_TRANSACTION_RULE_MATCH_FIELD_LABELS,
@@ -27,11 +28,27 @@ export const Route = createFileRoute('/settings/rules/')({
 function SettingsRulesIndex() {
   const {data: rules, isPending, isError, refetch} = useGetBankTransactionRules();
   const deactivateRule = useDeactivateBankTransactionRule();
+  const updateRule = useUpdateBankTransactionRule();
 
   const handleDeactivate = (rule: BankTransactionRule) => {
     deactivateRule.mutate(rule.id, {
       onSuccess: () => toast.success(`Rule “${rule.name}” disabled.`),
+      onError: (error) =>
+        toast.error(error.message || 'The rule could not be disabled. Please try again.'),
     });
+  };
+
+  const handleActivate = (rule: BankTransactionRule) => {
+    updateRule.mutate(
+      {id: rule.id, active: true},
+      {
+        onSuccess: () => toast.success(`Rule “${rule.name}” enabled.`),
+        onError: (error) =>
+          toast.error(
+            error.message || 'The rule could not be enabled. Check for conflicts and try again.',
+          ),
+      },
+    );
   };
 
   return (
@@ -48,7 +65,7 @@ function SettingsRulesIndex() {
       </div>
 
       {isPending && (
-        <div className='space-y-4' aria-label='Loading transaction rules'>
+        <div className='space-y-4' role='status' aria-label='Loading transaction rules'>
           <Skeleton className='h-32 w-full rounded-lg bg-card' />
           <Skeleton className='h-32 w-full rounded-lg bg-card' />
         </div>
@@ -85,8 +102,12 @@ function SettingsRulesIndex() {
             <RuleCard
               key={rule.id}
               rule={rule}
-              isDeactivating={deactivateRule.isPending && deactivateRule.variables === rule.id}
+              isChangingStatus={
+                (deactivateRule.isPending && deactivateRule.variables === rule.id) ||
+                (updateRule.isPending && updateRule.variables?.id === rule.id)
+              }
               onDeactivate={() => handleDeactivate(rule)}
+              onActivate={() => handleActivate(rule)}
             />
           ))}
         </div>
@@ -97,12 +118,14 @@ function SettingsRulesIndex() {
 
 function RuleCard({
   rule,
-  isDeactivating,
+  isChangingStatus,
   onDeactivate,
+  onActivate,
 }: {
   rule: BankTransactionRule;
-  isDeactivating: boolean;
+  isChangingStatus: boolean;
   onDeactivate: () => void;
+  onActivate: () => void;
 }) {
   return (
     <Card
@@ -112,8 +135,12 @@ function RuleCard({
       <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
         <div className='min-w-0'>
           <CardTitle className='truncate text-base'>{rule.name}</CardTitle>
-          <p className='mt-1 text-sm text-muted-foreground'>
-            {formatBankTransactionCategory(rule.category)} · {rule.currency} {rule.amount}
+          <p className='mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]'>
+            {formatBankTransactionCategory(rule.category)} · {rule.currency} {rule.amount} ·{' '}
+            {rule.bankAccountName || 'Bank account'}
+          </p>
+          <p className='mt-1 break-all font-mono text-xs text-muted-foreground'>
+            Account ID: {rule.bankAccountId}
           </p>
         </div>
         <Badge variant={rule.active ? 'secondary' : 'outline'}>
@@ -123,29 +150,29 @@ function RuleCard({
       <CardContent className='space-y-4'>
         <div className='border bg-muted/20 p-3 text-sm'>
           <p>
-            {rule.direction === 'EXPENSE' ? 'Outgoing' : 'Incoming'} {rule.transactionType} from the
-            current account, exactly {rule.currency} {rule.amount}.
+            {rule.direction === 'EXPENSE' ? 'Outgoing' : 'Incoming'} {rule.transactionType} from{' '}
+            {rule.bankAccountName || 'bank account'}, exactly {rule.currency} {rule.amount}.
           </p>
-          <p className='mt-1 text-muted-foreground'>
+          <p className='mt-1 break-words text-muted-foreground [overflow-wrap:anywhere]'>
             {BANK_TRANSACTION_RULE_MATCH_FIELD_LABELS[rule.matchField]} contains “{rule.matchText}”
           </p>
         </div>
-        {rule.active && (
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={onDeactivate}
-            disabled={isDeactivating}
-          >
-            {isDeactivating ? (
-              <Loader2 className='animate-spin' aria-hidden='true' />
-            ) : (
-              <PauseCircle aria-hidden='true' />
-            )}
-            Disable rule
-          </Button>
-        )}
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={rule.active ? onDeactivate : onActivate}
+          disabled={isChangingStatus}
+        >
+          {isChangingStatus ? (
+            <Loader2 className='animate-spin' aria-hidden='true' />
+          ) : rule.active ? (
+            <PauseCircle aria-hidden='true' />
+          ) : (
+            <PlayCircle aria-hidden='true' />
+          )}
+          {rule.active ? 'Disable rule' : 'Enable rule'}
+        </Button>
       </CardContent>
     </Card>
   );

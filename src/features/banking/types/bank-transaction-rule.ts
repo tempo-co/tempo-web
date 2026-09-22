@@ -19,6 +19,7 @@ export const BANK_TRANSACTION_RULE_MATCH_FIELD_LABELS: Record<
 export const bankTransactionRuleResponseSchema = z.object({
   id: z.string().uuid(),
   bankAccountId: z.string().uuid(),
+  bankAccountName: z.string().nullable(),
   name: z.string(),
   category: z.enum(BANK_TRANSACTION_CATEGORIES),
   active: z.boolean(),
@@ -63,6 +64,7 @@ export type BankTransactionRulePreview = {
   matchText: string;
   totalMatches: number;
   existingManualMatches: number;
+  existingRuleMatches: number;
   existingEligibleMatches: number;
   conflictingRuleNames: string[];
   matches: BankTransactionRulePreviewTransaction[];
