@@ -784,7 +784,8 @@ test.describe('bank transactions', () => {
       exact: true,
     });
     await categorySourceFilter.click();
-    await expect(page.getByRole('option')).toHaveCount(2);
+    await expect(page.getByRole('option')).toHaveCount(3);
+    await expect(page.getByRole('option', {name: 'Applied by rule', exact: true})).toBeVisible();
     await page.getByRole('option', {name: 'Manual', exact: true}).click();
 
     const manualSourceParam = new URL(page.url()).searchParams.get('categorySources');
@@ -915,7 +916,10 @@ test.describe('bank transactions', () => {
       .getByRole('heading', {name: 'Category source'})
       .locator('..');
     await expect(categoriesSection.getByPlaceholder('Search categories...')).toBeVisible();
-    await expect(categorySourceSection.getByRole('option')).toHaveCount(2);
+    await expect(categorySourceSection.getByRole('option')).toHaveCount(3);
+    await expect(
+      categorySourceSection.getByRole('option', {name: 'Applied by rule', exact: true}),
+    ).toBeVisible();
     await expect(mobileFilters.getByRole('button', {name: 'Done', exact: true})).toBeVisible();
     await mobileFilters.getByRole('button', {name: 'Done', exact: true}).click();
     await expect(mobileFilters).toBeHidden();
