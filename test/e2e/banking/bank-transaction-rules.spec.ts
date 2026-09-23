@@ -103,7 +103,6 @@ test.describe('bank transaction rules', () => {
               displayDescription: 'Coffee shop',
               category: 'FOOD_AND_DRINK',
               categorySource: 'MANUAL',
-              isManual: true,
             },
           ],
         }),

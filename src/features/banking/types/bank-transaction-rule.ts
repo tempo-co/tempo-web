@@ -51,7 +51,6 @@ export type BankTransactionRulePreviewTransaction = {
   displayDescription: string;
   category: BankTransactionCategory | null;
   categorySource: 'AI' | 'MANUAL' | 'RULE' | null;
-  isManual: boolean;
 };
 
 export type BankTransactionRulePreview = {
