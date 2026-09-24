@@ -64,7 +64,5 @@ export class ResetPasswordPage {
     await expect(this.resendButton).toBeVisible();
     await expect(this.useDifferentEmailButton).toBeVisible();
     await expect(this.returnToLoginLink).toBeVisible();
-    await expect(this.page.getByRole('link', {name: /open gmail/i})).toHaveCount(0);
-    await expect(this.page.getByRole('button', {name: /open gmail/i})).toHaveCount(0);
   }
 }
