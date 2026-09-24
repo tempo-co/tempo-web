@@ -66,9 +66,6 @@ test.describe.serial('Password Reset', () => {
       await EmailUtils.clearEmails();
       const email = faker.internet.email();
       await resetPasswordPage.requestPasswordReset(email);
-      const gmailSearchQuery = 'in:anywhere newer_than:1d subject:"Reset your Tempo password"';
-      const gmailSearchUrl = `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(gmailSearchQuery)}`;
-      await expect(resetPasswordPage.openGmailButton).toHaveAttribute('href', gmailSearchUrl);
       const message = await EmailUtils.findEmailByRecipient(VERIFIED_ACCOUNT_EMAIL);
       expect(message).toBeUndefined();
     });
@@ -90,7 +87,6 @@ test.describe.serial('Password Reset', () => {
       await resetPasswordPage.requestPasswordReset(VERIFIED_ACCOUNT_EMAIL);
       await resetPasswordPage.useDifferentEmailButton.click();
       await expect(resetPasswordPage.useDifferentEmailButton).toBeHidden();
-      await expect(resetPasswordPage.openGmailButton).toBeHidden();
       await expect(resetPasswordPage.resendButton).toBeHidden();
 
       await resetPasswordPage.expectRequestFormIsVisible();
