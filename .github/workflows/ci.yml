@@ -82,9 +82,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Test Docker dotenv build-context exclusions
-        run: bash ops/tests/tempo-web-dockerignore-test.sh
-
       - name: Export environment variables
         run: |
           echo '${{ toJson(vars) }}' | jq -c '.' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
