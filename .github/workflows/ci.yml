@@ -68,6 +68,18 @@ jobs:
       - name: Build application
         run: npm run build
 
+  nginx-security-headers:
+    name: Nginx security headers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build and probe production and staging Nginx images
+        run: bash ops/tests/tempo-web-security-headers-test.sh
+
   e2e-test:
     name: E2E Tests
     timeout-minutes: 60
@@ -144,7 +156,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    needs: [e2e-test]
+    needs: [e2e-test, nginx-security-headers]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
