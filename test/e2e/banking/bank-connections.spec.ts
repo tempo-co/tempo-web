@@ -704,7 +704,8 @@ test.describe('bank connections', () => {
     await expect(connectButton).toBeVisible();
     await expect(connectionCard).toBeVisible();
     await expect(totalBalance).toBeVisible();
-    await expect(totalBalance).toHaveAttribute('aria-label', /^Total balance /);
+    await expect(totalBalance).toHaveAttribute('role', 'group');
+    await expect(totalBalance).toHaveAttribute('aria-label', /^Connection balances:/);
     const [closedCardBox, titleBox, totalBox] = await Promise.all([
       connectionCard.boundingBox(),
       connectionTitle.boundingBox(),
@@ -714,8 +715,8 @@ test.describe('bank connections', () => {
     expect(titleBox).not.toBeNull();
     expect(totalBox).not.toBeNull();
     expect(closedCardBox!.height).toBeLessThan(120);
-    expect(totalBox!.y).toBeLessThanOrEqual(titleBox!.y + titleBox!.height + 4);
-    expect(totalBox!.x).toBeGreaterThan(titleBox!.x + titleBox!.width);
+    expect(totalBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
+    expect(totalBox!.x).toBeCloseTo(titleBox!.x, 0);
     await connectionCard.getByTestId(/^connection-card-toggle-/).click();
     await expect(page.getByTestId('bank-connection-sync-status')).toHaveCount(0);
     await expect(page.getByRole('button', {name: 'Sync now'})).toHaveCount(0);
