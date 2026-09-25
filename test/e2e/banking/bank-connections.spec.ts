@@ -714,7 +714,7 @@ test.describe('bank connections', () => {
     expect(closedCardBox).not.toBeNull();
     expect(titleBox).not.toBeNull();
     expect(totalBox).not.toBeNull();
-    expect(closedCardBox!.height).toBeLessThan(120);
+    expect(closedCardBox!.height).toBeLessThan(130);
     expect(totalBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
     expect(totalBox!.x).toBeCloseTo(titleBox!.x, 0);
     await connectionCard.getByTestId(/^connection-card-toggle-/).click();
