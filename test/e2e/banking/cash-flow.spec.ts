@@ -18,11 +18,11 @@ test.describe('cash-flow dashboard', () => {
       'aria-pressed',
       'true',
     );
+    await expect(page.getByRole('heading', {name: 'Money movement', exact: true})).toBeVisible();
     await expect(page.getByTestId('cash-flow-chart')).toBeVisible();
-    await expect(page.getByTestId('cash-flow-period-detail')).toBeVisible();
-    await expect(page.getByText('€120.00')).toHaveCount(3);
-    await expect(page.getByText('€34.50')).toHaveCount(3);
-    await expect(page.getByText('€85.50')).toHaveCount(3);
+    await expect(page.getByText('€120.00')).toHaveCount(2);
+    await expect(page.getByText('€34.50')).toHaveCount(2);
+    await expect(page.getByText('€85.50')).toHaveCount(2);
 
     const chartBars = page.getByTestId('cash-flow-chart').locator('.recharts-bar-rectangle');
     await chartBars
@@ -46,7 +46,6 @@ test.describe('cash-flow dashboard', () => {
       'aria-pressed',
       'true',
     );
-    await expect(page.getByTestId('cash-flow-period-detail')).toBeVisible();
   });
 
   test('preserves currency-specific precision for large amounts', async ({page}) => {
@@ -58,13 +57,13 @@ test.describe('cash-flow dashboard', () => {
     await expect(page.getByText(/12,345,678,901,234,567,890\.123/).first()).toBeVisible();
   });
 
-  test('keeps the chart and period table usable on a narrow viewport', async ({page}) => {
+  test('keeps the money movement UI usable on a narrow viewport', async ({page}) => {
     await installCashFlowFixture(page);
     await page.setViewportSize({width: 393, height: 852});
     await page.goto('/');
 
     await expect(page.getByTestId('cash-flow-chart')).toBeVisible();
-    await expect(page.getByTestId('cash-flow-period-detail')).toBeVisible();
+    await expect(page.getByRole('heading', {name: 'Money movement', exact: true})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       393,
     );
