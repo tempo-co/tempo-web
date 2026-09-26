@@ -78,6 +78,7 @@ export function BankTransactionTable({
   const [searchInput, setSearchInput] = useState(filters.search || '');
   const isFilteringApplied =
     !!filters.bookingDate ||
+    !!filters.currency ||
     (filters.bankAccountIds?.length ?? 0) > 0 ||
     (filters.categories?.length ?? 0) > 0 ||
     (filters.categorySources?.length ?? 0) > 0 ||
@@ -143,6 +144,7 @@ export function BankTransactionTable({
       search: (prev) => ({
         ...prev,
         bookingDate: undefined,
+        currency: undefined,
         bankAccountIds: undefined,
         categories: undefined,
         categorySources: undefined,

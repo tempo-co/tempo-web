@@ -1,7 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router';
 
-import {AppBodyLayout} from '@/components/shared/layout/app-body';
 import {AppHeaderLayout} from '@/components/shared/layout/app-header-layout';
+import {BankCashFlowExplorer} from '@/features/banking/components/bank-cash-flow-explorer';
 import {handleAuthenticatedRedirect} from '@/utils/handle-redirect';
 
 export const Route = createFileRoute('/')({
@@ -17,9 +17,7 @@ function Index() {
       <AppHeaderLayout>
         <span className='text-sm font-medium'>Home</span>
       </AppHeaderLayout>
-      <AppBodyLayout>
-        <p>index</p>
-      </AppBodyLayout>
+      <BankCashFlowExplorer />
     </>
   );
 }
