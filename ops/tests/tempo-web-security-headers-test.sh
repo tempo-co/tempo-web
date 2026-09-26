@@ -19,17 +19,28 @@ cleanup() {
 trap cleanup EXIT
 
 python3 - "$repo_root/.github/workflows/ci.yml" <<'PY'
+import re
 import sys
 from pathlib import Path
 
 
-def test_publish_waits_for_header_checks(workflow: str) -> None:
-    publish = workflow.split("\n  publish-image:\n", 1)[1]
-    needs = next(line for line in publish.splitlines() if line.startswith("    needs:"))
-    assert "nginx-security-headers" in needs, "image publishing must wait for the Nginx security-header probe"
+def job_section(workflow: str, name: str) -> str:
+    section = workflow.split(f"\n  {name}:\n", 1)[1]
+    next_job = re.search(r"\n  [A-Za-z0-9_-]+:\n", section)
+    return section[:next_job.start()] if next_job else section
 
 
-test_publish_waits_for_header_checks(Path(sys.argv[1]).read_text(encoding="utf-8"))
+def test_security_header_probe_runs_before_publishing(workflow: str) -> None:
+    build = job_section(workflow, "build")
+    e2e = job_section(workflow, "e2e-test")
+    publish = job_section(workflow, "publish-image")
+
+    assert "bash ops/tests/tempo-web-security-headers-test.sh" in build, "the existing build job must run the Nginx security-header probe"
+    assert "needs: [build]" in e2e, "E2E must wait for the build job containing the Nginx probe"
+    assert "needs: [e2e-test]" in publish, "image publishing must wait for E2E and transitively for the Nginx probe"
+
+
+test_security_header_probe_runs_before_publishing(Path(sys.argv[1]).read_text(encoding="utf-8"))
 PY
 
 assert_headers() {
