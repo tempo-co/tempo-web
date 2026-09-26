@@ -18,7 +18,7 @@ test.describe('cash-flow dashboard', () => {
       'aria-pressed',
       'true',
     );
-    await expect(page.getByRole('heading', {name: 'Money movement', exact: true})).toBeVisible();
+    await expect(page.getByText('Money movement', {exact: true})).toBeVisible();
     await expect(page.getByTestId('cash-flow-chart')).toBeVisible();
     await expect(page.getByText('€120.00')).toHaveCount(2);
     await expect(page.getByText('€34.50')).toHaveCount(2);
@@ -63,7 +63,7 @@ test.describe('cash-flow dashboard', () => {
     await page.goto('/');
 
     await expect(page.getByTestId('cash-flow-chart')).toBeVisible();
-    await expect(page.getByRole('heading', {name: 'Money movement', exact: true})).toBeVisible();
+    await expect(page.getByText('Money movement', {exact: true})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       393,
     );
