@@ -1,6 +1,6 @@
 const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
-export function formatCurrency(amount: number, currency: string) {
+export function getCurrencyFormatter(currency: string) {
   let formatter = currencyFormatters.get(currency);
   if (!formatter) {
     formatter = new Intl.NumberFormat(undefined, {
@@ -10,5 +10,9 @@ export function formatCurrency(amount: number, currency: string) {
     });
     currencyFormatters.set(currency, formatter);
   }
-  return formatter.format(amount);
+  return formatter;
+}
+
+export function formatCurrency(amount: number, currency: string) {
+  return getCurrencyFormatter(currency).format(amount);
 }
