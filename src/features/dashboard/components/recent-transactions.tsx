@@ -30,13 +30,13 @@ export function RecentTransactions({
   );
   const title = isCurrentMonth ? 'Recent' : `Latest in ${formatMonth(month)}`;
   return (
-    <Card role='region' aria-label={title} className='p-5'>
-      <header className='mb-3 flex flex-wrap items-baseline justify-between gap-2'>
+    <Card role='region' aria-label={title} className='grid min-w-0 gap-4 p-5 sm:p-6'>
+      <header className='-my-3 flex flex-wrap items-center justify-between gap-x-2'>
         <h2 className='text-base font-semibold'>{title}</h2>
         <Link
           to='/bank-transactions'
           search={{bookingDate}}
-          className='text-xs text-primary hover:underline'
+          className='-mr-3 inline-flex min-h-11 items-center px-3 text-xs text-primary underline-offset-4 hover:bg-accent/50 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
         >
           View all
         </Link>
@@ -46,20 +46,20 @@ export function RecentTransactions({
       ) : isError ? (
         <>
           <p className='text-sm'>Could not load transactions.</p>
-          <Button variant='outline' onClick={() => void refetch()}>
+          <Button variant='outline' className='w-fit' onClick={() => void refetch()}>
             Try again
           </Button>
         </>
       ) : !data?.transactions.length ? (
         <p className='text-sm text-muted-foreground'>No transactions this month.</p>
       ) : (
-        <ul className='divide-y divide-border/60'>
+        <ul className='-mx-3 divide-y divide-border/60'>
           {data.transactions.map((transaction) => (
             <li key={transaction.id}>
               <Link
                 to='/bank-transactions'
                 search={{bookingDate, transactionId: transaction.id}}
-                className='grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3 hover:bg-accent/50'
+                className='grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
               >
                 <div className='min-w-0'>
                   <p className='truncate text-sm'>

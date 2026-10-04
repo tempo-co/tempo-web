@@ -48,13 +48,13 @@ export function HomeDashboard({month, isCurrentMonth}: HomeDashboardProps) {
 
   return (
     <div className='@container'>
-      <div className='flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5'>
+      <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-4'>
         <MonthNavigation month={month} isCurrentMonth={isCurrentMonth} />
         <HomeSyncStatus connections={connections} />
       </div>
-      <div className='mt-5 grid gap-5 @[900px]:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]'>
+      <div className='mt-6 grid gap-6 @[900px]:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]'>
         <MonthlySpending month={month} isCurrentMonth={isCurrentMonth} />
-        <div className='grid min-w-0 content-start gap-5'>
+        <div className='grid min-w-0 content-start gap-6'>
           <HomeAttention baseCurrency={connections[0]?.baseCurrency ?? null} />
           <BalancesList connections={connections} isCurrentMonth={isCurrentMonth} />
           <RecentTransactions month={month} isCurrentMonth={isCurrentMonth} />
@@ -69,7 +69,7 @@ function MonthlySpending({month, isCurrentMonth}: HomeDashboardProps) {
   if (isPending) return <Skeleton className='h-96' aria-label='Loading spending' />;
   if (isError || !summary)
     return (
-      <Card className='p-5'>
+      <Card className='grid justify-items-start gap-4 p-5 sm:p-6'>
         <p>Could not load spending.</p>
         <Button variant='outline' onClick={() => void refetch()}>
           Try again
@@ -77,7 +77,7 @@ function MonthlySpending({month, isCurrentMonth}: HomeDashboardProps) {
       </Card>
     );
   return (
-    <div className='grid min-w-0 content-start gap-5'>
+    <div className='grid min-w-0 content-start gap-6'>
       <SpendingSummaryCard summary={summary} isCurrentMonth={isCurrentMonth} />
       <CategoryBreakdown summary={summary} isCurrentMonth={isCurrentMonth} />
     </div>
@@ -89,7 +89,7 @@ function HomeAttention({baseCurrency}: {baseCurrency: string | null}) {
   if (isPending) return <Skeleton className='h-40' aria-label='Loading attention counts' />;
   if (isError || !reviewCounts)
     return (
-      <Card className='p-5'>
+      <Card className='grid justify-items-start gap-4 p-5 sm:p-6'>
         <p>Could not load attention counts.</p>
         <Button variant='outline' onClick={() => void refetch()}>
           Try again
@@ -106,7 +106,7 @@ function HomeDashboardSkeleton() {
         <Skeleton className='h-8 w-44' />
         <Skeleton className='h-4 w-64' />
       </div>
-      <Card className='grid gap-3 p-5'>
+      <Card className='grid gap-3 p-5 sm:p-6'>
         <Skeleton className='h-8 w-2/5' />
         <Skeleton className='h-4 w-1/2' />
         <Skeleton className='h-52' />

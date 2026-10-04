@@ -25,7 +25,7 @@ export function AttentionList({reviewCounts, baseCurrency}: AttentionListProps) 
   const visibleGroups = groups.filter(({key}) => reviewCounts[key] > 0);
 
   return (
-    <Card role='region' aria-labelledby={headingId} className='gap-4 p-5'>
+    <Card role='region' aria-labelledby={headingId} className='grid min-w-0 gap-4 p-5 sm:p-6'>
       <h2 id={headingId} className='text-base font-semibold'>
         Needs attention
       </h2>
@@ -33,13 +33,13 @@ export function AttentionList({reviewCounts, baseCurrency}: AttentionListProps) 
         <p className='text-sm text-muted-foreground'>Everything is categorized and counted.</p>
       ) : (
         <>
-          <ul className='divide-y divide-border'>
+          <ul className='-mx-3 divide-y divide-border/60'>
             {visibleGroups.map(({key, label}) => (
               <li key={key}>
                 <Link
                   to='/bank-transactions'
                   search={reviewDrills[key]}
-                  className='group flex min-h-14 items-center justify-between gap-3 rounded-sm py-3 outline-offset-4 hover:text-primary focus-visible:outline-2 focus-visible:outline-ring'
+                  className='group flex min-h-14 items-center justify-between gap-3 px-3 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
                 >
                   <span className='min-w-0'>
                     <span className='block text-sm font-medium group-hover:underline'>{label}</span>

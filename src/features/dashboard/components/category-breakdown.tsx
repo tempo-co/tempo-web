@@ -35,7 +35,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
   );
 
   return (
-    <Card className='gap-4 p-5' data-testid='category-breakdown'>
+    <Card className='grid min-w-0 gap-6 p-5 sm:p-6' data-testid='category-breakdown'>
       <div>
         <h2 className='text-base font-semibold'>Where it went</h2>
         {summary.baseline.months.length > 0 && (
@@ -49,7 +49,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
       {visible.length === 0 && !refund && (
         <p className='text-sm text-muted-foreground'>No spending this month.</p>
       )}
-      <div className='grid gap-4'>
+      <div className='grid gap-5'>
         {visible.map((row) => {
           const meta =
             row.category === 'UNCATEGORIZED' ? null : BANK_TRANSACTION_CATEGORY_META[row.category];
@@ -62,7 +62,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
               key={row.category}
               to='/bank-transactions'
               search={categoryDrill(row.category, from, through)}
-              className='group block rounded-sm outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring'
+              className='group block outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring'
             >
               <div className='flex items-baseline justify-between gap-3 text-sm'>
                 <span className='min-w-0 group-hover:underline'>{label}</span>
@@ -104,7 +104,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
               ...spendingDrill(from, through),
               categories: remaining.map((row) => row.category),
             }}
-            className='w-fit text-sm text-muted-foreground underline-offset-4 hover:underline'
+            className='w-fit text-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
           >
             {remaining.length} more {remaining.length === 1 ? 'category' : 'categories'}{' '}
             <span aria-hidden='true'>→</span>
@@ -114,7 +114,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
           <Link
             to='/bank-transactions'
             search={categoryDrill('REFUND', from, through)}
-            className='border-t pt-3 text-sm underline-offset-4 hover:underline'
+            className='border-t pt-4 text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
           >
             <div className='flex items-baseline justify-between gap-3'>
               <span>Refunds (subtracted)</span>
@@ -128,7 +128,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
           </Link>
         )}
       </div>
-      <p className='border-t pt-3 text-xs text-muted-foreground'>
+      <p className='border-t pt-4 text-xs text-muted-foreground'>
         Payments to people count as spending. Own transfers do not.
       </p>
     </Card>

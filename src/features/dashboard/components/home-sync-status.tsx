@@ -10,7 +10,7 @@ import {getHomeSyncStatus} from '../utils/sync-status';
 const badgeClassName =
   'inline-flex items-center rounded-full border px-2.5 py-px text-xs font-medium';
 const linkClassName =
-  'text-[0.8125rem] font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline';
+  'text-[0.8125rem] font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring';
 
 function formatSyncedBanks(count: number, syncedAt: string | null) {
   if (!syncedAt) return count === 1 ? 'Your bank is syncing' : 'Your banks are syncing';
@@ -44,7 +44,7 @@ export function HomeSyncStatus({connections}: {connections: BankConnection[]}) {
           {problems.map((connection) => (
             <span
               key={connection.id}
-              className={cn(badgeClassName, 'border-destructive/60 text-destructive')}
+              className={cn(badgeClassName, 'border-destructive/60 text-foreground')}
             >
               {formatProblem(connection)}
             </span>
@@ -61,7 +61,10 @@ export function HomeSyncStatus({connections}: {connections: BankConnection[]}) {
         <Link
           key={connection.id}
           to='/bank-connections'
-          className={cn(badgeClassName, 'border-warning/60 text-warning hover:bg-warning/10')}
+          className={cn(
+            badgeClassName,
+            'border-warning/60 text-foreground hover:bg-warning/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring',
+          )}
         >
           {`${connection.aspspName} consent expires ${formatDaysLeft(daysLeft)}`}
         </Link>

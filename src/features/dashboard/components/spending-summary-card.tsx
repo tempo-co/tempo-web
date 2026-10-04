@@ -12,7 +12,8 @@ import {SpendingPaceChart} from './spending-pace-chart';
 
 const BASELINE_MONTHS = 3;
 
-const linkClassName = 'underline-offset-4 hover:underline';
+const linkClassName =
+  'underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring';
 
 type SpendingSummaryCardProps = {
   summary: BankTransactionSummary;
@@ -32,7 +33,7 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
       : `spent 1–${format(throughDate, 'd MMMM')}`;
 
   return (
-    <Card className='p-5' data-testid='spending-summary'>
+    <Card className='min-w-0 p-5 sm:p-6' data-testid='spending-summary'>
       <Link
         to='/bank-transactions'
         search={spendingDrill(from, through)}
@@ -43,9 +44,9 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
       >
         {formatMoney(totals.spending, baseCurrency)}
       </Link>
-      <p className='text-sm text-muted-foreground'>{period}</p>
+      <p className='mt-1 text-sm text-muted-foreground'>{period}</p>
       <SpendingComparison summary={summary} />
-      <dl className='mt-2 flex flex-wrap gap-x-5.5 gap-y-1 text-[0.8125rem]'>
+      <dl className='mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm'>
         <div className='flex items-baseline gap-1.5'>
           <dt className='text-muted-foreground'>Income</dt>
           <dd>
@@ -105,7 +106,7 @@ function SpendingComparison({summary}: Pick<SpendingSummaryCardProps, 'summary'>
       : '';
 
   return (
-    <div className='mt-1 text-sm' data-testid='spending-comparison'>
+    <div className='mt-3 text-sm' data-testid='spending-comparison'>
       <p>
         <span className={cn(isAboveRange && 'font-medium text-primary')}>{comparison}</span>
         {verdict && <span className='text-muted-foreground'> · {verdict}</span>}

@@ -33,26 +33,29 @@ export function BalancesList({
     0,
   );
   return (
-    <Card role='region' aria-label='Balances' className='p-5'>
-      <header className='mb-3 flex flex-wrap items-baseline justify-between gap-2'>
+    <Card role='region' aria-label='Balances' className='grid min-w-0 gap-4 p-5 sm:p-6'>
+      <header className='-my-3 flex flex-wrap items-center justify-between gap-x-2'>
         <h2 className='text-base font-semibold'>
           Balances{' '}
           {!isCurrentMonth && (
             <span className='text-xs font-normal text-muted-foreground'>· today</span>
           )}
         </h2>
-        <Link to='/bank-connections' className='text-xs text-primary hover:underline'>
+        <Link
+          to='/bank-connections'
+          className='-mr-3 inline-flex min-h-11 items-center px-3 text-xs text-primary underline-offset-4 hover:bg-accent/50 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+        >
           Connections
         </Link>
       </header>
-      <ul className='divide-y divide-border/60'>
+      <ul className='-mx-3 divide-y divide-border/60'>
         {accounts.map(({account, connection}) => {
           const stale = getAutomaticSyncDetailsForConnection(connection)?.isProblem;
           return (
             <li key={account.id}>
               <Link
                 to='/bank-connections'
-                className='grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 hover:bg-accent/50'
+                className='grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
               >
                 <div className='min-w-0'>
                   <p className='text-sm break-words'>{resolveBankAccountLabel(account)}</p>
@@ -66,7 +69,7 @@ export function BalancesList({
                   )}
                 </div>
                 <div className={cn('text-right text-sm', stale && 'text-muted-foreground')}>
-                  <p className='font-mono tabular-nums'>
+                  <p className='text-right font-mono tabular-nums'>
                     {account.currentBalanceAmount == null
                       ? 'No balance yet'
                       : formatMoney(account.currentBalanceAmount, account.currency)}
@@ -86,15 +89,15 @@ export function BalancesList({
           );
         })}
       </ul>
-      <div className='mt-2 border-t pt-3 text-sm'>
+      <div className='grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t pt-4 text-sm'>
         <span className='font-semibold'>Total</span>
-        <p className='font-mono tabular-nums'>
+        <p className='text-right font-mono tabular-nums'>
           {baseCurrency
             ? `${formatMoney(totalCents / 100, baseCurrency)}${missing.length ? ` excluding ${missing.map(({account}) => resolveBankAccountLabel(account)).join(', ')}` : ''}`
             : 'Base currency not available yet'}
         </p>
         {missing.length > 0 && (
-          <p className='mt-1 text-xs text-muted-foreground'>
+          <p className='col-span-2 text-xs text-muted-foreground'>
             Accounts without a converted balance are left out.
           </p>
         )}

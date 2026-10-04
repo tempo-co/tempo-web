@@ -34,7 +34,7 @@ export function SpendingPaceChart({summary, isCurrentMonth}: Props) {
   return (
     <div className='mt-4'>
       <ChartContainer
-        className='aspect-auto h-60 w-full'
+        className='aspect-auto h-60 w-full [&_.recharts-surface:focus-visible]:outline-2 [&_.recharts-surface:focus-visible]:outline-offset-2 [&_.recharts-surface:focus-visible]:outline-ring [&_.recharts-surface:focus-visible]:outline-solid'
         config={{
           cumulative: {color: 'hsl(var(--primary))'},
           average: {color: 'hsl(var(--muted-foreground))'},
@@ -142,40 +142,43 @@ export function SpendingPaceChart({summary, isCurrentMonth}: Props) {
         )}
         <span className='basis-full'>Hover a day for exact values · click to open it</span>
       </div>
-      <table
-        aria-label='Exact daily spending'
-        className='sr-only focus-within:not-sr-only focus-within:mt-4 focus-within:w-full focus-within:text-sm'
-      >
-        <thead>
-          <tr>
-            <th>Day</th>
-            <th>Spent</th>
-            <th>Cumulative</th>
-            <th>Usual</th>
-          </tr>
-        </thead>
-        <tbody>
-          {daily.map((day) => (
-            <tr key={day.day}>
-              <td>
-                <Link
-                  to='/bank-transactions'
-                  search={spendingDrill(dateFor(day.day), dateFor(day.day))}
-                >
-                  {labelFor(day.day)}
-                </Link>
-              </td>
-              <td>{formatMoney(day.spending, baseCurrency)}</td>
-              <td>{formatMoney(day.cumulative, baseCurrency)}</td>
-              <td>
-                {baseline.daily[day.day - 1]
-                  ? formatMoney(baseline.daily[day.day - 1].average, baseCurrency)
-                  : 'No baseline'}
-              </td>
+      <div className='sr-only focus-within:not-sr-only focus-within:mt-4 focus-within:max-w-full focus-within:overflow-x-auto'>
+        <table
+          aria-label='Exact daily spending'
+          className='w-full text-right text-sm [&_td]:px-2 [&_td]:py-1 [&_td]:font-mono [&_td]:tabular-nums [&_th]:px-2 [&_th]:py-2'
+        >
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Spent</th>
+              <th>Cumulative</th>
+              <th>Usual</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {daily.map((day) => (
+              <tr key={day.day}>
+                <td>
+                  <Link
+                    to='/bank-transactions'
+                    search={spendingDrill(dateFor(day.day), dateFor(day.day))}
+                    className='underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+                  >
+                    {labelFor(day.day)}
+                  </Link>
+                </td>
+                <td>{formatMoney(day.spending, baseCurrency)}</td>
+                <td>{formatMoney(day.cumulative, baseCurrency)}</td>
+                <td>
+                  {baseline.daily[day.day - 1]
+                    ? formatMoney(baseline.daily[day.day - 1].average, baseCurrency)
+                    : 'No baseline'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
