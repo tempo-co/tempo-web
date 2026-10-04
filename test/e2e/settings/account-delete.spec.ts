@@ -5,7 +5,6 @@ test.describe('Account Settings: Delete account', () => {
     page,
     freshAccount: {email, password},
     accountSettingsPage,
-    homePage,
     loginPage,
   }) => {
     await page.setViewportSize({width: 393, height: 852});
@@ -29,12 +28,12 @@ test.describe('Account Settings: Delete account', () => {
     await accountSettingsPage.deleteConfirmButton.click();
     await expect(accountSettingsPage.deleteInvalidPasswordError).toBeVisible();
 
-    // Correct password deletes the account, signs the user out, and routes to '/'.
+    // Correct password deletes the account and returns the signed-out user to login.
     await accountSettingsPage.deletePasswordInput.fill(password);
     await accountSettingsPage.deleteConfirmButton.click();
 
     await expect(page.getByText('Account deleted.')).toBeVisible();
-    await homePage.expectToBeOnPage();
+    await expect(page).toHaveURL(/\/login$/);
 
     // The account is really gone: re-login fails.
     await loginPage.navigate();

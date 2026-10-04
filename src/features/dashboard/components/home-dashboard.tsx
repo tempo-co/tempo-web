@@ -7,9 +7,17 @@ import {Card} from '@/components/ui/card';
 import {Skeleton} from '@/components/ui/skeleton';
 import {useGetAllBankConnections} from '@/features/banking/api/use-get-all-bank-connections';
 
+import {useGetBankTransactionReviewCounts} from '../api/use-get-bank-transaction-review-counts';
+import {useGetBankTransactionSummary} from '../api/use-get-bank-transaction-summary';
+import {localDate} from '../utils/month';
 import {isConnectedBank} from '../utils/sync-status';
+import {AttentionList} from './attention-list';
+import {BalancesList} from './balances-list';
+import {CategoryBreakdown} from './category-breakdown';
 import {HomeSyncStatus} from './home-sync-status';
 import {MonthNavigation} from './month-navigation';
+import {RecentTransactions} from './recent-transactions';
+import {SpendingSummaryCard} from './spending-summary-card';
 
 type HomeDashboardProps = {
   month: string;
@@ -39,11 +47,56 @@ export function HomeDashboard({month, isCurrentMonth}: HomeDashboardProps) {
   if (connections.length === 0) return <ConnectBankPrompt />;
 
   return (
-    <div className='flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5'>
-      <MonthNavigation month={month} isCurrentMonth={isCurrentMonth} />
-      <HomeSyncStatus connections={connections} />
+    <div className='@container'>
+      <div className='flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5'>
+        <MonthNavigation month={month} isCurrentMonth={isCurrentMonth} />
+        <HomeSyncStatus connections={connections} />
+      </div>
+      <div className='mt-5 grid gap-5 @[900px]:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]'>
+        <MonthlySpending month={month} isCurrentMonth={isCurrentMonth} />
+        <div className='grid min-w-0 content-start gap-5'>
+          <HomeAttention baseCurrency={connections[0]?.baseCurrency ?? null} />
+          <BalancesList connections={connections} isCurrentMonth={isCurrentMonth} />
+          <RecentTransactions month={month} isCurrentMonth={isCurrentMonth} />
+        </div>
+      </div>
     </div>
   );
+}
+
+function MonthlySpending({month, isCurrentMonth}: HomeDashboardProps) {
+  const {summary, isPending, isError, refetch} = useGetBankTransactionSummary(month, localDate());
+  if (isPending) return <Skeleton className='h-96' aria-label='Loading spending' />;
+  if (isError || !summary)
+    return (
+      <Card className='p-5'>
+        <p>Could not load spending.</p>
+        <Button variant='outline' onClick={() => void refetch()}>
+          Try again
+        </Button>
+      </Card>
+    );
+  return (
+    <div className='grid min-w-0 content-start gap-5'>
+      <SpendingSummaryCard summary={summary} isCurrentMonth={isCurrentMonth} />
+      <CategoryBreakdown summary={summary} isCurrentMonth={isCurrentMonth} />
+    </div>
+  );
+}
+
+function HomeAttention({baseCurrency}: {baseCurrency: string | null}) {
+  const {reviewCounts, isPending, isError, refetch} = useGetBankTransactionReviewCounts();
+  if (isPending) return <Skeleton className='h-40' aria-label='Loading attention counts' />;
+  if (isError || !reviewCounts)
+    return (
+      <Card className='p-5'>
+        <p>Could not load attention counts.</p>
+        <Button variant='outline' onClick={() => void refetch()}>
+          Try again
+        </Button>
+      </Card>
+    );
+  return <AttentionList reviewCounts={reviewCounts} baseCurrency={baseCurrency} />;
 }
 
 function HomeDashboardSkeleton() {

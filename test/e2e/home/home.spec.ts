@@ -17,6 +17,9 @@ test.describe('Home without banks', () => {
 });
 
 test.describe('Home', () => {
+  test.afterEach(async ({page}) => {
+    await page.unrouteAll({behavior: 'wait'});
+  });
   test.use({storageState: VERIFIED_USER_AUTH_FILE});
 
   test.beforeEach(async ({page}) => {

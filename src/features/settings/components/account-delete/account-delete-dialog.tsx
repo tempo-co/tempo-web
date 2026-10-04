@@ -62,7 +62,7 @@ export function AccountDeleteDialog({children}: AccountDeleteDialogProps) {
       },
       onSuccess: async () => {
         setIsOpen(false);
-        await navigate({to: '/'});
+        await navigate({to: '/login'});
       },
     });
   };

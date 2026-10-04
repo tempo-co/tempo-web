@@ -22,7 +22,10 @@ const appendArrayFilter = (
   values?.forEach((value) => params.append(key, value));
 };
 
-export const useGetBankTransactions = (searchParams: BankTransactionSearchParams) => {
+export const useGetBankTransactions = (
+  searchParams: BankTransactionSearchParams,
+  {refetchInterval}: {refetchInterval?: number} = {},
+) => {
   const navigate = useNavigate({from: '/bank-transactions/'});
   const pagination: PaginationParams = {
     pageIndex: searchParams.pageIndex,
@@ -92,6 +95,7 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
         return await api.get<BankTransactionsResponse>(`/bank-transactions?${params.toString()}`);
       },
       placeholderData: keepPreviousData,
+      refetchInterval,
     },
   );
 

@@ -1,6 +1,7 @@
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 
+import {dashboardQueryKeys} from '@/features/banking/api/aggregate-query-keys';
 import {HttpError, api} from '@/utils/api';
 
 import {BankTransaction, OwnTransferOverride} from '../types/bank-transaction';
@@ -38,6 +39,7 @@ export const useUpdateBankTransactionOwnTransfer = () => {
           queryKey: bankQueryKeys.transactionRoot,
           predicate: ({queryKey}) => queryKey[1] !== id,
         }),
+        queryClient.invalidateQueries({queryKey: dashboardQueryKeys.root}),
         queryClient.invalidateQueries({queryKey: bankQueryKeys.transactionsRoot}),
         queryClient.invalidateQueries({queryKey: bankQueryKeys.connectionTransactionsRoot}),
       ]);

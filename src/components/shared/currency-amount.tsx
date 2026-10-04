@@ -1,27 +1,13 @@
 import {cn} from '@/utils/cn';
+import {formatCurrency} from '@/utils/format-currency';
 
 type CurrencyAmountProps = {
   amount: number;
   currency: string;
 };
 
-const currencyFormatters = new Map<string, Intl.NumberFormat>();
-
-function getCurrencyFormatter(currency: string) {
-  let formatter = currencyFormatters.get(currency);
-  if (!formatter) {
-    formatter = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-      currencyDisplay: 'symbol',
-    });
-    currencyFormatters.set(currency, formatter);
-  }
-  return formatter;
-}
-
 export function CurrencyAmount({amount, currency}: CurrencyAmountProps) {
-  const formattedAmount = getCurrencyFormatter(currency).format(amount);
+  const formattedAmount = formatCurrency(amount, currency);
 
   return (
     <span className={cn('font-mono whitespace-nowrap', amount > 0 && 'text-success')}>
