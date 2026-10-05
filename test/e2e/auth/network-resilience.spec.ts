@@ -1,11 +1,12 @@
-import type {Page, Route} from '@playwright/test';
+import type {Page, Request, Route} from '@playwright/test';
 
 import type {BankConnection} from '../../../src/features/banking/types/bank-connection';
 import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
-import {API_URL, expect, test} from '../../fixtures';
+import {API_URL, createVerifiedAccount, expect, test} from '../../fixtures';
 import {HomePage} from '../../pages/home.page';
 import {LoginPage} from '../../pages/login.page';
 import {SecuritySettingsPage} from '../../pages/security-settings.page';
+import {SignupPage} from '../../pages/signup.page';
 import {
   fulfillJson,
   mockJson,
@@ -29,6 +30,19 @@ const savedStatus = (page: Page) =>
 const unreachableHeading = (page: Page) => page.getByRole('heading', {name: 'Cannot reach Tempo'});
 const serverSessionStatus = async (page: Page) =>
   (await page.request.get(`${API_URL}/accounts/me`)).status();
+/**
+ * Runs the persister's throttled save (at most 1 s away), so a skipped or late write has had its
+ * chance. Needs `clock.install()` before the page loads.
+ */
+const flushPersistence = (page: Page) => page.clock.runFor(1000);
+const logoutLocks = (page: Page) =>
+  page.evaluate(async () => {
+    const {held = [], pending = []} = await navigator.locks.query();
+    const count = (locks: LockInfo[]) => locks.filter(({name}) => name === 'tempo-logout').length;
+    return {held: count(held), pending: count(pending)};
+  });
+const nameSaveOutcome = (page: Page) =>
+  page.getByText(/^(Name saved\.|Your name could not be saved\. Please try again)$/);
 
 /** Brings the tab back into view, which refetches the page's data as switching apps does. */
 const refocus = (page: Page) =>
@@ -410,6 +424,7 @@ test('logging out while Tempo is unreachable still clears saved data', async ({
   await expect.poll(() => readCache(page)).toBe(null);
   await expect(homePage.sidebarAccountName).not.toBeVisible();
   await expect(page.getByText('Saved data was removed from this device')).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
   expect(errors).toEqual([]);
   await page.reload();
   await expect(unreachableHeading(page)).toBeVisible();
@@ -421,6 +436,7 @@ test('a signed-out tab does not sign out a tab that logs in', async ({
   freshAccount,
   homePage,
 }) => {
+  await context.clock.install();
   await context.clearCookies();
   const other = await context.newPage();
   const otherLogin = new LoginPage(other);
@@ -435,7 +451,7 @@ test('a signed-out tab does not sign out a tab that logs in', async ({
   await otherLogin.passwordInput.fill('not-the-password');
   await otherLogin.submitButton.click();
   await expect(otherLogin.invalidCredentialsError).toBeVisible();
-  await page.waitForTimeout(1500);
+  await flushPersistence(other);
   expect(await readCache(page)).not.toBe(null);
   await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
 });
@@ -520,10 +536,8 @@ test('two reconnecting tabs finish a pending logout only once', async ({
   await homePage.logOut();
   await expect.poll(() => readCache(page)).toBe(null);
   let requests = 0;
-  let release = () => {};
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
   await context.route('**/auth/logout', async (route) => {
     requests++;
     const response = await route.fetch();
@@ -531,13 +545,15 @@ test('two reconnecting tabs finish a pending logout only once', async ({
     await route.fulfill({response});
   });
   await context.setOffline(false);
-  await expect.poll(() => requests).toBeGreaterThan(0);
-  // Keep the first logout in flight while both tabs process reconnection.
-  await page.waitForTimeout(2000);
-  const concurrentRequests = requests;
+  // One tab's logout is in flight while the other waits for it.
+  await expect.poll(() => logoutLocks(page)).toEqual({held: 1, pending: 1});
+  await expect.poll(() => requests).toBe(1);
   release();
-  expect(concurrentRequests).toBe(1);
-  await expect.poll(() => serverSessionStatus(page)).toBe(401);
+  await expect.poll(() => logoutLocks(page)).toEqual({held: 0, pending: 0});
+  expect(requests).toBe(1);
+  for (const tab of [page, other])
+    expect(await tab.evaluate(() => localStorage.getItem('tempo-pending-logout'))).toBe(null);
+  expect(await serverSessionStatus(page)).toBe(401);
   await expect(homePage.sidebarAccountName).not.toBeVisible();
   await expect(otherHome.sidebarAccountName).not.toBeVisible();
 });
@@ -548,22 +564,24 @@ test('an account save finishing after logout in another tab does not restore sav
   freshAccount,
   homePage,
 }) => {
+  await context.clock.install();
   await page.goto('/settings/account');
   const name = page.getByTestId('name-input');
   await expect(name).toHaveValue(freshAccount.name);
   await expect.poll(() => readCache(page)).not.toBe(null);
-  let releaseSave = () => {};
-  let saveStarted = false;
+  let releaseSave!: () => void;
+  const saveReleased = new Promise<void>((resolve) => (releaseSave = resolve));
+  let saveHeld = false;
   await page.route('**/accounts/me', async (route) => {
     if (route.request().method() !== 'PATCH') return route.continue();
-    saveStarted = true;
     const current = (await (await route.fetch({method: 'GET'})).json()) as object;
-    await new Promise<void>((resolve) => (releaseSave = resolve));
+    saveHeld = true;
+    await saveReleased;
     await route.fulfill({json: {...current, name: 'Late example'}});
   });
   await name.fill('Late example');
   await name.blur();
-  await expect.poll(() => saveStarted).toBe(true);
+  await expect.poll(() => saveHeld).toBe(true);
 
   const other = await context.newPage();
   await other.goto('/');
@@ -573,9 +591,51 @@ test('an account save finishing after logout in another tab does not restore sav
   await expect(homePage.sidebarAccountName).not.toBeVisible();
 
   releaseSave();
-  await page.waitForTimeout(1500);
+  await expect(nameSaveOutcome(page)).toBeVisible();
+  await flushPersistence(page);
   expect(await readCache(page)).toBe(null);
   await expect(homePage.sidebarAccountName).not.toBeVisible();
+});
+
+test('a save finishing after logout and a new login does not sign out the new account', async ({
+  page,
+  request,
+  freshAccount,
+  homePage,
+  loginPage,
+}) => {
+  const next = await createVerifiedAccount(request);
+  await page.goto('/settings/account');
+  const name = page.getByTestId('name-input');
+  await expect(name).toHaveValue(freshAccount.name);
+  let releaseSave!: () => void;
+  const saveReleased = new Promise<void>((resolve) => (releaseSave = resolve));
+  let saveHeld = false;
+  await page.route('**/accounts/me', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    saveHeld = true;
+    await saveReleased;
+    // The previous account's session has ended by the time the save is answered.
+    await fulfillJson(route, {message: 'Unauthorized'}, 401);
+  });
+  await name.fill('Late example');
+  await name.blur();
+  await expect.poll(() => saveHeld).toBe(true);
+  await homePage.logOut();
+  // Log in on the page that is open: reloading it would cancel the held save.
+  await loginPage.emailInput.fill(next.email);
+  await loginPage.passwordInput.fill(next.password);
+  await loginPage.submitButton.click();
+  await expect(homePage.sidebarAccountName).toHaveText(next.name);
+  await expect.poll(() => readCache(page)).not.toBe(null);
+
+  releaseSave();
+  // A 401 that signs out is handled, and the saved data removed, before the save reports failure.
+  await expect(nameSaveOutcome(page)).toHaveText(/could not be saved/);
+  expect(await readCache(page)).not.toBe(null);
+  await expect(page).not.toHaveURL(/\/login$/);
+  await expect(homePage.sidebarAccountName).toHaveText(next.name);
+  expect(await serverSessionStatus(page)).toBe(200);
 });
 
 test('logout clears saved data in other open tabs too', async ({
@@ -595,6 +655,75 @@ test('logout clears saved data in other open tabs too', async ({
   await expect(page).toHaveURL(/\/login$/);
   await expect(otherHome.sidebarAccountName).not.toBeVisible();
   await expect.poll(() => readCache(other)).toBe(null);
+  await expect(other).toHaveURL(/\/login$/);
+});
+
+test('a logout in another tab leaves a signed-out tab where it is', async ({
+  page,
+  context,
+  freshAccount,
+  homePage,
+}) => {
+  await context.clearCookies();
+  const other = new SignupPage(await context.newPage());
+  await other.navigate();
+  await other.nameInput.fill('Example Person');
+  await new LoginPage(page).login(freshAccount.email, freshAccount.password);
+  await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
+  await expect.poll(() => readCache(page)).not.toBe(null);
+  // Registered after the app's own listener, so it fires once the app has handled the logout.
+  await other.page.evaluate((key) => {
+    window.addEventListener('storage', (event) => {
+      if (event.key === key && event.newValue === null) document.body.dataset.cacheRemoved = '';
+    });
+  }, CACHE_KEY);
+  await homePage.logOut();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(other.page.locator('body[data-cache-removed]')).toBeAttached();
+  await expect(other.page).toHaveURL(/\/signup$/);
+  await expect(other.nameInput).toHaveValue('Example Person');
+});
+
+test('a session check answered after a logout in another tab does not sign that tab in', async ({
+  page,
+  context,
+  freshAccount,
+  homePage,
+}) => {
+  await context.clock.install();
+  const other = await context.newPage();
+  const otherHome = new HomePage(other);
+  let releaseCheck!: () => void;
+  const checkReleased = new Promise<void>((resolve) => (releaseCheck = resolve));
+  let heldCheck: Request | undefined;
+  let checks = 0;
+  await other.route('**/accounts/me', async (route) => {
+    if (route.request().method() !== 'GET' || checks++ > 0) return route.fallback();
+    // The check reaches Tempo while the session is valid; its reply arrives after the logout.
+    const response = await route.fetch();
+    heldCheck = route.request();
+    await checkReleased;
+    await route.fulfill({response});
+  });
+  void other.goto('/');
+  await expect.poll(() => !!heldCheck).toBe(true);
+
+  await page.goto('/');
+  await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
+  await expect.poll(() => readCache(page)).not.toBe(null);
+  await homePage.logOut();
+  await expect(page).toHaveURL(/\/login$/);
+  // The other tab asks again after the logout instead of waiting for the held check.
+  await expect.poll(() => checks).toBe(2);
+  await expect(other).toHaveURL(/\/login$/);
+
+  const checkFinished = other.waitForEvent('requestfinished', (r) => r === heldCheck);
+  releaseCheck();
+  await checkFinished;
+  await flushPersistence(other);
+  await expect(other).toHaveURL(/\/login$/);
+  await expect(otherHome.sidebarAccountName).not.toBeVisible();
+  expect(await readCache(other)).toBe(null);
 });
 
 test('does not queue an offline account change for replay after reconnect', async ({
@@ -631,26 +760,39 @@ test('a session check started before a real 401 cannot restore saved data', asyn
   freshAccount,
   homePage,
 }) => {
+  await context.clock.install();
   await page.goto('/bank-transactions');
   await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
   await expect.poll(() => readCache(page)).not.toBe(null);
-  let releaseAccount = () => {};
+  let releaseAccount!: () => void;
+  const accountReleased = new Promise<void>((resolve) => (releaseAccount = resolve));
+  let markAccountHeld!: (request: Request) => void;
+  const accountHeld = new Promise<Request>((resolve) => (markAccountHeld = resolve));
   await page.route('**/accounts/me', async (route) => {
     const response = await route.fetch();
-    await new Promise<void>((resolve) => (releaseAccount = resolve));
+    markAccountHeld(route.request());
+    await accountReleased;
     await route.fulfill({response});
   });
-  await mockJson(page, `${API_URL}/bank-transactions?**`, {message: 'Unauthorized'}, 401);
-  // Reconnecting refetches the session and the page together; the page's 401 lands first.
+  // Reconnecting refetches the session and the page together; the page's 401 lands first, while
+  // the session check's successful reply is still held.
+  await page.route(`${API_URL}/bank-transactions?**`, async (route) => {
+    await accountHeld;
+    await fulfillJson(route, {message: 'Unauthorized'}, 401);
+  });
   await context.setOffline(true);
   await expect(savedStatus(page)).toBeVisible();
   await context.setOffline(false);
   await expect(page).toHaveURL(/\/login$/);
   await expect.poll(() => readCache(page)).toBe(null);
+  const heldCheck = await accountHeld;
+  const checkFinished = page.waitForEvent('requestfinished', (r) => r === heldCheck);
   releaseAccount();
-  await page.waitForTimeout(1500);
+  await checkFinished;
+  await flushPersistence(page);
   expect(await readCache(page)).toBe(null);
   await expect(page).toHaveURL(/\/login$/);
+  await expect(new LoginPage(page).submitButton).toBeVisible();
 });
 
 test('an actual revoked session clears saved data instead of granting offline access', async ({
