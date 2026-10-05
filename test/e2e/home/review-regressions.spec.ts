@@ -24,6 +24,32 @@ test('retains a positive refund bucket in spending', async ({page}) => {
   await expect(breakdown.getByRole('link', {name: /Refund/})).toContainText('€50.00');
 });
 
+test('ranks a positive refund bucket by its amount', async ({page}) => {
+  // The API lists REFUND last; Home ranks positive refunds with the other spending.
+  const categories = [
+    'HOUSING_AND_UTILITIES',
+    'FOOD_AND_DRINK',
+    'TRANSPORTATION',
+    'SHOPPING',
+    'INSURANCE',
+    'HEALTH',
+    'REFUND',
+  ];
+  await mockJson(page, '**/bank-transactions/summary**', {
+    ...septemberSummary,
+    categories: categories.map((category, index) => ({
+      category,
+      spending: category === 'REFUND' ? '500.00' : `${60 - index}.00`,
+      count: 1,
+      baselineAverage: null,
+    })),
+  });
+  await page.goto('/?month=2026-09');
+  const rows = page.getByTestId('category-breakdown').getByRole('link');
+  await expect(rows.first()).toContainText('Refund');
+  await expect(rows.first()).toContainText('€500.00');
+});
+
 test('shows a visible subject marker on the first day', async ({page}) => {
   await mockJson(page, '**/bank-transactions/summary**', octoberFirstSummary);
   await page.goto('/');

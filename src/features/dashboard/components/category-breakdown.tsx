@@ -22,8 +22,12 @@ type CategoryBreakdownProps = {
 export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownProps) {
   const {categories, baseCurrency, through} = summary;
   const {from} = monthDates(summary.month);
-  // The API orders categories by spending, largest first.
-  const spending = categories.filter((row) => toCents(row.spending) > 0);
+  // The API lists REFUND last; a positive refund bucket ranks with the other spending here.
+  const spending = categories
+    .filter((row) => toCents(row.spending) > 0)
+    .sort(
+      (a, b) => toCents(b.spending) - toCents(a.spending) || a.category.localeCompare(b.category),
+    );
   const visible = spending.slice(0, 6);
   const remaining = spending.slice(6);
   const refund = categories.find((row) => row.category === 'REFUND' && toCents(row.spending) < 0);
