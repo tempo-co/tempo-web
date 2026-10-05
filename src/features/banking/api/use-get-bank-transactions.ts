@@ -24,7 +24,7 @@ const appendArrayFilter = (
 
 export const useGetBankTransactions = (
   searchParams: BankTransactionSearchParams,
-  {refetchInterval}: {refetchInterval?: number} = {},
+  {refetchInterval, staleTime}: {refetchInterval?: number; staleTime?: number} = {},
 ) => {
   const navigate = useNavigate({from: '/bank-transactions/'});
   const pagination: PaginationParams = {
@@ -96,6 +96,7 @@ export const useGetBankTransactions = (
       },
       placeholderData: keepPreviousData,
       refetchInterval,
+      staleTime,
     });
 
   const totalPages = data ? Math.ceil(data.total / pagination.pageSize) : null;

@@ -15,6 +15,7 @@ export const useGetBankTransactionSummary = (month: string, asOf: string) => {
       return api.get<BankTransactionSummary>(`/bank-transactions/summary?${params.toString()}`);
     },
     refetchInterval: HOME_REFRESH_INTERVAL_MS,
+    staleTime: HOME_REFRESH_INTERVAL_MS,
   });
 
   return {summary: data, isPending, isError, refetch};
