@@ -51,9 +51,6 @@ export function BankTransactionCashFlowFilter({
 
   const eventCommand = (
     <Command>
-      <p className='px-3 pt-3 pb-1 text-xs text-muted-foreground'>
-        Refunds reduce spending. Internal movements are excluded from spending and income.
-      </p>
       <CommandList>
         <CommandGroup>
           {BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES.map((eventType) => {
