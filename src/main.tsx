@@ -8,7 +8,7 @@ import {ThemeProvider} from '@/providers/theme.provider';
 
 import {App} from './app';
 import './index.css';
-import {queryClient} from './query-client';
+import {queryClient, signOut} from './query-client';
 import {createOfflinePersistence} from './utils/offline-storage';
 import {registerOfflineShell} from './utils/register-offline-shell';
 
@@ -25,7 +25,7 @@ if (!('locks' in navigator)) {
     </ThemeProvider>,
   );
 } else {
-  const persistOptions = createOfflinePersistence(queryClient);
+  const persistOptions = createOfflinePersistence(queryClient, signOut);
   registerOfflineShell();
 
   const appRoot = (
