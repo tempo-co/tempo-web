@@ -26,7 +26,9 @@ for (const [value, label] of [
     const response = await responsePromise;
     expect(response.ok()).toBe(true);
     const list = (await response.json()) as {total: number; transactions: BankTransaction[]};
-    expect(JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!)).toEqual([value]);
+    expect(JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[]).toEqual([
+      value,
+    ]);
     await page.keyboard.press('Escape');
     await expect(
       page.getByRole('button', {name: `Cash flow: ${label}`, exact: true}),
@@ -164,3 +166,112 @@ test('cash flow picker applies the real spending predicate and resets pagination
   await page.getByRole('option', {name: 'Reset', exact: true}).click();
   await expect(page).not.toHaveURL(/cashFlows/);
 });
+
+for (const mobile of [false, true]) {
+  test(`connected internal movements remain editable after dashboard navigation (${mobile ? 'mobile' : 'desktop'})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({width: mobile ? 390 : 1440, height: 900});
+    await page.goto('/?month=2026-08');
+    await page.getByTestId('spending-summary').getByRole('link').first().click();
+    await expect(page).toHaveURL(/bank-transactions/);
+    const bookingDate = new URL(page.url()).searchParams.get('bookingDate');
+    if (mobile) await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
+    else await page.getByRole('button', {name: /^Cash flow/}).click();
+    const parent = page.getByRole('option', {name: 'Internal movements', exact: true});
+    const exchange = page.getByRole('option', {name: 'Currency exchange', exact: true});
+    const transfer = page.getByRole('option', {name: 'Own transfer', exact: true});
+    await parent.click();
+    await expect(exchange).toHaveAttribute('data-filter-selected', 'true');
+    await expect(transfer).toHaveAttribute('data-filter-selected', 'true');
+    await expect(parent).toHaveAttribute('data-filter-selected', 'true');
+    await expect
+      .poll(() => JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[])
+      .toEqual(['SPENDING', 'INTERNAL']);
+    await exchange.click();
+    await expect(parent).toHaveAttribute('data-filter-selected', 'mixed');
+    await expect(parent).toHaveAccessibleDescription('Partially selected');
+    await expect
+      .poll(() => JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[])
+      .toEqual(['SPENDING', 'OWN_TRANSFER']);
+    await exchange.click();
+    await expect(parent).toHaveAttribute('data-filter-selected', 'true');
+    await expect
+      .poll(() => JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[])
+      .toEqual(['SPENDING', 'INTERNAL']);
+    if (!mobile)
+      await expect(
+        page.getByRole('button', {name: 'Cash flow: Spending, Internal movements', exact: true}),
+      ).toBeVisible();
+    await parent.click();
+    await expect(exchange).toHaveAttribute('data-filter-selected', 'false');
+    await expect(transfer).toHaveAttribute('data-filter-selected', 'false');
+    expect(new URL(page.url()).searchParams.get('bookingDate')).toBe(bookingDate);
+    await expect
+      .poll(() => JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[])
+      .toEqual(['SPENDING']);
+  });
+}
+
+for (const mobile of [false, true]) {
+  for (const [key, values, remaining] of [
+    ['cashFlows', ['INTERNAL'], 'OWN_TRANSFER'],
+    ['cashFlows', ['CURRENCY_EXCHANGE', 'OWN_TRANSFER'], 'OWN_TRANSFER'],
+    ['cashFlows', ['INTERNAL', 'CURRENCY_EXCHANGE'], 'OWN_TRANSFER'],
+    ['cashFlows', ['CURRENCY_EXCHANGE'], 'OWN_TRANSFER'],
+    ['financialEventTypes', ['OWN_TRANSFER'], 'CURRENCY_EXCHANGE'],
+  ] as [string, string[], string][]) {
+    test(`internal URL ${key} ${values.join('+')} can be narrowed and cleared (${mobile ? 'mobile' : 'desktop'})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({width: mobile ? 390 : 1440, height: 900});
+      const params = new URLSearchParams({
+        [key]: JSON.stringify(values),
+        baseAmount: 'PRESENT',
+        categoryStatuses: JSON.stringify(['FAILED']),
+        pageIndex: '2',
+      });
+      await page.goto(`/bank-transactions?${params}`);
+      if (!mobile)
+        await expect(
+          page.getByRole('button', {
+            name: `Cash flow: ${values.includes('INTERNAL') || values.length === 2 ? 'Internal movements' : values[0] === 'OWN_TRANSFER' ? 'Own transfer' : 'Currency exchange'}`,
+            exact: true,
+          }),
+        ).toBeVisible();
+      if (mobile) await page.getByTestId('bank-transaction-mobile-filters-trigger').click();
+      else await page.getByRole('button', {name: /^Cash flow/}).click();
+      const parent = page.getByRole('option', {name: 'Internal movements', exact: true});
+      const both = values.includes('INTERNAL') || values.length === 2;
+      await expect(parent).toHaveAttribute('data-filter-selected', both ? 'true' : 'mixed');
+      await expect
+        .poll(() => JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[])
+        .toEqual(both ? ['INTERNAL'] : values);
+      if (both) {
+        await page.getByRole('option', {name: 'Currency exchange', exact: true}).click();
+      } else {
+        await parent.click();
+        await expect(parent).toHaveAttribute('data-filter-selected', 'true');
+        const removedLabel = remaining === 'OWN_TRANSFER' ? 'Currency exchange' : 'Own transfer';
+        await page.getByRole('option', {name: removedLabel, exact: true}).click();
+      }
+      await expect(parent).toHaveAttribute('data-filter-selected', 'mixed');
+      await expect
+        .poll(() => JSON.parse(new URL(page.url()).searchParams.get('cashFlows')!) as string[])
+        .toEqual([remaining]);
+      const search = new URL(page.url()).searchParams;
+      expect(search.get('baseAmount')).toBe('PRESENT');
+      expect(JSON.parse(search.get('categoryStatuses')!)).toEqual(['FAILED']);
+      expect(Number(search.get('pageIndex') ?? 0)).toBe(0);
+      expect(search.has('financialEventTypes')).toBe(false);
+      await page
+        .getByRole('option', {
+          name: remaining === 'OWN_TRANSFER' ? 'Own transfer' : 'Currency exchange',
+          exact: true,
+        })
+        .click();
+      await expect(parent).toHaveAttribute('data-filter-selected', 'false');
+      await expect.poll(() => new URL(page.url()).searchParams.has('cashFlows')).toBe(false);
+    });
+  }
+}

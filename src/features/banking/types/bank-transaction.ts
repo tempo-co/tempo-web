@@ -188,7 +188,21 @@ export const bankTransactionSearchParamsSchema = paginationSearchParamsSchema.ex
   bankAccountIds: z.array(z.string().uuid()).optional(),
   categories: z.array(z.enum(BANK_TRANSACTION_CATEGORY_FILTER_VALUES)).optional(),
   categorySources: z.array(z.enum(BANK_TRANSACTION_CATEGORIZATION_SOURCES)).optional(),
-  cashFlows: z.array(z.enum(BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES)).optional(),
+  cashFlows: z
+    .array(z.enum(BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES))
+    .transform((values) => {
+      const allInternal =
+        values.includes('INTERNAL') ||
+        BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS.every((kind) => values.includes(kind));
+      return BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES.filter((value) =>
+        value === 'INTERNAL'
+          ? allInternal
+          : (BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS as readonly string[]).includes(value)
+            ? !allInternal && values.includes(value)
+            : values.includes(value),
+      );
+    })
+    .optional(),
   baseAmount: z.enum(BANK_TRANSACTION_BASE_AMOUNT_FILTER_VALUES).optional(),
   categoryStatuses: z.array(z.enum(BANK_TRANSACTION_CATEGORY_STATUS_FILTER_VALUES)).optional(),
   search: z.string().max(100).optional(),

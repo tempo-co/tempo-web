@@ -33,7 +33,9 @@ function getEventLabel(eventType: BankTransactionCashFlowFilterValue) {
   return CASH_FLOW_LABELS[eventType];
 }
 
-const isInternalKind = (value: BankTransactionCashFlowFilterValue) =>
+type InternalKind = (typeof BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS)[number];
+
+const isInternalKind = (value: BankTransactionCashFlowFilterValue): value is InternalKind =>
   (BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS as readonly string[]).includes(value);
 
 export function BankTransactionCashFlowFilter({
@@ -43,9 +45,46 @@ export function BankTransactionCashFlowFilter({
 }: BankTransactionCashFlowFilterProps) {
   const {
     selectedValues,
-    toggle: handleSelect,
+    setSelectedValues,
     reset: handleReset,
   } = useBankTransactionArrayFilter(filters, 'cashFlows');
+  const internalKinds = selectedValues.includes('INTERNAL')
+    ? [...BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS]
+    : BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS.filter((kind) => selectedValues.includes(kind));
+  const getSelection = (value: BankTransactionCashFlowFilterValue) =>
+    value === 'INTERNAL'
+      ? internalKinds.length === 2
+        ? true
+        : internalKinds.length === 1
+          ? 'mixed'
+          : false
+      : isInternalKind(value)
+        ? internalKinds.includes(value)
+        : selectedValues.includes(value);
+  const handleSelect = (value: BankTransactionCashFlowFilterValue) => {
+    if (value === 'INTERNAL' || isInternalKind(value)) {
+      const otherFlows = selectedValues.filter(
+        (selected) => selected !== 'INTERNAL' && !isInternalKind(selected),
+      );
+      const kinds =
+        value === 'INTERNAL'
+          ? internalKinds.length === 2
+            ? []
+            : [...BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS]
+          : internalKinds.includes(value)
+            ? internalKinds.filter((kind) => kind !== value)
+            : [...internalKinds, value];
+      return setSelectedValues([
+        ...otherFlows,
+        ...(kinds.length === 2 ? ['INTERNAL' as const] : kinds),
+      ]);
+    }
+    return setSelectedValues(
+      selectedValues.includes(value)
+        ? selectedValues.filter((selected) => selected !== value)
+        : [...selectedValues, value],
+    );
+  };
   const selectedLabels = selectedValues.map(getEventLabel);
   const selectionDescriptionId = React.useId();
 
@@ -54,18 +93,19 @@ export function BankTransactionCashFlowFilter({
       <CommandList>
         <CommandGroup>
           {BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES.map((eventType) => {
-            const isSelected = selectedValues.includes(eventType);
+            const selection = getSelection(eventType);
+            const isSelected = selection === true;
             return (
               <CommandItem
                 key={eventType}
                 value={getEventLabel(eventType)}
                 aria-describedby={`${selectionDescriptionId}-${eventType}`}
-                data-filter-selected={isSelected}
+                data-filter-selected={selection}
                 onSelect={() => void handleSelect(eventType)}
                 // Currency exchanges and own transfers narrow Internal movements, so they sit under it.
                 className={cn(isInternalKind(eventType) && 'pl-8')}
               >
-                <FilterCheckIndicator isSelected={isSelected} />
+                <FilterCheckIndicator isSelected={isSelected} isMixed={selection === 'mixed'} />
                 <span className='truncate'>{getEventLabel(eventType)}</span>
               </CommandItem>
             );
@@ -73,7 +113,11 @@ export function BankTransactionCashFlowFilter({
         </CommandGroup>
         {BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES.map((eventType) => (
           <span key={eventType} id={`${selectionDescriptionId}-${eventType}`} className='sr-only'>
-            {selectedValues.includes(eventType) ? 'Selected' : 'Not selected'}
+            {getSelection(eventType) === 'mixed'
+              ? 'Partially selected'
+              : getSelection(eventType)
+                ? 'Selected'
+                : 'Not selected'}
           </span>
         ))}
         {selectedValues.length > 0 && (
