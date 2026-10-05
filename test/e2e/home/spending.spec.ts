@@ -16,7 +16,9 @@ test('shows exact spending and an accessible pace alternative', async ({page}) =
   await expect(card.getByRole('link', {name: '€1,200.00', exact: true})).toBeVisible();
   const comparison = card.getByTestId('spending-comparison');
   await expect(comparison).toContainText('€150.00 less than usual');
-  await expect(comparison).toContainText('Usual by the 30th: €1,350.00 · within range');
+  await expect(comparison).toContainText(
+    'Jun–Aug average: €1,350.00 · within your previous 3 months',
+  );
   await expect(card).not.toContainText('Usual is the average of');
   // The comparison sits beside the headline on wide screens instead of below it.
   const headline = await card.getByRole('link', {name: '€1,200.00', exact: true}).boundingBox();

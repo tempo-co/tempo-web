@@ -44,7 +44,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
           <p className='mt-1 text-xs text-muted-foreground'>
             {isCurrentMonth
               ? 'Compared with usual by this day of the month.'
-              : `Compared with usual through day ${Number(through.slice(-2))} of each month.`}
+              : 'Compared with usual for a full month.'}
           </p>
         )}
       </div>

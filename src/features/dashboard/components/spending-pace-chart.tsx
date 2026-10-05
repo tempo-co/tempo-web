@@ -140,6 +140,12 @@ export function SpendingPaceChart({summary, isCurrentMonth}: Props) {
             Lowest to highest
           </span>
         )}
+        {hasBaseline && !isCurrentMonth && (
+          <span className='basis-full'>
+            Chart compares spending by the same day of each month; the headline compares full
+            months.
+          </span>
+        )}
         <span className='basis-full'>Hover a day for exact values · click to open it</span>
       </div>
       <div className='sr-only focus-within:not-sr-only focus-within:mt-4 focus-within:max-w-full focus-within:overflow-x-auto'>
