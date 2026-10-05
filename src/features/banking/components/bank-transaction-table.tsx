@@ -38,6 +38,8 @@ import {
   resolveBankTransactionDisplayTitle,
 } from '../utils/formatters';
 import {BankTransactionAccountFilter} from './bank-transaction-account-filter';
+import {BankTransactionBaseAmountFilter} from './bank-transaction-base-amount-filter';
+import {BankTransactionCashFlowFilter} from './bank-transaction-cash-flow-filter';
 import {BankTransactionCategoryFilter} from './bank-transaction-category-filter';
 import {BankTransactionCategoryIcon} from './bank-transaction-category-icon';
 import {BankTransactionCategorySourceFilter} from './bank-transaction-category-source-filter';
@@ -216,6 +218,8 @@ export function BankTransactionTable({
             filters={filters}
             className='max-md:w-full max-md:min-w-0'
           />
+          <BankTransactionCashFlowFilter filters={filters} />
+          <BankTransactionBaseAmountFilter filters={filters} />
           <BankTransactionFinancialEventFilter
             filters={filters}
             className='max-md:w-full max-md:min-w-0'

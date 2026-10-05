@@ -16,8 +16,9 @@ import {ScrollArea} from '@/components/ui/scroll-area';
 import {cn} from '@/utils/cn';
 
 import {BankTransactionFilterParams} from '../types/bank-transaction';
-import {hasDrillFilters} from '../utils/drill-filters';
 import {BankTransactionAccountFilter} from './bank-transaction-account-filter';
+import {BankTransactionBaseAmountFilter} from './bank-transaction-base-amount-filter';
+import {BankTransactionCashFlowFilter} from './bank-transaction-cash-flow-filter';
 import {BankTransactionCategoryFilter} from './bank-transaction-category-filter';
 import {BankTransactionCategorySourceFilter} from './bank-transaction-category-source-filter';
 import {BankTransactionDateFilter} from './bank-transaction-date-filter';
@@ -44,7 +45,9 @@ export function BankTransactionMobileFilters({
     (filters.categories?.length ?? 0) > 0,
     (filters.categorySources?.length ?? 0) > 0,
     (filters.financialEventTypes?.length ?? 0) > 0,
-    hasDrillFilters(filters),
+    (filters.cashFlows?.length ?? 0) > 0,
+    Boolean(filters.baseAmount),
+    (filters.categoryStatuses?.length ?? 0) > 0,
   ].filter(Boolean).length;
 
   React.useEffect(() => {
@@ -96,6 +99,8 @@ export function BankTransactionMobileFilters({
             <BankTransactionDateFilter filters={filters} variant='mobile' />
             <BankTransactionCategoryFilter filters={filters} variant='mobile' />
             <BankTransactionCategorySourceFilter filters={filters} variant='mobile' />
+            <BankTransactionCashFlowFilter filters={filters} variant='mobile' />
+            <BankTransactionBaseAmountFilter filters={filters} variant='mobile' />
             <BankTransactionFinancialEventFilter filters={filters} variant='mobile' />
             <BankTransactionAccountFilter filters={filters} variant='mobile' />
           </div>
