@@ -81,7 +81,7 @@ test('hides zero-count rows and keeps overlapping counts separate', async ({page
   await expectNoHorizontalOverflow(page);
 });
 
-test('shows the completed state when every review count is zero', async ({page}) => {
+test('hides Needs attention when every review count is zero', async ({page}) => {
   await mockJson(page, '**/bank-transactions/review-counts', {
     needsReview: 0,
     categorizationFailed: 0,
@@ -90,9 +90,10 @@ test('shows the completed state when every review count is zero', async ({page})
     missingBaseAmount: 0,
   } satisfies BankTransactionReviewCounts);
   await page.goto('/?month=2026-09');
-  const card = page.getByRole('region', {name: 'Needs attention', exact: true});
-  await expect(card).toContainText('Everything is categorized and counted.');
-  await expect(card.getByRole('link')).toHaveCount(0);
+  // Wait for the review counts to render something else first, so the card can't be loading.
+  await expect(page.getByTestId('spending-summary')).toBeVisible();
+  await expect(page.getByLabel('Loading attention counts')).toHaveCount(0);
+  await expect(page.getByRole('region', {name: 'Needs attention', exact: true})).toHaveCount(0);
 });
 
 for (const baseCurrency of ['USD', null]) {

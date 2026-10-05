@@ -25,44 +25,36 @@ export function AttentionList({reviewCounts, baseCurrency}: AttentionListProps) 
     {key: 'missingBaseAmount', label: `No ${baseCurrency ?? 'base-currency'} amount yet`},
   ];
   const visibleGroups = groups.filter(({key}) => reviewCounts[key] > 0);
+  if (visibleGroups.length === 0) return null;
 
   return (
     <Card role='region' aria-labelledby={headingId} className='grid min-w-0 gap-4 p-5 sm:p-6'>
       <h2 id={headingId} className='text-base font-semibold'>
         Needs attention
       </h2>
-      {visibleGroups.length === 0 ? (
-        <p className='text-sm text-muted-foreground'>Everything is categorized and counted.</p>
-      ) : (
-        <>
-          <ul className='-mx-3 divide-y divide-border/60'>
-            {visibleGroups.map(({key, label}) => (
-              <li key={key}>
-                <Link
-                  to='/bank-transactions'
-                  search={reviewDrills[key]}
-                  className='group flex min-h-14 items-center justify-between gap-3 px-3 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
-                >
-                  <span className='min-w-0'>
-                    <span className='block text-sm font-medium group-hover:underline'>{label}</span>
-                    <span className='block text-xs text-muted-foreground'>
-                      {reviewCounts[key]} {reviewCounts[key] === 1 ? 'transaction' : 'transactions'}{' '}
-                      · all months
-                    </span>
-                  </span>
-                  <ArrowUpRight
-                    aria-hidden='true'
-                    className='size-4 shrink-0 text-muted-foreground'
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <p className='text-xs text-muted-foreground'>
-            A transaction can appear in more than one group.
-          </p>
-        </>
-      )}
+      <ul className='-mx-3 divide-y divide-border/60'>
+        {visibleGroups.map(({key, label}) => (
+          <li key={key}>
+            <Link
+              to='/bank-transactions'
+              search={reviewDrills[key]}
+              className='group flex min-h-14 items-center justify-between gap-3 px-3 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+            >
+              <span className='min-w-0'>
+                <span className='block text-sm font-medium group-hover:underline'>{label}</span>
+                <span className='block text-xs text-muted-foreground'>
+                  {reviewCounts[key]} {reviewCounts[key] === 1 ? 'transaction' : 'transactions'} ·
+                  all months
+                </span>
+              </span>
+              <ArrowUpRight aria-hidden='true' className='size-4 shrink-0 text-muted-foreground' />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <p className='text-xs text-muted-foreground'>
+        A transaction can appear in more than one group.
+      </p>
     </Card>
   );
 }
