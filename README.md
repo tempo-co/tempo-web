@@ -24,8 +24,6 @@ Vite environment values are declared in `vite-env.d.ts`:
 - `VITE_EMAIL_UI_URL`: Mailpit URL used by `test/utils/email-utils.ts`
 - `VITE_BASE_PATH` (optional, default `/`): base path the app and PWA manifest are served under
 
-The app must be served over HTTPS or from `localhost`. It coordinates logout across tabs with the Web Locks API, which browsers withhold from other plain HTTP origins; there it shows a "Tempo needs a secure connection" screen instead of starting.
-
 ## Development
 
 ```bash
