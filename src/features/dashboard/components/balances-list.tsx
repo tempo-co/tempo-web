@@ -62,7 +62,7 @@ export function BalancesList({
                 className='grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
               >
                 <div className='min-w-0'>
-                  <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-3'>
                     <BankLogo
                       bank={{
                         name: connection.aspspName,
@@ -72,7 +72,8 @@ export function BalancesList({
                             bank.country === connection.aspspCountry,
                         )?.logoUrl,
                       }}
-                      className='h-8 w-8 rounded-none text-xs'
+                      className='h-14 w-14'
+                      imageClassName='p-1.5'
                       testId='bank-balance-logo'
                     />
                     <div className='min-w-0'>

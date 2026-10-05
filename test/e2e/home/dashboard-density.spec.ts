@@ -122,6 +122,10 @@ test('balances emphasize the bank with the account holder below it', async ({pag
       .locator('img')
       .evaluate((image: HTMLImageElement) => image.naturalWidth),
   ).toBeGreaterThan(0);
+  // Close to the Connections page logo (72px) while fitting a balance row.
+  const logo = await boxOf(row.getByTestId('bank-balance-logo'));
+  expect(logo.width).toBe(56);
+  expect(logo.height).toBe(56);
   const bankBox = await boxOf(bank);
   const holderBox = await boxOf(holder);
   expect(holderBox.y).toBeGreaterThan(bankBox.y);
