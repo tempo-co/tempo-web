@@ -43,13 +43,15 @@ export function createOfflinePersistence(
   signOut: () => void,
 ): Omit<PersistQueryClientOptions, 'queryClient'> {
   window.addEventListener('storage', (event) => {
-    // Another tab logged out or lost its session; a tab without an account has nothing to drop.
-    if (
-      event.key === CACHE_KEY &&
-      event.newValue === null &&
-      queryClient.getQueryData(CURRENT_ACCOUNT_KEY)
-    )
-      signOut();
+    // Another tab logged out or lost its session.
+    if (event.key !== CACHE_KEY || event.newValue !== null) return;
+    if (queryClient.getQueryData(CURRENT_ACCOUNT_KEY)) signOut();
+    // A signed-out tab stays where it is, but a session check started before the logout must not
+    // sign it in: ask again.
+    else if (queryClient.isFetching({queryKey: CURRENT_ACCOUNT_KEY}))
+      void queryClient
+        .cancelQueries({queryKey: CURRENT_ACCOUNT_KEY})
+        .then(() => queryClient.refetchQueries({queryKey: CURRENT_ACCOUNT_KEY}));
   });
   // An open tab must not keep showing saved data past the limit, even with no new requests.
   window.setInterval(() => {

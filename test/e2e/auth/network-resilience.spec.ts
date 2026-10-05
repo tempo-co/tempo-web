@@ -425,8 +425,13 @@ test('a save finishing after logout and a new login does not sign out the new ac
   await loginPage.submitButton.click();
   await expect(homePage.sidebarAccountName).toHaveText(next.name);
 
+  const saveAnswered = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' && response.url().endsWith('/accounts/me'),
+  );
   releaseSave();
-  await page.waitForTimeout(1500);
+  await saveAnswered;
+  await page.waitForTimeout(500);
   await expect(page).not.toHaveURL(/\/login$/);
   await expect(homePage.sidebarAccountName).toHaveText(next.name);
   expect(await serverSessionStatus(page)).toBe(200);
@@ -470,6 +475,40 @@ test('a logout in another tab leaves a signed-out tab where it is', async ({
   await other.page.waitForTimeout(1000);
   await expect(other.page).toHaveURL(/\/signup$/);
   await expect(other.nameInput).toHaveValue('Example Person');
+});
+
+test('a session check answered after a logout in another tab does not sign that tab in', async ({
+  page,
+  context,
+  freshAccount,
+  homePage,
+}) => {
+  const other = await context.newPage();
+  const otherHome = new HomePage(other);
+  let releaseCheck = () => {};
+  let checks = 0;
+  await other.route('**/accounts/me', async (route) => {
+    if (route.request().method() !== 'GET' || checks++ > 0) return route.fallback();
+    // The check reaches Tempo while the session is valid; its reply arrives after the logout.
+    const response = await route.fetch();
+    await new Promise<void>((resolve) => (releaseCheck = resolve));
+    await route.fulfill({response});
+  });
+  void other.goto('/');
+  await expect.poll(() => checks).toBe(1);
+
+  await page.goto('/');
+  await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
+  await expect.poll(() => readCache(page)).not.toBe(null);
+  await homePage.logOut();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.waitForTimeout(500);
+
+  releaseCheck();
+  await other.waitForTimeout(1500);
+  await expect(other).toHaveURL(/\/login$/);
+  await expect(otherHome.sidebarAccountName).not.toBeVisible();
+  expect(await readCache(other)).toBe(null);
 });
 
 test('does not queue an offline account change for replay after reconnect', async ({
