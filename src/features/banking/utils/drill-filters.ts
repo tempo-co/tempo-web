@@ -9,6 +9,8 @@ export const CASH_FLOW_LABELS: Record<BankTransactionCashFlowFilterValue, string
   SPENDING: 'Spending',
   INCOME: 'Income',
   INTERNAL: 'Internal movements',
+  CURRENCY_EXCHANGE: 'Currency exchange',
+  OWN_TRANSFER: 'Own transfer',
   UNKNOWN: 'Unknown direction',
 };
 

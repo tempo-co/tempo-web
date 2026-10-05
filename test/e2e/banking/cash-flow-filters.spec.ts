@@ -12,6 +12,8 @@ for (const [value, label] of [
   ['SPENDING', 'Spending'],
   ['INCOME', 'Income'],
   ['INTERNAL', 'Internal movements'],
+  ['CURRENCY_EXCHANGE', 'Currency exchange'],
+  ['OWN_TRANSFER', 'Own transfer'],
   ['UNKNOWN', 'Unknown direction'],
 ]) {
   test(`cash flow ${label} is selectable and renders real filtered results`, async ({page}) => {
@@ -46,6 +48,8 @@ for (const [value, label] of [
               (row.direction === BankTransactionDirection.INCOME && row.category === 'REFUND'),
           ).toBe(true);
         }
+        if (value === 'CURRENCY_EXCHANGE') expect(row.financialEventType).toBe('CURRENCY_EXCHANGE');
+        if (value === 'OWN_TRANSFER') expect(row.ownTransfer).not.toBeNull();
         if (value === 'INCOME') {
           expect(row.direction).toBe(BankTransactionDirection.INCOME);
           expect(row.category).not.toBe('REFUND');

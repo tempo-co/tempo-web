@@ -5,7 +5,7 @@ import {Card} from '@/components/ui/card';
 import {cn} from '@/utils/cn';
 
 import type {BankTransactionSummary} from '../types/bank-transaction-summary';
-import {excludedDrill, parseCalendarDate, periodDrill} from '../utils/drill-links';
+import {excludedDrill, flowDrill, parseCalendarDate} from '../utils/drill-links';
 import {formatMoney, toCents} from '../utils/money';
 import {formatMonth, formatMonthRange, monthDates} from '../utils/month';
 import {SpendingPaceChart} from './spending-pace-chart';
@@ -26,6 +26,7 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
   const {through, baseCurrency, totals} = summary;
   const throughDate = parseCalendarDate(through);
   const monthName = formatMonth(summary.month);
+  const hasMissing = summary.excluded.missingBaseAmount > 0;
   const period = !isCurrentMonth
     ? `spent in ${monthName}`
     : throughDate.getDate() === 1
@@ -38,7 +39,7 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
         <div>
           <Link
             to='/bank-transactions'
-            search={periodDrill(from, through)}
+            search={flowDrill('SPENDING', from, through, hasMissing)}
             className={cn(
               'font-mono text-[1.75rem] leading-tight font-semibold tracking-tight tabular-nums',
               linkClassName,
@@ -56,7 +57,7 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
           <dd>
             <Link
               to='/bank-transactions'
-              search={periodDrill(from, through)}
+              search={flowDrill('INCOME', from, through, hasMissing)}
               className={cn('font-mono tabular-nums', linkClassName)}
             >
               {formatMoney(totals.income, baseCurrency)}

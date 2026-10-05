@@ -22,7 +22,6 @@ import {BankTransactionCashFlowFilter} from './bank-transaction-cash-flow-filter
 import {BankTransactionCategoryFilter} from './bank-transaction-category-filter';
 import {BankTransactionCategorySourceFilter} from './bank-transaction-category-source-filter';
 import {BankTransactionDateFilter} from './bank-transaction-date-filter';
-import {BankTransactionFinancialEventFilter} from './bank-transaction-financial-event-filter';
 
 type BankTransactionMobileFiltersProps = {
   filters: BankTransactionFilterParams;
@@ -44,7 +43,6 @@ export function BankTransactionMobileFilters({
     (filters.bankAccountIds?.length ?? 0) > 0,
     (filters.categories?.length ?? 0) > 0,
     (filters.categorySources?.length ?? 0) > 0,
-    (filters.financialEventTypes?.length ?? 0) > 0,
     (filters.cashFlows?.length ?? 0) > 0,
     Boolean(filters.baseAmount),
     (filters.categoryStatuses?.length ?? 0) > 0,
@@ -101,7 +99,6 @@ export function BankTransactionMobileFilters({
             <BankTransactionCategorySourceFilter filters={filters} variant='mobile' />
             <BankTransactionCashFlowFilter filters={filters} variant='mobile' />
             <BankTransactionBaseAmountFilter filters={filters} variant='mobile' />
-            <BankTransactionFinancialEventFilter filters={filters} variant='mobile' />
             <BankTransactionAccountFilter filters={filters} variant='mobile' />
           </div>
         </ScrollArea>

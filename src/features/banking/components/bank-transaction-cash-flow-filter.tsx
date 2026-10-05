@@ -15,6 +15,7 @@ import {cn} from '@/utils/cn';
 
 import {
   BANK_TRANSACTION_CASH_FLOW_FILTER_VALUES,
+  BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS,
   BankTransactionCashFlowFilterValue,
   BankTransactionFilterParams,
 } from '../types/bank-transaction';
@@ -31,6 +32,9 @@ type BankTransactionCashFlowFilterProps = {
 function getEventLabel(eventType: BankTransactionCashFlowFilterValue) {
   return CASH_FLOW_LABELS[eventType];
 }
+
+const isInternalKind = (value: BankTransactionCashFlowFilterValue) =>
+  (BANK_TRANSACTION_INTERNAL_MOVEMENT_KINDS as readonly string[]).includes(value);
 
 export function BankTransactionCashFlowFilter({
   filters,
@@ -61,6 +65,8 @@ export function BankTransactionCashFlowFilter({
                 aria-describedby={`${selectionDescriptionId}-${eventType}`}
                 data-filter-selected={isSelected}
                 onSelect={() => void handleSelect(eventType)}
+                // Currency exchanges and own transfers narrow Internal movements, so they sit under it.
+                className={cn(isInternalKind(eventType) && 'pl-8')}
               >
                 <FilterCheckIndicator isSelected={isSelected} />
                 <span className='truncate'>{getEventLabel(eventType)}</span>

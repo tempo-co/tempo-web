@@ -37,9 +37,13 @@ test('shows exact spending and an accessible pace alternative', async ({page}) =
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/bank-transactions/);
   const search = new URL(page.url()).searchParams;
-  expect(search.has('cashFlows')).toBe(false);
-  expect(search.has('baseAmount')).toBe(false);
-  await expect(page.getByTestId('bank-transaction-drill-filters')).toHaveCount(0);
+  // Exactly the day's counted spending: the fixture month has rows still missing a base amount.
+  expect(JSON.parse(search.get('cashFlows')!)).toEqual(['SPENDING']);
+  expect(search.get('baseAmount')).toBe('PRESENT');
+  const range = JSON.parse(search.get('bookingDate')!) as {from: string; to: string};
+  expect(new Date(range.from).getDate()).toBe(18);
+  expect(new Date(range.to).getDate()).toBe(18);
+  await expect(page.getByRole('button', {name: 'Cash flow: Spending', exact: true})).toBeVisible();
 });
 
 test('explains missing history without inventing a range', async ({page}) => {

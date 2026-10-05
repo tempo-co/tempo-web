@@ -2,8 +2,7 @@ import {useNavigate} from '@tanstack/react-router';
 
 import {BankTransactionFilterParams} from '@/features/banking/types/bank-transaction';
 
-type ArrayFilterKey =
-  'bankAccountIds' | 'categories' | 'categorySources' | 'financialEventTypes' | 'cashFlows';
+type ArrayFilterKey = 'bankAccountIds' | 'categories' | 'categorySources' | 'cashFlows';
 
 export function useBankTransactionArrayFilter<K extends ArrayFilterKey>(
   filters: BankTransactionFilterParams,
