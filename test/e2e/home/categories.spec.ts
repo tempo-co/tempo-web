@@ -31,7 +31,7 @@ test('shows six positive categories, remaining count and refunds last', async ({
     await expect(links.nth(index)).toContainText(label);
   }
   await expect(links.last()).toContainText('-€40.00');
-  await expect(card).toContainText('Payments to people count as spending. Own transfers do not.');
+  await expect(card).not.toContainText('Payments to people');
 });
 
 test('drills to the exact category and booking range', async ({page}) => {
@@ -41,8 +41,8 @@ test('drills to the exact category and booking range', async ({page}) => {
   expect(href).not.toBeNull();
   const search = new URL(href!, page.url()).searchParams;
   expect(JSON.parse(search.get('categories')!)).toEqual(['FOOD_AND_DRINK']);
-  expect(JSON.parse(search.get('cashFlows')!)).toEqual(['SPENDING']);
-  expect(search.get('baseAmount')).toBe('PRESENT');
+  expect(search.has('cashFlows')).toBe(false);
+  expect(search.has('baseAmount')).toBe(false);
   const range = JSON.parse(search.get('bookingDate')!) as {from: string; to: string};
   expect(new Date(range.from).getDate()).toBe(1);
   expect(new Date(range.to).getDate()).toBe(30);
@@ -62,8 +62,8 @@ test('remaining categories drill excludes the top six and refunds', async ({page
   expect(href).not.toBeNull();
   const search = new URL(href!, page.url()).searchParams;
   expect(JSON.parse(search.get('categories')!)).toEqual(['TRANSFER_OUT', 'OTHER']);
-  expect(JSON.parse(search.get('cashFlows')!)).toEqual(['SPENDING']);
-  expect(search.get('baseAmount')).toBe('PRESENT');
+  expect(search.has('cashFlows')).toBe(false);
+  expect(search.has('baseAmount')).toBe(false);
 });
 
 test('shows counts, threshold comparisons and the usual tick', async ({page}) => {

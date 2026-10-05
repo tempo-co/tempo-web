@@ -29,7 +29,8 @@ test('real category count and amount reconcile with its transaction drill', asyn
   await row.click();
   const search = new URL(page.url()).searchParams;
   expect(JSON.parse(search.get('categories')!)).toEqual(['UNCATEGORIZED']);
-  expect(search.get('baseAmount')).toBe('PRESENT');
+  expect(search.has('cashFlows')).toBe(false);
+  expect(search.has('baseAmount')).toBe(false);
   const params = new URLSearchParams({
     'filter[bookingDate][from]': '2026-08-01',
     'filter[bookingDate][to]': '2026-08-31',
@@ -51,5 +52,11 @@ test('real category count and amount reconcile with its transaction drill', asyn
       0,
     ),
   ).toBe(spendingCents);
-  await expect(page.getByText(`${category.count} transactions`, {exact: true})).toBeVisible();
+  // The link only sets date and category, so the list may also hold rows spending leaves out.
+  params.delete('filter[cashFlows][]');
+  params.delete('filter[baseAmount]');
+  const drillResponse = await page.request.get(`${API_URL}/bank-transactions?${params}`);
+  const drill = (await drillResponse.json()) as {total: number};
+  expect(drill.total).toBeGreaterThanOrEqual(category.count);
+  await expect(page.getByText(`${drill.total} transactions`, {exact: true})).toBeVisible();
 });

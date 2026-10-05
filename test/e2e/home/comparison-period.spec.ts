@@ -23,9 +23,7 @@ test('completed February compares through day 28, not full longer baseline month
     },
   });
   await page.goto('/?month=2026-02');
-  await expect(page.getByTestId('spending-comparison')).toContainText(
-    'less than usual by the 28th',
-  );
+  await expect(page.getByTestId('spending-comparison')).toContainText('Usual by the 28th');
   await expect(page.getByTestId('category-breakdown')).toContainText(
     'Compared with usual through day 28 of each month.',
   );

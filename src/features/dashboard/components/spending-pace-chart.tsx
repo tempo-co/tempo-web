@@ -5,7 +5,7 @@ import {Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis} f
 import {ChartContainer, ChartTooltip} from '@/components/ui/chart';
 
 import type {BankTransactionSummary} from '../types/bank-transaction-summary';
-import {parseCalendarDate, spendingDrill} from '../utils/drill-links';
+import {parseCalendarDate, periodDrill} from '../utils/drill-links';
 import {formatMoney, formatWholeNumber} from '../utils/money';
 import {formatMonth, formatMonthRange} from '../utils/month';
 
@@ -48,7 +48,7 @@ export function SpendingPaceChart({summary, isCurrentMonth}: Props) {
             const day = Number(state.activeLabel);
             if (day >= 1 && day <= daily.length) {
               const date = dateFor(day);
-              void navigate({to: '/bank-transactions', search: spendingDrill(date, date)});
+              void navigate({to: '/bank-transactions', search: periodDrill(date, date)});
             }
           }}
         >
@@ -161,7 +161,7 @@ export function SpendingPaceChart({summary, isCurrentMonth}: Props) {
                 <td>
                   <Link
                     to='/bank-transactions'
-                    search={spendingDrill(dateFor(day.day), dateFor(day.day))}
+                    search={periodDrill(dateFor(day.day), dateFor(day.day))}
                     className='underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
                   >
                     {labelFor(day.day)}

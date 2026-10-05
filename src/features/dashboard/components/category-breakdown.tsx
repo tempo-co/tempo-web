@@ -9,7 +9,7 @@ import type {
   BankTransactionSummary,
   BankTransactionSummaryCategory,
 } from '../types/bank-transaction-summary';
-import {categoryDrill, spendingDrill} from '../utils/drill-links';
+import {categoryDrill, periodDrill} from '../utils/drill-links';
 import {formatMoney, toCents} from '../utils/money';
 import {monthDates} from '../utils/month';
 
@@ -105,7 +105,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
           <Link
             to='/bank-transactions'
             search={{
-              ...spendingDrill(from, through),
+              ...periodDrill(from, through),
               categories: remaining.map((row) => row.category),
             }}
             className='w-fit text-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
@@ -132,9 +132,6 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
           </Link>
         )}
       </div>
-      <p className='border-t pt-4 text-xs text-muted-foreground'>
-        Payments to people count as spending. Own transfers do not.
-      </p>
     </Card>
   );
 }

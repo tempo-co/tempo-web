@@ -112,16 +112,13 @@ for (const {width, theme} of layouts) {
     const heading = categories.getByRole('heading', {name: 'Where it went'});
     const description = heading.locator('..');
     const firstCategory = categories.getByRole('link', {name: /Housing and utilities/});
-    const footer = categories.getByText(
-      'Payments to people count as spending. Own transfers do not.',
-    );
     const lastRow = categories.getByRole('link', {name: /Refunds \(subtracted\)/});
     const headerBox = await boxOf(description);
     const firstBox = await boxOf(firstCategory);
-    const footerBox = await boxOf(footer);
+    const cardBox = await boxOf(categories);
     const lastBox = await boxOf(lastRow);
     expect(firstBox.y - (headerBox.y + headerBox.height)).toBeGreaterThanOrEqual(20);
-    expect(footerBox.y - (lastBox.y + lastBox.height)).toBeGreaterThanOrEqual(20);
+    expect(cardBox.y + cardBox.height - (lastBox.y + lastBox.height)).toBeGreaterThanOrEqual(20);
 
     for (const link of [
       balances.getByRole('link', {name: 'Connections'}),

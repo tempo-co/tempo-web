@@ -19,23 +19,21 @@ function bookingRange(from: string, to: string) {
   return {from: parseCalendarDate(from), to: parseCalendarDate(to)};
 }
 
-/** Rows counted in a spending total between two calendar dates. */
-export function spendingDrill(from: string, to: string): BankTransactionDrillSearch {
-  return {bookingDate: bookingRange(from, to), cashFlows: ['SPENDING'], baseAmount: 'PRESENT'};
+/**
+ * Every transaction booked between two calendar dates. Totals and period links only set filters
+ * the list can show and change, so the list may also hold rows a total leaves out.
+ */
+export function periodDrill(from: string, to: string): BankTransactionDrillSearch {
+  return {bookingDate: bookingRange(from, to)};
 }
 
-/** Rows counted in an income total between two calendar dates. */
-export function incomeDrill(from: string, to: string): BankTransactionDrillSearch {
-  return {bookingDate: bookingRange(from, to), cashFlows: ['INCOME'], baseAmount: 'PRESENT'};
-}
-
-/** Rows counted in one category's spending between two calendar dates. */
+/** One category's transactions between two calendar dates. */
 export function categoryDrill(
   category: BankTransactionCategoryFilterValue,
   from: string,
   to: string,
 ): BankTransactionDrillSearch {
-  return {...spendingDrill(from, to), categories: [category]};
+  return {...periodDrill(from, to), categories: [category]};
 }
 
 /** All-time rows behind each review count. */
