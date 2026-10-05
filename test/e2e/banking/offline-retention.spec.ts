@@ -89,7 +89,7 @@ test.describe('offline retention', () => {
 
     await context.setOffline(false);
     await expect(page.getByText('Coffee shop', {exact: true})).toBeVisible({timeout: 15000});
-    await expect(page.getByRole('status').filter({hasText: 'Showing saved data'})).not.toBeVisible({
+    await expect(page.getByRole('status').filter({hasText: /^Offline/})).not.toBeVisible({
       timeout: 15000,
     });
 
@@ -145,7 +145,7 @@ test.describe('offline retention', () => {
     await page.reload();
     await expect(page.getByText('Extra transaction 1', {exact: true}).first()).toBeVisible();
     await context.setOffline(false);
-    await expect(page.getByRole('status').filter({hasText: 'Showing saved data'})).not.toBeVisible({
+    await expect(page.getByRole('status').filter({hasText: /^Offline/})).not.toBeVisible({
       timeout: 15000,
     });
 
