@@ -1,4 +1,4 @@
-import {differenceInCalendarDays} from 'date-fns';
+import {differenceInCalendarDays, format} from 'date-fns';
 
 import type {BankConnection} from '@/features/banking/types/bank-connection';
 import {getAutomaticSyncDetailsForConnection} from '@/features/banking/utils/bank-sync-status';
@@ -14,9 +14,11 @@ export type HomeSyncStatus = {
   oldestSyncedAt: string | null;
 };
 
-/** Connections that can hold accounts: authorized now or authorized before their consent ended. */
-export function isConnectedBank(connection: BankConnection) {
-  return connection.status === 'AUTHORIZED' || connection.status === 'EXPIRED';
+/** "not synced since 3 Oct", or "not synced yet" for a connection that never synced. */
+export function formatNotSyncedSince(connection: BankConnection) {
+  return connection.lastSyncedAt
+    ? `not synced since ${format(new Date(connection.lastSyncedAt), 'd MMM')}`
+    : 'not synced yet';
 }
 
 export function getHomeSyncStatus(connections: BankConnection[], now = new Date()): HomeSyncStatus {

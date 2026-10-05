@@ -1,11 +1,11 @@
 import {Link} from '@tanstack/react-router';
-import {format, formatDistanceToNow} from 'date-fns';
+import {formatDistanceToNow} from 'date-fns';
 
 import type {BankConnection} from '@/features/banking/types/bank-connection';
 import {isReauthorizationRequired} from '@/features/banking/utils/bank-sync-status';
 import {cn} from '@/utils/cn';
 
-import {getHomeSyncStatus} from '../utils/sync-status';
+import {formatNotSyncedSince, getHomeSyncStatus} from '../utils/sync-status';
 
 const badgeClassName =
   'inline-flex items-center rounded-full border px-2.5 py-px text-xs font-medium';
@@ -16,12 +16,6 @@ function formatSyncedBanks(count: number, syncedAt: string | null) {
   if (!syncedAt) return count === 1 ? 'Your bank is syncing' : 'Your banks are syncing';
   const relative = formatDistanceToNow(new Date(syncedAt), {addSuffix: true});
   return count === 1 ? `Your bank synced ${relative}` : `All ${count} banks synced ${relative}`;
-}
-
-function formatProblem(connection: BankConnection) {
-  return connection.lastSyncedAt
-    ? `${connection.aspspName} has not synced since ${format(new Date(connection.lastSyncedAt), 'd MMM')}`
-    : `${connection.aspspName} has not synced yet`;
 }
 
 function formatDaysLeft(daysLeft: number) {
@@ -46,7 +40,7 @@ export function HomeSyncStatus({connections}: {connections: BankConnection[]}) {
               key={connection.id}
               className={cn(badgeClassName, 'border-destructive/60 text-foreground')}
             >
-              {formatProblem(connection)}
+              {`${connection.aspspName} has ${formatNotSyncedSince(connection)}`}
             </span>
           ))}
           <span className='text-foreground'>Totals may be missing recent activity.</span>

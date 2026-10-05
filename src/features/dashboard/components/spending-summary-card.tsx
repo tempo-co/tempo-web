@@ -5,7 +5,7 @@ import {Card} from '@/components/ui/card';
 import {cn} from '@/utils/cn';
 
 import type {BankTransactionSummary} from '../types/bank-transaction-summary';
-import {excludedDrills, incomeDrill, parseCalendarDate, spendingDrill} from '../utils/drill-links';
+import {excludedDrill, incomeDrill, parseCalendarDate, spendingDrill} from '../utils/drill-links';
 import {formatMoney, toCents} from '../utils/money';
 import {formatMonth, formatMonthRange, monthDates} from '../utils/month';
 import {SpendingPaceChart} from './spending-pace-chart';
@@ -131,7 +131,7 @@ function NotInTotals({summary, from}: {summary: BankTransactionSummary; from: st
         <dd>
           <Link
             to='/bank-transactions'
-            search={excludedDrills.missingBaseAmount(from, through)}
+            search={excludedDrill('missingBaseAmount', from, through)}
             className={linkClassName}
           >
             {excluded.missingBaseAmount} not converted
@@ -144,7 +144,7 @@ function NotInTotals({summary, from}: {summary: BankTransactionSummary; from: st
           {excluded.missingBaseAmount > 0 && <span aria-hidden='true'>· </span>}
           <Link
             to='/bank-transactions'
-            search={excludedDrills.unknownDirection(from, through)}
+            search={excludedDrill('unknownDirection', from, through)}
             className={linkClassName}
           >
             {excluded.unknownDirection} unknown direction

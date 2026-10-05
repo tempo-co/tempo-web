@@ -5,6 +5,8 @@ import type {
   BankTransactionSearchParams,
 } from '@/features/banking/types/bank-transaction';
 
+import type {BankTransactionReviewCounts} from '../types/bank-transaction-summary';
+
 /** Search params for a `/bank-transactions/` link; the list fills in pagination defaults. */
 export type BankTransactionDrillSearch = Partial<BankTransactionSearchParams>;
 
@@ -36,20 +38,7 @@ export function categoryDrill(
   return {...spendingDrill(from, to), categories: [category]};
 }
 
-/** Rows a period leaves out of its totals, matching the summary's `excluded` counts. */
-export const excludedDrills = {
-  unknownDirection: (from: string, to: string): BankTransactionDrillSearch => ({
-    bookingDate: bookingRange(from, to),
-    cashFlows: ['UNKNOWN'],
-  }),
-  missingBaseAmount: (from: string, to: string): BankTransactionDrillSearch => ({
-    bookingDate: bookingRange(from, to),
-    cashFlows: ['SPENDING', 'INCOME', 'UNKNOWN'],
-    baseAmount: 'MISSING',
-  }),
-};
-
-/** All-time rows behind each review count; the keys match the review counts response. */
+/** All-time rows behind each review count. */
 export const reviewDrills = {
   needsReview: {categories: ['NEEDS_REVIEW']},
   categorizationFailed: {categoryStatuses: ['FAILED']},
@@ -57,4 +46,13 @@ export const reviewDrills = {
   unknownDirection: {cashFlows: ['UNKNOWN']},
   // Internal rows are left out of the count, so they are left out of the list too.
   missingBaseAmount: {cashFlows: ['SPENDING', 'INCOME', 'UNKNOWN'], baseAmount: 'MISSING'},
-} as const satisfies Record<string, BankTransactionDrillSearch>;
+} as const satisfies Record<keyof BankTransactionReviewCounts, BankTransactionDrillSearch>;
+
+/** Rows a period leaves out of its totals, matching the summary's `excluded` counts. */
+export function excludedDrill(
+  key: 'unknownDirection' | 'missingBaseAmount',
+  from: string,
+  to: string,
+): BankTransactionDrillSearch {
+  return {bookingDate: bookingRange(from, to), ...reviewDrills[key]};
+}

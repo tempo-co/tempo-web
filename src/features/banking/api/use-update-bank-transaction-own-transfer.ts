@@ -1,10 +1,10 @@
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 
-import {dashboardQueryKeys} from '@/features/banking/api/aggregate-query-keys';
 import {HttpError, api} from '@/utils/api';
 
 import {BankTransaction, OwnTransferOverride} from '../types/bank-transaction';
+import {invalidateBankDerivedData} from './invalidate-bank-derived-data';
 import {bankQueryKeys} from './query-keys';
 import {bankTransactionQueryOptions} from './use-get-bank-transaction';
 
@@ -34,15 +34,7 @@ export const useUpdateBankTransactionOwnTransfer = () => {
     onSuccess: async (updatedTransaction, {id}) => {
       queryClient.setQueryData(bankQueryKeys.transaction(id), updatedTransaction);
       // A change can pair, unpair or re-pair other legs, so refetch everything else.
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: bankQueryKeys.transactionRoot,
-          predicate: ({queryKey}) => queryKey[1] !== id,
-        }),
-        queryClient.invalidateQueries({queryKey: dashboardQueryKeys.root}),
-        queryClient.invalidateQueries({queryKey: bankQueryKeys.transactionsRoot}),
-        queryClient.invalidateQueries({queryKey: bankQueryKeys.connectionTransactionsRoot}),
-      ]);
+      await invalidateBankDerivedData(queryClient, {exceptTransactionId: id});
     },
   });
 

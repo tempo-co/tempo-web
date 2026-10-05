@@ -3,29 +3,8 @@ import {X} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
 
-import {
-  BankTransactionBaseAmountFilterValue,
-  BankTransactionCashFlowFilterValue,
-  BankTransactionCategoryStatusFilterValue,
-  BankTransactionFilterParams,
-} from '../types/bank-transaction';
-
-const CASH_FLOW_LABELS: Record<BankTransactionCashFlowFilterValue, string> = {
-  SPENDING: 'Spending',
-  INCOME: 'Income',
-  INTERNAL: 'Internal',
-  UNKNOWN: 'Unknown direction',
-};
-
-const BASE_AMOUNT_LABELS: Record<BankTransactionBaseAmountFilterValue, string> = {
-  PRESENT: 'Converted amount',
-  MISSING: 'No converted amount yet',
-};
-
-const CATEGORY_STATUS_LABELS: Record<BankTransactionCategoryStatusFilterValue, string> = {
-  FAILED: 'Not categorized',
-  CATEGORIZING: 'Categorizing',
-};
+import {BankTransactionFilterParams} from '../types/bank-transaction';
+import {BASE_AMOUNT_LABELS, CASH_FLOW_LABELS, CATEGORY_STATUS_LABELS} from '../utils/drill-filters';
 
 type DrillFilterKey = 'cashFlows' | 'baseAmount' | 'categoryStatuses';
 

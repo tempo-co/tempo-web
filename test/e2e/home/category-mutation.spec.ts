@@ -1,64 +1,23 @@
-import * as reactQuery from '@tanstack/react-query';
-import {QueryClient, QueryClientProvider, QueryObserver} from '@tanstack/react-query';
-import {readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {resolve} from 'node:path';
-import {runInThisContext} from 'node:vm';
-import {createElement} from 'react';
-import {renderToString} from 'react-dom/server';
-import ts from 'typescript';
+import {QueryObserver} from '@tanstack/react-query';
 
 import {bankQueryKeys} from '../../../src/features/banking/api/query-keys';
 import type {BankTransactionFilterParams} from '../../../src/features/banking/types/bank-transaction';
 import {dashboardQueryKeys} from '../../../src/features/dashboard/api/query-keys';
 import {expect, test} from '../../fixtures';
+import {createHookHarness} from '../../utils/hook-harness';
 
 // The public API cannot seed FAILED/PROCESSING categorization or arbitrary cash-flow transitions.
 // Exercise the real mutation hooks and QueryClient in an isolated React harness instead of changing
 // shared seeded transactions. Only the HTTP boundary and toast presentation are replaced.
 function mutationHarness(response: Record<string, unknown>, reject = false) {
-  const client = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity}}});
-  const require = createRequire(resolve('package.json'));
-  const modules = new Map<string, {exports: Record<string, unknown>}>();
   const request = () =>
     reject ? Promise.reject(new Error('Synthetic mutation failure')) : Promise.resolve(response);
-  function load(path: string): Record<string, unknown> {
-    const filename = resolve(path);
-    const cached = modules.get(filename);
-    if (cached) return cached.exports;
-    const module = {exports: {}};
-    modules.set(filename, module);
-    const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
-      compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022},
-    }).outputText;
-    const localRequire = (name: string): unknown => {
-      if (name === '@tanstack/react-query') return reactQuery;
-      if (name === '@/utils/api') return {api: {patch: request, delete: request}};
-      if (name === 'sonner') return {toast: {promise: (promise: Promise<unknown>) => promise}};
-      if (name.startsWith('@/')) return load(resolve('src', `${name.slice(2)}.ts`));
-      if (name.startsWith('.')) return load(resolve(filename, '..', `${name}.ts`));
-      return require(name);
-    };
-    const execute = runInThisContext(`(function(require, module, exports) {${code}\n})`, {
-      filename,
-    }) as (
-      require: typeof localRequire,
-      module: {exports: Record<string, unknown>},
-      exports: Record<string, unknown>,
-    ) => void;
-    execute(localRequire, module, module.exports);
-    return module.exports;
-  }
-  function hook<T>(filename: string, exportName: string): T {
-    let result: T;
-    const useHook = load(resolve('src/features/banking/api', filename))[exportName] as () => T;
-    function Harness() {
-      result = useHook();
-      return null;
-    }
-    renderToString(createElement(QueryClientProvider, {client}, createElement(Harness)));
-    return result!;
-  }
+  const {client, renderHook} = createHookHarness({
+    '@/utils/api': {api: {patch: request, delete: request}},
+    sonner: {toast: {promise: (promise: Promise<unknown>) => promise}},
+  });
+  const hook = <T>(filename: string, exportName: string) =>
+    renderHook<T>(`src/features/banking/api/${filename}`, exportName);
   return {client, hook};
 }
 

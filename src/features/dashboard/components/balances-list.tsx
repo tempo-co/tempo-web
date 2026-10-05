@@ -9,6 +9,7 @@ import {cn} from '@/utils/cn';
 
 import {parseCalendarDate} from '../utils/drill-links';
 import {formatMoney, toCents} from '../utils/money';
+import {formatNotSyncedSince} from '../utils/sync-status';
 
 export function BalancesList({
   connections,
@@ -62,9 +63,7 @@ export function BalancesList({
                   <p className='text-xs text-muted-foreground'>{connection.aspspName}</p>
                   {stale && (
                     <p className='text-xs text-muted-foreground'>
-                      {connection.lastSyncedAt
-                        ? `not synced since ${format(new Date(connection.lastSyncedAt), 'd MMM')}`
-                        : 'not synced yet'}
+                      {formatNotSyncedSince(connection)}
                     </p>
                   )}
                 </div>

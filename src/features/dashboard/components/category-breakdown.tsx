@@ -1,6 +1,7 @@
 import {Link} from '@tanstack/react-router';
 
 import {Card} from '@/components/ui/card';
+import {BANK_TRANSACTION_UNCATEGORIZED} from '@/features/banking/types/bank-transaction';
 import {BANK_TRANSACTION_CATEGORY_META} from '@/features/banking/utils/bank-transaction-category-meta';
 import {cn} from '@/utils/cn';
 
@@ -21,11 +22,8 @@ type CategoryBreakdownProps = {
 export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownProps) {
   const {categories, baseCurrency, through} = summary;
   const {from} = monthDates(summary.month);
-  const spending = categories
-    .filter((row) => toCents(row.spending) > 0)
-    .sort(
-      (a, b) => toCents(b.spending) - toCents(a.spending) || a.category.localeCompare(b.category),
-    );
+  // The API orders categories by spending, largest first.
+  const spending = categories.filter((row) => toCents(row.spending) > 0);
   const visible = spending.slice(0, 6);
   const remaining = spending.slice(6);
   const refund = categories.find((row) => row.category === 'REFUND' && toCents(row.spending) < 0);
@@ -52,7 +50,9 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
       <div className='grid gap-5'>
         {visible.map((row) => {
           const meta =
-            row.category === 'UNCATEGORIZED' ? null : BANK_TRANSACTION_CATEGORY_META[row.category];
+            row.category === BANK_TRANSACTION_UNCATEGORIZED
+              ? null
+              : BANK_TRANSACTION_CATEGORY_META[row.category];
           const label = meta?.label ?? 'Uncategorized';
           const usual = row.baselineAverage === null ? null : toCents(row.baselineAverage);
           const spent = toCents(row.spending);

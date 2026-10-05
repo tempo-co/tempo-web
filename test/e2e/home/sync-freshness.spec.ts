@@ -1,12 +1,4 @@
-import * as reactQuery from '@tanstack/react-query';
-import {QueryClient, QueryClientProvider, QueryObserver} from '@tanstack/react-query';
-import {readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {resolve} from 'node:path';
-import {runInThisContext} from 'node:vm';
-import {createElement} from 'react';
-import {renderToString} from 'react-dom/server';
-import ts from 'typescript';
+import {QueryObserver} from '@tanstack/react-query';
 
 import {bankQueryKeys} from '../../../src/features/banking/api/query-keys';
 import type {BankConnection} from '../../../src/features/banking/types/bank-connection';
@@ -16,6 +8,7 @@ import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
 import {septemberSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
 import {fulfillJson, mockBankConnections} from '../../utils/api-mocks';
+import {createHookHarness} from '../../utils/hook-harness';
 
 const connection: BankConnection = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -107,52 +100,22 @@ test('Home refreshes spending, review counts and recent transactions when a poll
 // The backend has no public sync fixture endpoint. Load the real hook with only HTTP replaced;
 // real TanStack Query caches/observers exercise inactive roots without changing the shared stack.
 function syncHarness() {
-  const client = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity}}});
   let response: BankConnection[] = [];
   let failure = false;
-  const require = createRequire(resolve('package.json'));
-  const modules = new Map<string, {exports: Record<string, unknown>}>();
-  function load(path: string): Record<string, unknown> {
-    const filename = resolve(path);
-    const cached = modules.get(filename);
-    if (cached) return cached.exports;
-    const module = {exports: {}};
-    modules.set(filename, module);
-    const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
-      compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022},
-    }).outputText;
-    const localRequire = (name: string): unknown => {
-      if (name === '@tanstack/react-query') return reactQuery;
-      if (name === '@/utils/api')
-        return {
-          api: {
-            get: () =>
-              failure
-                ? Promise.reject(new Error('Synthetic connection failure'))
-                : Promise.resolve(response),
-          },
-        };
-      if (name.startsWith('@/')) return load(resolve('src', `${name.slice(2)}.ts`));
-      if (name.startsWith('.')) return load(resolve(filename, '..', `${name}.ts`));
-      return require(name);
-    };
-    const execute = runInThisContext(`(function(require, module, exports) {${code}\n})`, {
-      filename,
-    }) as (
-      require: typeof localRequire,
-      module: {exports: Record<string, unknown>},
-      exports: Record<string, unknown>,
-    ) => void;
-    execute(localRequire, module, module.exports);
-    return module.exports;
-  }
-  const useHook = load('src/features/banking/api/use-get-all-bank-connections.ts')
-    .useGetAllBankConnections as () => unknown;
-  function Harness() {
-    useHook();
-    return null;
-  }
-  renderToString(createElement(QueryClientProvider, {client}, createElement(Harness)));
+  const {client, renderHook} = createHookHarness({
+    '@/utils/api': {
+      api: {
+        get: () =>
+          failure
+            ? Promise.reject(new Error('Synthetic connection failure'))
+            : Promise.resolve(response),
+      },
+    },
+  });
+  renderHook(
+    'src/features/banking/api/use-get-all-bank-connections.ts',
+    'useGetAllBankConnections',
+  );
   const queryFn = client.getQueryCache().find({queryKey: bankQueryKeys.connections})!.options
     .queryFn;
   return {

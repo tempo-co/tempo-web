@@ -6,11 +6,11 @@ import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
 import {Skeleton} from '@/components/ui/skeleton';
 import {useGetAllBankConnections} from '@/features/banking/api/use-get-all-bank-connections';
+import {isConnectedBank} from '@/features/banking/utils/bank-sync-status';
 
 import {useGetBankTransactionReviewCounts} from '../api/use-get-bank-transaction-review-counts';
 import {useGetBankTransactionSummary} from '../api/use-get-bank-transaction-summary';
-import {localDate} from '../utils/month';
-import {isConnectedBank} from '../utils/sync-status';
+import {localDate, monthDates} from '../utils/month';
 import {AttentionList} from './attention-list';
 import {BalancesList} from './balances-list';
 import {CategoryBreakdown} from './category-breakdown';
@@ -65,17 +65,12 @@ export function HomeDashboard({month, isCurrentMonth}: HomeDashboardProps) {
 }
 
 function MonthlySpending({month, isCurrentMonth}: HomeDashboardProps) {
-  const {summary, isPending, isError, refetch} = useGetBankTransactionSummary(month, localDate());
+  // The API cuts a past month at its last day, so a stable date keeps that month's cache key.
+  const asOf = isCurrentMonth ? localDate() : monthDates(month).to;
+  const {summary, isPending, isError, refetch} = useGetBankTransactionSummary(month, asOf);
   if (isPending) return <Skeleton className='h-96' aria-label='Loading spending' />;
   if (isError || !summary)
-    return (
-      <Card className='grid justify-items-start gap-4 p-5 sm:p-6'>
-        <p>Could not load spending.</p>
-        <Button variant='outline' onClick={() => void refetch()}>
-          Try again
-        </Button>
-      </Card>
-    );
+    return <SectionError message='Could not load spending.' onRetry={refetch} />;
   return (
     <div className='grid min-w-0 content-start gap-6'>
       <SpendingSummaryCard summary={summary} isCurrentMonth={isCurrentMonth} />
@@ -88,15 +83,19 @@ function HomeAttention({baseCurrency}: {baseCurrency: string | null}) {
   const {reviewCounts, isPending, isError, refetch} = useGetBankTransactionReviewCounts();
   if (isPending) return <Skeleton className='h-40' aria-label='Loading attention counts' />;
   if (isError || !reviewCounts)
-    return (
-      <Card className='grid justify-items-start gap-4 p-5 sm:p-6'>
-        <p>Could not load attention counts.</p>
-        <Button variant='outline' onClick={() => void refetch()}>
-          Try again
-        </Button>
-      </Card>
-    );
+    return <SectionError message='Could not load attention counts.' onRetry={refetch} />;
   return <AttentionList reviewCounts={reviewCounts} baseCurrency={baseCurrency} />;
+}
+
+function SectionError({message, onRetry}: {message: string; onRetry: () => unknown}) {
+  return (
+    <Card className='grid justify-items-start gap-4 p-5 sm:p-6'>
+      <p>{message}</p>
+      <Button variant='outline' onClick={() => void onRetry()}>
+        Try again
+      </Button>
+    </Card>
+  );
 }
 
 function HomeDashboardSkeleton() {

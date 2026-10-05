@@ -3,6 +3,8 @@ import {ArrowUpRight} from 'lucide-react';
 import {useId} from 'react';
 
 import {Card} from '@/components/ui/card';
+import {BANK_TRANSACTION_CATEGORY_LABELS} from '@/features/banking/types/bank-transaction';
+import {CASH_FLOW_LABELS, CATEGORY_STATUS_LABELS} from '@/features/banking/utils/drill-filters';
 
 import type {BankTransactionReviewCounts} from '../types/bank-transaction-summary';
 import {reviewDrills} from '../utils/drill-links';
@@ -16,10 +18,10 @@ type AttentionListProps = {
 export function AttentionList({reviewCounts, baseCurrency}: AttentionListProps) {
   const headingId = useId();
   const groups: {key: keyof BankTransactionReviewCounts; label: string}[] = [
-    {key: 'needsReview', label: 'Needs review'},
-    {key: 'categorizationFailed', label: 'Not categorized'},
-    {key: 'categorizing', label: 'Categorizing'},
-    {key: 'unknownDirection', label: 'Unknown direction'},
+    {key: 'needsReview', label: BANK_TRANSACTION_CATEGORY_LABELS.NEEDS_REVIEW},
+    {key: 'categorizationFailed', label: CATEGORY_STATUS_LABELS.FAILED},
+    {key: 'categorizing', label: CATEGORY_STATUS_LABELS.CATEGORIZING},
+    {key: 'unknownDirection', label: CASH_FLOW_LABELS.UNKNOWN},
     {key: 'missingBaseAmount', label: `No ${baseCurrency ?? 'base-currency'} amount yet`},
   ];
   const visibleGroups = groups.filter(({key}) => reviewCounts[key] > 0);
