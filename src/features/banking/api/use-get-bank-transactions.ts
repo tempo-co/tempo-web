@@ -48,8 +48,8 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
   );
   const sort = searchParams.sort ?? DEFAULT_BANK_TRANSACTION_SORT;
 
-  const {data, isPending, isPlaceholderData, isError, refetch} = useQuery<BankTransactionsResponse>(
-    {
+  const {data, isPending, isPlaceholderData, isError, error, fetchStatus, refetch} =
+    useQuery<BankTransactionsResponse>({
       queryKey: bankQueryKeys.transactions(pagination, filters, sort),
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -81,8 +81,7 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
         return await api.get<BankTransactionsResponse>(`/bank-transactions?${params.toString()}`);
       },
       placeholderData: keepPreviousData,
-    },
-  );
+    });
 
   const totalPages = data ? Math.ceil(data.total / pagination.pageSize) : null;
   const canonicalPageIndex = totalPages === null ? null : Math.max(totalPages - 1, 0);
@@ -107,6 +106,8 @@ export const useGetBankTransactions = (searchParams: BankTransactionSearchParams
     isPending,
     isPlaceholderData,
     isError,
+    error,
+    fetchStatus,
     refetch,
     pagination,
     filters,

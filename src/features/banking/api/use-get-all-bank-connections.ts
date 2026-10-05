@@ -12,6 +12,8 @@ export const useGetAllBankConnections = () => {
     data: bankConnections,
     isPending,
     isError,
+    error,
+    fetchStatus,
     refetch,
   } = useQuery<BankConnection[]>({
     queryKey: bankQueryKeys.connections,
@@ -27,5 +29,5 @@ export const useGetAllBankConnections = () => {
         : false,
   });
 
-  return {bankConnections, isPending, isError, refetch};
+  return {bankConnections, isPending, isError, error, fetchStatus, refetch};
 };
