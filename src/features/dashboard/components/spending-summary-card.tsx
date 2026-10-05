@@ -107,7 +107,7 @@ function SpendingComparison({summary}: Pick<SpendingSummaryCardProps, 'summary'>
           : 'within range';
   const history =
     baseline.months.length < BASELINE_MONTHS
-      ? `${baseline.months.length} ${baseline.months.length === 1 ? 'month' : 'months'} of history`
+      ? `only ${baseline.months.length} ${baseline.months.length === 1 ? 'month' : 'months'} of history`
       : null;
   const details = [
     `Usual by the ${format(throughDate, 'do')}: ${formatMoney(baseline.spendingByThrough, baseCurrency)}`,

@@ -63,8 +63,8 @@ export const useUpdateBankTransactionCategory = () => {
           });
         }
       }
-      // Dashboard drills use server-derived cash-flow and categorization predicates. Refetch all
-      // matching caches, including pages that did not contain the transaction before the save.
+      // Home's Attention and "Not in totals" links filter on server-derived cash-flow and
+      // categorization predicates. Refetch those lists, including pages that lacked the row.
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: bankQueryKeys.transactionsRoot,

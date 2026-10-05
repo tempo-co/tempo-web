@@ -22,7 +22,7 @@ function mutationHarness(response: Record<string, unknown>, reject = false) {
 }
 
 for (const filters of [
-  {cashFlows: ['SPENDING']},
+  {cashFlows: ['UNKNOWN']},
   {categoryStatuses: ['FAILED']},
   {categoryStatuses: ['CATEGORIZING']},
 ] satisfies BankTransactionFilterParams[]) {
@@ -70,7 +70,7 @@ test('category save refreshes a drill that did not previously contain the transa
   const {client, hook} = mutationHarness(updated);
   const key = bankQueryKeys.transactions(
     {pageIndex: 0, pageSize: 10},
-    {cashFlows: ['SPENDING']},
+    {cashFlows: ['UNKNOWN']},
     undefined,
   );
   client.setQueryData(key, {transactions: [], total: 0});

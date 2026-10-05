@@ -13,6 +13,7 @@ const layouts = [
   {width: 1440, theme: 'light'},
   {width: 1440, theme: 'dark'},
   {width: 768, theme: 'dark'},
+  {width: 1100, theme: 'light'},
   {width: 390, theme: 'light'},
   {width: 390, theme: 'dark'},
   {width: 320, theme: 'dark'},
@@ -126,6 +127,16 @@ for (const {width, theme} of layouts) {
     ]) {
       expect((await boxOf(link)).height).toBeGreaterThanOrEqual(44);
     }
+
+    // The comparison is right-aligned only when it actually sits beside the headline.
+    const spending = page.getByTestId('spending-summary');
+    const comparison = spending.getByTestId('spending-comparison');
+    const headline = await boxOf(spending.getByRole('link').first());
+    const comparisonBox = await boxOf(comparison);
+    const beside = comparisonBox.y < headline.y + headline.height;
+    expect(await comparison.evaluate((element) => getComputedStyle(element).textAlign)).toBe(
+      beside ? 'right' : 'start',
+    );
 
     const month = await boxOf(page.getByRole('heading', {level: 1}));
     const previous = await boxOf(page.getByRole('link', {name: 'Previous month'}));
