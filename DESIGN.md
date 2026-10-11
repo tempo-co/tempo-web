@@ -188,11 +188,11 @@ system monospace stack covers identifiers and currency amounts.
 
 ## Layout
 
-The authenticated shell is a collapsible ~`14rem` left rail plus a sticky low header; mobile
-navigation is a ~`18rem` sheet. Content centers at ~`80rem`; settings uses a ~`40rem` reading
+The authenticated shell is a sticky `48px` header aligned to the ~`80rem` content column;
+below `md`, navigation moves to a fixed bottom tab bar. Settings uses a ~`40rem` reading
 column. Spacing follows a 4px rhythm: `8px` compact controls, `12px` control padding, `16px`
 related content, `24px` between groups, `32–48px` section breaks. Responsive behavior is
-structural, not scaled: navigation becomes a sheet, tables scroll horizontally, rows stay
+structural, not scaled: navigation becomes a tab bar, tables scroll horizontally, rows stay
 understandable without hover.
 
 Empty, loading, error, syncing, and filtered-empty states belong to the layout with a clear
@@ -204,7 +204,7 @@ decorative headers, metric-tile mosaics, or hero space before the data.
 ## Elevation & Depth
 
 Mostly flat tonal layering: page field, surfaces, accent washes, borders, whitespace. Cards
-keep `shadow-sm`; overlays (dialogs, popovers, sheets) may lift. Focus rings are functional
+keep `shadow-sm`; overlays (dialogs, popovers, drawers) may lift. Focus rings are functional
 emphasis. No glow, glass, backdrop blur, or nested shadows. Resting content stays quiet.
 
 ## Shapes
@@ -259,8 +259,12 @@ financial values continuously.
 
 ### Navigation
 
-The sidebar is a quiet index: visible labels expanded, tooltips collapsed, modest active
-wash, account menu at the bottom, mobile sheet with the same route labels and order.
+Navigation is a quiet index with no breadcrumbs; the page title and the active item say
+where you are. From `md` up the header carries the logo, Home, Connections and Transactions
+with a clay underline on the active item, and an initials account menu (name, email,
+Settings, Log out) on the right. Below `md` a four-tab bottom bar (Home, Connections,
+Transactions, Settings) keeps every destination one tap away: icon over label, active tab in
+clay with a top rule and heavier label, padded for the safe area. Toasts sit above it.
 
 ## Do's and Don'ts
 

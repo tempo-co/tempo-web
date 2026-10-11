@@ -6,7 +6,7 @@ test.describe('Account Settings: Name change', () => {
   // A fresh account per test, so renaming never touches the seeded accounts other specs use.
   test.beforeEach(async ({freshAccount, accountSettingsPage, homePage}) => {
     await accountSettingsPage.navigate();
-    await expect(homePage.sidebarAccountEmail).toHaveText(freshAccount.email);
+    await expect(homePage.accountEmail).toHaveText(freshAccount.email);
   });
 
   test('should change name successfully and persist after reload', async ({
@@ -18,10 +18,10 @@ test.describe('Account Settings: Name change', () => {
     await accountSettingsPage.changeName(newName);
 
     await expect(page.getByText('Name saved.')).toBeVisible();
-    await expect(homePage.sidebarAccountName).toHaveText(newName);
+    await expect(homePage.accountName).toHaveText(newName);
 
     await page.reload();
-    await expect(homePage.sidebarAccountName).toHaveText(newName);
+    await expect(homePage.accountName).toHaveText(newName);
   });
 
   test('should show error for empty name', async ({page, accountSettingsPage}) => {

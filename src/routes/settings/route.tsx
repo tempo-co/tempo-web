@@ -2,9 +2,7 @@ import {Link, Outlet, createFileRoute, useMatchRoute} from '@tanstack/react-rout
 import {Shield, SunMoon, User} from 'lucide-react';
 
 import {AppBodyLayout} from '@/components/shared/layout/app-body';
-import {AppHeaderLayout} from '@/components/shared/layout/app-header-layout';
 import {Button} from '@/components/ui/button';
-import {SettingsBreadcrumb} from '@/features/settings/components/settings-breadcrumb';
 import {cn} from '@/utils/cn';
 import {handleAuthenticatedRedirect} from '@/utils/handle-redirect';
 
@@ -16,20 +14,16 @@ export const Route = createFileRoute('/settings')({
 });
 
 const navItems = [
-  {label: 'Account', route: '/settings/account', breadcrumb: '/account', icon: User},
-  {label: 'Security', route: '/settings/security', breadcrumb: '/security', icon: Shield},
-  {label: 'Appearance', route: '/settings/appearance', breadcrumb: '/appearance', icon: SunMoon},
+  {label: 'Account', route: '/settings/account', icon: User},
+  {label: 'Security', route: '/settings/security', icon: Shield},
+  {label: 'Appearance', route: '/settings/appearance', icon: SunMoon},
 ] as const;
 
 function SettingsIndex() {
   const matchRoute = useMatchRoute();
-  const activeNavItem = navItems.find((item) => matchRoute({to: item.route, fuzzy: true}));
 
   return (
     <>
-      <AppHeaderLayout>
-        <SettingsBreadcrumb route={activeNavItem?.breadcrumb ?? '/account'} />
-      </AppHeaderLayout>
       <AppBodyLayout>
         <nav aria-label='Settings sections' className='mx-auto max-w-160 xl:hidden'>
           <div className='mt-4 flex w-full gap-1 rounded-lg border bg-muted/60 p-1'>
@@ -69,7 +63,7 @@ function SettingsIndex() {
               return (
                 <Button
                   key={item.label}
-                  className={cn('h-11 w-full px-3', isActive && 'bg-sidebar-accent font-medium')}
+                  className={cn('h-11 w-full px-3', isActive && 'bg-accent font-medium')}
                   variant='ghost'
                   size='lg'
                   asChild
