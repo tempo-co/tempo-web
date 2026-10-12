@@ -17,11 +17,9 @@ function SettingsSecurityIndex() {
   }
 
   return (
-    <div className='w-full'>
-      <div className='space-y-10'>
-        <SessionList />
-        <PasswordChangeCard />
-      </div>
+    <div className='space-y-10'>
+      <PasswordChangeCard />
+      <SessionList />
     </div>
   );
 }

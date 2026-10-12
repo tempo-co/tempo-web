@@ -18,6 +18,7 @@ test.describe('Account Settings: Name change', () => {
     await accountSettingsPage.changeName(newName);
 
     await expect(page.getByText('Name saved.')).toBeVisible();
+    await expect(page.getByRole('dialog')).toBeHidden();
     await expect(homePage.accountName).toHaveText(newName);
 
     await page.reload();
@@ -27,6 +28,7 @@ test.describe('Account Settings: Name change', () => {
   test('should show error for empty name', async ({page, accountSettingsPage}) => {
     await accountSettingsPage.changeName('');
     await expect(page.getByText('Please enter your name.')).toBeVisible();
+    await expect(page.getByRole('dialog')).toBeVisible();
   });
 
   test('should show error for name longer than 255 characters', async ({
@@ -34,7 +36,7 @@ test.describe('Account Settings: Name change', () => {
     accountSettingsPage,
   }) => {
     const longName = faker.string.alphanumeric(256);
-    await accountSettingsPage.nameInput.fill(longName);
+    await accountSettingsPage.changeName(longName);
 
     await expect(page.getByText('Name must be less than 256 characters.')).toBeVisible();
   });

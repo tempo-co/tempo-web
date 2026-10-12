@@ -591,6 +591,7 @@ test('an account save finishing after logout in another tab does not restore sav
 }) => {
   await context.clock.install();
   await page.goto('/settings/account');
+  await page.getByTestId('edit-name-button').click();
   const name = page.getByTestId('name-input');
   await expect(name).toHaveValue(freshAccount.name);
   await expect.poll(() => readCache(page)).not.toBe(null);
@@ -605,7 +606,7 @@ test('an account save finishing after logout in another tab does not restore sav
     await route.fulfill({json: {...current, name: 'Late example'}});
   });
   await name.fill('Late example');
-  await name.blur();
+  await page.getByTestId('save-name-button').click();
   await expect.poll(() => saveHeld).toBe(true);
 
   const other = await context.newPage();
@@ -631,6 +632,7 @@ test('a save finishing after logout and a new login does not sign out the new ac
 }) => {
   const next = await createVerifiedAccount(request);
   await page.goto('/settings/account');
+  await page.getByTestId('edit-name-button').click();
   const name = page.getByTestId('name-input');
   await expect(name).toHaveValue(freshAccount.name);
   let releaseSave!: () => void;
@@ -644,8 +646,11 @@ test('a save finishing after logout and a new login does not sign out the new ac
     await fulfillJson(route, {message: 'Unauthorized'}, 401);
   });
   await name.fill('Late example');
-  await name.blur();
+  await page.getByTestId('save-name-button').click();
   await expect.poll(() => saveHeld).toBe(true);
+  // The dialog may close while the save is pending; its outcome arrives as a toast.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
   await homePage.logOut();
   // Log in on the page that is open: reloading it would cancel the held save.
   await loginPage.emailInput.fill(next.email);
@@ -758,20 +763,25 @@ test('does not queue an offline account change for replay after reconnect', asyn
 }) => {
   test.setTimeout(20000);
   await page.goto('/settings/account');
-  const name = page.getByTestId('name-input');
-  await expect(name).toHaveValue(freshAccount.name);
+  await expect(page.getByTestId('edit-name-button')).toBeVisible();
   let writes = 0;
   page.on('request', (request) => {
     if (request.method() === 'PATCH' && request.url().endsWith('/accounts/me')) writes++;
   });
   await context.setOffline(true);
+  // Checked before the dialog opens: a modal hides the header status from assistive tech.
   await expect(savedStatus(page)).toBeVisible();
+  await page.getByTestId('edit-name-button').click();
+  const name = page.getByTestId('name-input');
+  await expect(name).toHaveValue(freshAccount.name);
   await name.fill('Offline example');
-  await name.blur();
+  await page.getByTestId('save-name-button').click();
   await expect(
     page.getByText('Changes cannot be saved while Tempo is unreachable.', {exact: true}),
   ).toBeVisible();
   expect(writes).toBe(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
   await context.setOffline(false);
   await expect(savedStatus(page)).not.toBeVisible({timeout: 15000});
   const account = await page.request.get(`${API_URL}/accounts/me`);
