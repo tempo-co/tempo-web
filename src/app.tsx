@@ -1,11 +1,15 @@
 import {RouterProvider} from '@tanstack/react-router';
 import {motion} from 'framer-motion';
-import React from 'react';
+import React, {useEffect} from 'react';
 
 import {Button} from '@/components/ui/button';
 import {Toaster} from '@/components/ui/sonner';
 import {useConnection} from '@/hooks/use-connection';
-import {useCurrentAccount} from '@/hooks/use-current-account';
+import {
+  markSavedSessionShown,
+  useCurrentAccount,
+  wasSavedSessionShown,
+} from '@/hooks/use-current-account';
 import {ThemeProvider} from '@/providers/theme.provider';
 
 import Logo from './assets/logo';
@@ -21,6 +25,10 @@ export function App() {
     isSavedSessionUnconfirmed,
     refetch,
   } = useCurrentAccount();
+  const isShowingSavedSession = isSavedSessionUnconfirmed && !isOnline;
+  useEffect(() => {
+    if (isShowingSavedSession) markSavedSessionShown();
+  }, [isShowingSavedSession]);
 
   return (
     <ThemeProvider storageKey='vite-ui-theme'>
@@ -33,7 +41,7 @@ export function App() {
           </p>
           <Button onClick={() => void refetch()}>Try again</Button>
         </div>
-      ) : isPending || (isSavedSessionUnconfirmed && isOnline) ? (
+      ) : isPending || (isSavedSessionUnconfirmed && isOnline && !wasSavedSessionShown()) ? (
         <LoadingScreen />
       ) : (
         <React.Suspense fallback={<LoadingScreen />}>
