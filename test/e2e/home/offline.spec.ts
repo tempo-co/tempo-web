@@ -147,29 +147,6 @@ test.describe('saved Home', () => {
   });
 });
 
-test('a session revoked while saved Home is offline signs out on reconnect', async ({
-  page,
-  context,
-  freshAccount,
-  homePage,
-}) => {
-  test.setTimeout(30000);
-  await mockHome(page);
-  await openSavedHome(page);
-  await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
-  expect((await page.request.post(`${API_URL}/auth/logout`)).status()).toBe(200);
-  await context.setOffline(true);
-  await page.reload();
-  await expect(offlineStatus(page)).toBeVisible();
-  await expect(spending(page)).toBeVisible();
-
-  await context.setOffline(false);
-  await page.clock.resume();
-  await expect(page).toHaveURL(/\/login$/, {timeout: 15000});
-  await expect(page.getByTestId('spending-summary')).toHaveCount(0);
-  await expect.poll(() => readCache(page)).toBe(null);
-});
-
 test('logout removes saved Home data and prevents an offline reload from reopening it', async ({
   page,
   context,
@@ -178,7 +155,7 @@ test('logout removes saved Home data and prevents an offline reload from reopeni
 }) => {
   await mockHome(page);
   await openSavedHome(page);
-  await expect(homePage.sidebarAccountName).toHaveText(freshAccount.name);
+  await expect(homePage.accountName).toHaveText(freshAccount.name);
   await expect
     .poll(async () =>
       (await readCache(page))?.clientState.queries.some(

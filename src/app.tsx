@@ -10,10 +10,13 @@ import {
   useCurrentAccount,
   wasSavedSessionShown,
 } from '@/hooks/use-current-account';
+import {useIsMobile} from '@/hooks/use-is-mobile';
 import {ThemeProvider} from '@/providers/theme.provider';
 
 import Logo from './assets/logo';
 import {router} from './router';
+
+const TAB_BAR_TOAST_OFFSET = 'calc(4.5rem + env(safe-area-inset-bottom))';
 
 export function App() {
   const isOnline = useConnection();
@@ -29,6 +32,8 @@ export function App() {
   useEffect(() => {
     if (isShowingSavedSession) markSavedSessionShown();
   }, [isShowingSavedSession]);
+  // Below md, signed-in pages keep the tab bar at the bottom; toasts stay above it.
+  const hasTabBar = useIsMobile() && isAuthenticated && !!isEmailVerified;
 
   return (
     <ThemeProvider storageKey='vite-ui-theme'>
@@ -51,7 +56,12 @@ export function App() {
           </div>
         </React.Suspense>
       )}
-      <Toaster expand duration={5000} />
+      <Toaster
+        expand
+        duration={5000}
+        offset={hasTabBar ? {bottom: TAB_BAR_TOAST_OFFSET} : undefined}
+        mobileOffset={hasTabBar ? {bottom: TAB_BAR_TOAST_OFFSET} : undefined}
+      />
     </ThemeProvider>
   );
 }
