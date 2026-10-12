@@ -49,7 +49,7 @@ CI runs these jobs in parallel: lint/format (`npm run generate-routes`, `npm run
 ## Deployment and ops checks
 
 - `ops/tests/tempo-web-security-headers-test.sh` builds the production image and probes the security headers Nginx serves (needs Docker). Update it when you change `nginx/tempo.conf`.
-- CI publishes `ghcr.io/tempo-co/tempo-web:pr-<n>` for every same-repo PR and tags `:main` after tests pass on `main`. Production deploys `:main` automatically; staging deploys any pair with `tempo-deploy staging --api <tag> --web <tag>` (see `tempo-api/ops/README.md`). Production and staging serve the app at the root; Nginx redirects the former `/tempo/` paths there.
+- CI publishes `ghcr.io/tempo-co/tempo-web:pr-<n>` for every same-repo PR and tags `:main` after tests pass on `main`. Production deploys `:main` automatically; staging deploys any pair with `tempo-deploy staging --api <tag> --web <tag>` (see `tempo-api/ops/README.md`). Production and staging serve the app at the root.
 
 ## Repository layout and conventions
 
