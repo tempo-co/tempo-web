@@ -79,14 +79,15 @@ test('a pending name save can be closed without cancelling the save', async ({pa
   await expect(page.getByTestId('edit-name-button')).toBeFocused();
 });
 
-test('closing the name drawer returns keyboard focus to Edit', async ({page}) => {
+test('a successful name save returns keyboard focus to Edit', async ({page}) => {
+  await page.route('**/accounts/me', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await route.fulfill({json: {...account, name: 'Another Example'}});
+  });
   await page.goto('/settings/account');
-  const trigger = page.getByTestId('edit-name-button');
-  await trigger.click();
-  await page.getByTestId('name-input').fill('Unsaved example');
-  await page.getByRole('button', {name: 'Cancel', exact: true}).click();
+  await page.getByTestId('edit-name-button').click();
+  await page.getByTestId('name-input').fill('Another Example');
+  await page.getByTestId('save-name-button').click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(trigger).toBeFocused();
-  await trigger.click();
-  await expect(page.getByTestId('name-input')).toHaveValue(account.name);
+  await expect(page.getByTestId('edit-name-button')).toBeFocused();
 });
