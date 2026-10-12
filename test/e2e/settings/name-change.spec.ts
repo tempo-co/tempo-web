@@ -31,6 +31,12 @@ test.describe('Account Settings: Name change', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 
+  test('should show error for whitespace-only name', async ({page, accountSettingsPage}) => {
+    await accountSettingsPage.changeName('   ');
+    await expect(page.getByText('Please enter your name.')).toBeVisible();
+    await expect(page.getByTestId('name-input')).toBeFocused();
+  });
+
   test('should show error for name longer than 255 characters', async ({
     page,
     accountSettingsPage,

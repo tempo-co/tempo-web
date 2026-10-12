@@ -4,12 +4,11 @@ type SettingsGroupProps = {
   id: string;
   title: string;
   description?: ReactNode;
-  action?: ReactNode;
   children: ReactNode;
 };
 
-/** A titled settings group: a small heading, optional one-line context, and an optional group action. */
-export function SettingsGroup({id, title, description, action, children}: SettingsGroupProps) {
+/** A titled settings group: a small heading, and optional one-line context. */
+export function SettingsGroup({id, title, description, children}: SettingsGroupProps) {
   return (
     <section aria-labelledby={id}>
       <div className='mb-3 flex items-end justify-between gap-3'>
@@ -19,7 +18,6 @@ export function SettingsGroup({id, title, description, action, children}: Settin
           </h2>
           {description && <p className='mt-1 text-sm text-muted-foreground'>{description}</p>}
         </div>
-        {action && <div className='shrink-0'>{action}</div>}
       </div>
       {children}
     </section>

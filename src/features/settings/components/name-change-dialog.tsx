@@ -46,10 +46,6 @@ export function NameChangeDialog({currentName}: NameChangeDialogProps) {
 
   const onSubmit = async ({name}: NameChangeDto) => {
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      form.setError('name', {message: 'Please enter your name.'}, {shouldFocus: true});
-      return;
-    }
     if (trimmedName === currentName.trim()) {
       setIsOpen(false);
       return;
