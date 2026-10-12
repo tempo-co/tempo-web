@@ -145,7 +145,7 @@ export function AccountMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to='/settings/account' className='cursor-pointer'>
+          <Link to='/settings/account' className='cursor-pointer max-md:min-h-11'>
             <Settings className='mr-2 size-4' />
             Settings
           </Link>
@@ -153,7 +153,7 @@ export function AccountMenu() {
         <DropdownMenuItem
           onClick={() => logOut()}
           disabled={isPending}
-          className='cursor-pointer'
+          className='cursor-pointer max-md:min-h-11'
           data-testid='log-out-button'
         >
           <LogOut className='mr-2 size-4' />

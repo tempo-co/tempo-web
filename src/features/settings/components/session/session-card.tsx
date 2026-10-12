@@ -69,28 +69,28 @@ export function SessionCard({session}: SessionCardProps) {
       </div>
       <DialogContent className='sm:max-w-md'>
         <DialogHeader>
-          <DialogTitle>{session.name}</DialogTitle>
+          <DialogTitle className='wrap-anywhere'>{session.name}</DialogTitle>
         </DialogHeader>
         <dl className='divide-y text-sm'>
-          <div className='flex items-center justify-between py-3 capitalize'>
+          <div className='grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 py-3 capitalize'>
             <dt className='text-muted-foreground'>Device</dt>
-            <dd>{session.deviceType}</dd>
+            <dd className='text-right wrap-anywhere'>{session.deviceType}</dd>
           </div>
-          <div className='flex items-center justify-between py-3'>
+          <div className='grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 py-3'>
             <dt className='text-muted-foreground'>IP address</dt>
-            <dd className='font-mono'>{session.ip}</dd>
+            <dd className='text-right font-mono wrap-anywhere'>{session.ip}</dd>
           </div>
-          <div className='flex items-center justify-between py-3'>
+          <div className='grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 py-3'>
             <dt className='text-muted-foreground'>Location</dt>
-            <dd>{session.location}</dd>
+            <dd className='text-right wrap-anywhere'>{session.location}</dd>
           </div>
-          <div className='flex items-center justify-between py-3'>
+          <div className='grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 py-3'>
             <dt className='text-muted-foreground'>Signed in</dt>
-            <dd>{createdAt}</dd>
+            <dd className='text-right wrap-anywhere'>{createdAt}</dd>
           </div>
-          <div className='flex items-center justify-between py-3'>
+          <div className='grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 py-3'>
             <dt className='text-muted-foreground'>Last active</dt>
-            <dd>{lastSeenAt}</dd>
+            <dd className='text-right wrap-anywhere'>{lastSeenAt}</dd>
           </div>
         </dl>
         <DialogFooter>

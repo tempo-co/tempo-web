@@ -37,6 +37,7 @@ interface ResponsiveDialogProps extends BaseProps {
   asChild?: true;
   'aria-label'?: string;
   'data-testid'?: string;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 const ResponsiveDialogContext = React.createContext<{isDesktop: boolean}>({

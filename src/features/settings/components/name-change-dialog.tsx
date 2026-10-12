@@ -1,6 +1,6 @@
 import {zodResolver} from '@hookform/resolvers/zod';
 import {Loader} from 'lucide-react';
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {useForm} from 'react-hook-form';
 
 import {Button} from '@/components/ui/button';
@@ -28,6 +28,7 @@ type NameChangeDialogProps = {
 
 export function NameChangeDialog({currentName}: NameChangeDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const {patchAccount, isPending} = usePatchAccount();
 
   const form = useForm<NameChangeDto>({
@@ -68,12 +69,19 @@ export function NameChangeDialog({currentName}: NameChangeDialogProps) {
           variant='outline'
           size='sm'
           className='min-w-20 max-sm:h-11'
+          ref={triggerRef}
           data-testid='edit-name-button'
         >
           Edit
         </Button>
       </ResponsiveDialogTrigger>
-      <ResponsiveDialogContent className='md:max-w-md'>
+      <ResponsiveDialogContent
+        className='md:max-w-md'
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus();
+        }}
+      >
         <ResponsiveDialogHeader className='text-start'>
           <ResponsiveDialogTitle>Edit name</ResponsiveDialogTitle>
         </ResponsiveDialogHeader>
@@ -119,8 +127,8 @@ export function NameChangeDialog({currentName}: NameChangeDialogProps) {
                 )}
               </Button>
               <ResponsiveDialogClose asChild>
-                <Button variant='outline' type='button' disabled={isPending} className='md:order-1'>
-                  Cancel
+                <Button variant='outline' type='button' className='md:order-1'>
+                  {isPending ? 'Close' : 'Cancel'}
                 </Button>
               </ResponsiveDialogClose>
             </ResponsiveDialogFooter>
