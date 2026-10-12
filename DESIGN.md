@@ -266,6 +266,10 @@ Settings, Log out) on the right. Below `md` a four-tab bottom bar (Home, Connect
 Transactions, Settings) keeps every destination one tap away: icon over label, active tab in
 clay with a top rule and heavier label, padded for the safe area. Toasts sit above it.
 
+Settings is one page titled "Settings" with a row of text section tabs (Account, Security,
+Appearance) on a bottom rule inside the `40rem` column, at every width. The active section
+gets the same clay underline as the header; no icons, no side column, no segmented control.
+
 ## Do's and Don'ts
 
 ### Do:

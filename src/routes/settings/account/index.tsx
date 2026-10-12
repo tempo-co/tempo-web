@@ -20,7 +20,6 @@ function SettingsAccountIndex() {
 
   return (
     <div className='w-full'>
-      <h1 className='mb-8 text-2xl font-semibold tracking-tight'>Account</h1>
       <div className='space-y-10'>
         <section aria-labelledby='name-heading' className='space-y-3'>
           <div className='space-y-1'>

@@ -9,7 +9,6 @@ export const Route = createFileRoute('/settings/appearance/')({
 function SettingsAppearanceIndex() {
   return (
     <div className='w-full'>
-      <h1 className='mb-8 text-2xl font-semibold tracking-tight'>Appearance</h1>
       <section aria-labelledby='theme-heading' className='space-y-3'>
         <div className='space-y-1'>
           <h2 id='theme-heading' className='text-lg font-semibold'>
