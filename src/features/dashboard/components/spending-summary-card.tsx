@@ -1,5 +1,7 @@
 import {Link} from '@tanstack/react-router';
 import {format} from 'date-fns';
+import {ChevronDown} from 'lucide-react';
+import {useState} from 'react';
 
 import {Card} from '@/components/ui/card';
 import {cn} from '@/utils/cn';
@@ -72,7 +74,7 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
         </div>
         <NotInTotals summary={summary} from={from} />
       </dl>
-      <SpendingPaceChart summary={summary} isCurrentMonth={isCurrentMonth} />
+      <PaceDetails summary={summary} isCurrentMonth={isCurrentMonth} />
     </Card>
   );
 }
@@ -93,8 +95,8 @@ function SpendingComparison({summary, isCurrentMonth}: SpendingSummaryCardProps)
   const difference = spent - usual;
   const comparison =
     difference === 0
-      ? 'The same as usual'
-      : `${formatMoney(Math.abs(difference) / 100, baseCurrency)} ${difference > 0 ? 'more' : 'less'} than usual`;
+      ? 'Same as average'
+      : `${formatMoney(Math.abs(difference) / 100, baseCurrency)} ${difference > 0 ? 'above' : 'below'} average`;
 
   const range = baseline.spendingRangeByThrough;
   const isAboveRange = range !== null && spent > toCents(range.high);
@@ -102,19 +104,18 @@ function SpendingComparison({summary, isCurrentMonth}: SpendingSummaryCardProps)
     range === null
       ? null
       : isAboveRange
-        ? `more than any of those months${isCurrentMonth ? ' by this day' : ''}`
+        ? 'higher than any recent month'
         : spent < toCents(range.low)
-          ? `less than any of those months${isCurrentMonth ? ' by this day' : ''}`
-          : `within your previous ${baseline.months.length} months${isCurrentMonth ? ' by this day' : ''}`;
+          ? 'lower than any recent month'
+          : 'within your normal range';
   const history =
     baseline.months.length < BASELINE_MONTHS
       ? `only ${baseline.months.length} ${baseline.months.length === 1 ? 'month' : 'months'} of history`
       : null;
   const details = [
     isCurrentMonth
-      ? `Usual by the ${format(throughDate, 'do')}: ${formatMoney(baseline.spendingByThrough, baseCurrency)}`
+      ? `Average by the ${format(throughDate, 'do')}: ${formatMoney(baseline.spendingByThrough, baseCurrency)}`
       : `${formatMonthRange(baseline.months)} average: ${formatMoney(baseline.spendingByThrough, baseCurrency)}`,
-    verdict,
     history,
   ].filter(Boolean);
 
@@ -123,7 +124,10 @@ function SpendingComparison({summary, isCurrentMonth}: SpendingSummaryCardProps)
       className='min-w-0 text-sm @min-[500px]:pt-1 @min-[500px]:text-right'
       data-testid='spending-comparison'
     >
-      <p className={cn('font-medium', isAboveRange && 'text-primary')}>{comparison}</p>
+      <p className={cn('font-medium', isAboveRange && 'text-primary')}>
+        {comparison}
+        {verdict && <span className='font-normal text-muted-foreground'> · {verdict}</span>}
+      </p>
       <p className='mt-0.5 text-xs text-muted-foreground'>{details.join(' · ')}</p>
     </div>
   );
@@ -163,4 +167,61 @@ function NotInTotals({summary, from}: {summary: BankTransactionSummary; from: st
       )}
     </div>
   );
+}
+
+/**
+ * Mid-month, a projection says where the month is heading; the day-by-day chart stays one tap
+ * away for anyone who wants the shape.
+ */
+function PaceDetails({summary, isCurrentMonth}: SpendingSummaryCardProps) {
+  const [open, setOpen] = useState(false);
+  const {baseline, baseCurrency} = summary;
+  const usualMonth = baseline.daily[baseline.daily.length - 1];
+  const projection =
+    isCurrentMonth && usualMonth && baseline.spendingByThrough !== null
+      ? toCents(summary.totals.spending) +
+        Math.max(0, toCents(usualMonth.average) - toCents(baseline.spendingByThrough))
+      : null;
+  if (!isCurrentMonth && baseline.months.length === 0) return null;
+
+  return (
+    <div className='mt-4 border-t pt-3'>
+      <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-1'>
+        {projection !== null ? (
+          <p className='text-sm'>
+            <span className='text-muted-foreground'>On track for about </span>
+            <span className='font-mono font-medium tabular-nums'>
+              {formatRoundMoney(Math.round(projection / 1000) * 10, baseCurrency)}
+            </span>
+            <span className='text-muted-foreground'> by month end</span>
+          </p>
+        ) : (
+          <span />
+        )}
+        <button
+          type='button'
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+          className='-mr-2 inline-flex min-h-11 items-center gap-1 px-2 text-xs text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+        >
+          Daily pace
+          <ChevronDown
+            aria-hidden='true'
+            className={cn(
+              'size-3.5 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none',
+              open && 'rotate-180',
+            )}
+          />
+        </button>
+      </div>
+      {open && <SpendingPaceChart summary={summary} isCurrentMonth={isCurrentMonth} />}
+    </div>
+  );
+}
+
+function formatRoundMoney(amount: number, currency: string | null) {
+  return new Intl.NumberFormat(undefined, {
+    ...(currency ? {style: 'currency', currency} : {}),
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
