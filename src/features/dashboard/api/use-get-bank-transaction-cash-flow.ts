@@ -3,17 +3,22 @@ import {useQuery} from '@tanstack/react-query';
 import {dashboardQueryKeys} from '@/features/banking/api/aggregate-query-keys';
 import {api} from '@/utils/api';
 
-import type {BankTransactionCashFlow} from '../types/bank-transaction-cash-flow';
+import type {BankTransactionCashFlow, CashFlowInterval} from '../types/bank-transaction-cash-flow';
 import {HOME_REFRESH_INTERVAL_MS} from './refresh-interval';
 
-/** Monthly spending and income from `from` to `to` (YYYY-MM), cut at the local date `asOf`. */
-export const useGetBankTransactionCashFlow = (from: string, to: string, asOf: string) => {
+/** Spending and income per week, month or year between two local dates (`YYYY-MM-DD`). */
+export const useGetBankTransactionCashFlow = (
+  interval: CashFlowInterval,
+  from: string,
+  to: string,
+) => {
   const {data, isPending, isError, refetch} = useQuery<BankTransactionCashFlow>({
-    queryKey: dashboardQueryKeys.cashFlow(from, to, asOf),
+    queryKey: dashboardQueryKeys.cashFlow(interval, from, to),
     queryFn: () => {
-      const params = new URLSearchParams({from, to, asOf});
+      const params = new URLSearchParams({interval, from, to});
       return api.get<BankTransactionCashFlow>(`/bank-transactions/cash-flow?${params.toString()}`);
     },
+    placeholderData: (previous) => (previous?.interval === interval ? previous : undefined),
     refetchInterval: HOME_REFRESH_INTERVAL_MS,
     staleTime: HOME_REFRESH_INTERVAL_MS,
     refetchOnReconnect: 'always',
