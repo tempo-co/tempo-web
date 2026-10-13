@@ -42,7 +42,7 @@ export function SessionList() {
           )}
           {otherSessions.length > 0 && (
             <section aria-labelledby='other-sessions-heading' className='pt-3'>
-              <div className='mb-3 flex items-center justify-between gap-3 pr-4'>
+              <div className='mb-3 flex items-center justify-between gap-3'>
                 <h3 id='other-sessions-heading' className='text-sm font-medium'>
                   Other sessions{' '}
                   <span className='font-normal text-muted-foreground'>
