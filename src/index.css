@@ -138,21 +138,21 @@
   :root {
     /* light: Paper canvas, Ink text, Clay accents */
     --background: 38.6 43.8% 93.7%; /* Paper #F6F1E8 */
-    --foreground: 270 7.5% 15.7%; /* Ink #28252B */
+    --foreground: 270 7.5% 15.7%;   /* Ink #28252B */
 
-    --card: 42 55.6% 96.5%; /* lifted Paper */
+    --card: 42 55.6% 96.5%;         /* lifted Paper */
     --card-foreground: 270 7.5% 15.7%;
 
     --popover: 42 55.6% 96.5%;
     --popover-foreground: 270 7.5% 15.7%;
 
-    --primary: 9 48.2% 37.8%; /* Clay strong #8F4032 — small text/controls on light */
+    --primary: 9 48.2% 37.8%;       /* Clay strong #8F4032 — small text/controls on light */
     --primary-foreground: 38.6 43.8% 93.7%;
 
     --secondary: 34.3 38.2% 89.2%;
     --secondary-foreground: 9 48.2% 37.8%;
 
-    --muted: 37.9 20% 81.4%; /* Fold shadow #D9D2C6 — planes/borders only */
+    --muted: 37.9 20% 81.4%;        /* Fold shadow #D9D2C6 — planes/borders only */
     --muted-foreground: 33.7 7.8% 40%;
 
     --accent: 37.1 36.8% 88.8%;
@@ -201,7 +201,7 @@
 
   .dark {
     /* dark: Night canvas, warm paper text, Clay-on-dark accents */
-    --background: 252 10.2% 9.6%; /* Night #17161B */
+    --background: 252 10.2% 9.6%;   /* Night #17161B */
     --foreground: 38.6 31.8% 91.4%;
 
     --card: 260 9.1% 12.9%;
@@ -210,7 +210,7 @@
     --popover: 260 9.1% 12.9%;
     --popover-foreground: 38.6 31.8% 91.4%;
 
-    --primary: 17.5 67.1% 69%; /* Clay on dark #E59A7B — accent + links on dark */
+    --primary: 17.5 67.1% 69%;      /* Clay on dark #E59A7B — accent + links on dark */
     --primary-foreground: 252 10.2% 9.6%;
 
     --secondary: 265.7 8.2% 16.7%;
@@ -222,7 +222,7 @@
     --accent: 262.5 9.1% 17.3%;
     --accent-foreground: 38.6 31.8% 91.4%;
 
-    --clay: 17.5 67.1% 69%; /* Clay on dark — logo accent plane */
+    --clay: 17.5 67.1% 69%;         /* Clay on dark — logo accent plane */
 
     --category-housing: 214 176 75;
     --category-food-and-drink: 229 152 108;
