@@ -13,6 +13,7 @@ import {cn} from '@/utils/cn';
 
 import {useGetBankTransactionCashFlow} from '../api/use-get-bank-transaction-cash-flow';
 import type {CashFlowInterval, CashFlowPeriod} from '../types/bank-transaction-cash-flow';
+import {axisFormatter, axisTicks} from '../utils/chart-axis';
 import {cashFlowDrill, flowDrill, parseCalendarDate} from '../utils/drill-links';
 import {formatMoney, toCents} from '../utils/money';
 import {currentMonth, formatMonth, localDate, monthDates, shiftMonth} from '../utils/month';
@@ -44,24 +45,6 @@ function periodName(period: CashFlowPeriod, interval: CashFlowInterval) {
   if (interval === 'week') return formatWeek(period);
   if (interval === 'month') return formatMonth(monthOf(period));
   return period.start.slice(0, 4);
-}
-
-/** Four equal, round steps that cover the tallest bar, so gridlines read as a ruler. */
-function axisTicks(cents: number) {
-  const rough = (Math.max(cents / 100, 100) * 1.06) / 4;
-  const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const step =
-    [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => s * magnitude >= rough)! * magnitude;
-  return [0, 1, 2, 3, 4].map((index) => index * step);
-}
-
-/** "€4K" on the axis; a plain "4K" before the owner has a base currency. */
-function axisFormatter(currency: string | null) {
-  return new Intl.NumberFormat(undefined, {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-    ...(currency ? {style: 'currency', currency, currencyDisplay: 'narrowSymbol'} : {}),
-  });
 }
 
 /** Year totals read better without cents; weeks and months keep them so they match the list. */
@@ -290,6 +273,7 @@ function CashFlowChart({
   const axis = axisFormatter(currency);
   const money = moneyFor(interval, currency);
   const ticks = axisTicks(
+    0,
     Math.max(...periods.flatMap((period) => [toCents(period.spending), toCents(period.income)])),
   );
   const data = periods.map((period) => ({
