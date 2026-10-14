@@ -182,7 +182,6 @@ function PaceDetails({summary, isCurrentMonth}: SpendingSummaryCardProps) {
       ? toCents(summary.totals.spending) +
         Math.max(0, toCents(usualMonth.average) - toCents(baseline.spendingByThrough))
       : null;
-  if (!isCurrentMonth && baseline.months.length === 0) return null;
 
   return (
     <div className='mt-4 border-t pt-3'>

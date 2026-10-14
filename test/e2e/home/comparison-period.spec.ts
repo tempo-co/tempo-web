@@ -2,7 +2,7 @@ import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
 import {septemberSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
-import {mockJson} from '../../utils/api-mocks';
+import {mockJson, openDailyPace} from '../../utils/api-mocks';
 import {expectNoHorizontalOverflow} from '../../utils/layout';
 
 test.use({storageState: VERIFIED_USER_AUTH_FILE});
@@ -26,12 +26,13 @@ test('completed February compares full baseline months while the chart stays day
     },
   });
   await page.goto('/?month=2026-02');
-  await expect(page.getByTestId('spending-comparison')).toContainText(
-    'Nov–Jan average: €1,350.00 · less than any of those months',
-  );
+  const comparison = page.getByTestId('spending-comparison');
+  await expect(comparison).toContainText('lower than any recent month');
+  await expect(comparison).toContainText('Nov–Jan average: €1,350.00');
   await expect(page.getByTestId('category-breakdown')).toContainText(
     'Compared with usual for a full month.',
   );
+  await openDailyPace(page);
   await expect(page.getByTestId('spending-summary')).toContainText(
     'Chart compares spending by the same day of each month; the headline compares full months.',
   );
@@ -44,11 +45,11 @@ test('completed February compares full baseline months while the chart stays day
 
 for (const current of [true, false]) {
   for (const {spending, verdict} of [
-    {spending: '2000.00', verdict: 'more than any of those months'},
-    {spending: '1200.00', verdict: 'within your previous 2 months'},
-    {spending: '50.00', verdict: 'less than any of those months'},
-    {spending: '1050.00', verdict: 'within your previous 2 months'},
-    {spending: '1650.00', verdict: 'within your previous 2 months'},
+    {spending: '2000.00', verdict: 'higher than any recent month'},
+    {spending: '1200.00', verdict: 'within your normal range'},
+    {spending: '50.00', verdict: 'lower than any recent month'},
+    {spending: '1050.00', verdict: 'within your normal range'},
+    {spending: '1650.00', verdict: 'within your normal range'},
   ]) {
     test(`${current ? 'current' : 'completed'} month: ${spending} uses the headline range and actual history count`, async ({
       page,
@@ -75,16 +76,19 @@ for (const current of [true, false]) {
       await page.goto('/?month=2026-02');
       const comparison = page.getByTestId('spending-comparison');
       await expect(comparison).toContainText(
-        current ? 'Usual by the 5th: €1,350.00' : 'Dec–Jan average: €1,350.00',
+        current ? 'Average by the 5th: €1,350.00' : 'Dec–Jan average: €1,350.00',
       );
-      await expect(comparison).toContainText(
-        `${verdict}${current ? ' by this day' : ''} · only 2 months of history`,
-      );
+      await expect(comparison).toContainText(verdict);
+      await expect(comparison).toContainText('· only 2 months of history');
       await expect(page.getByTestId('category-breakdown')).toContainText(
         current
           ? 'Compared with usual by this day of the month.'
           : 'Compared with usual for a full month.',
       );
+      // Only a running month projects where it is heading.
+      const projection = page.getByTestId('spending-summary').getByText('On track for about');
+      if (current) await expect(projection).toBeVisible();
+      else await expect(projection).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
       expect(await comparison.evaluate((element) => getComputedStyle(element).textAlign)).toBe(
         'start',
@@ -106,7 +110,7 @@ test('one earlier month keeps its caveat without inventing a range', async ({pag
   });
   await page.goto('/?month=2026-09');
   await expect(page.getByTestId('spending-comparison')).toHaveText(
-    '€150.00 less than usualAug average: €1,350.00 · only 1 month of history',
+    '€150.00 below averageAug average: €1,350.00 · only 1 month of history',
   );
 });
 
@@ -121,7 +125,7 @@ for (const width of [768, 1100, 1440]) {
     await page.goto('/?month=2026-09');
     const card = page.getByTestId('spending-summary');
     const comparison = card.getByTestId('spending-comparison');
-    await expect(comparison).toContainText('more than any of those months');
+    await expect(comparison).toContainText('higher than any recent month');
     const headline = await card.getByRole('link').first().boundingBox();
     const side = await comparison.boundingBox();
     const beside = side!.y < headline!.y + headline!.height;

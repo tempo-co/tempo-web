@@ -6,7 +6,7 @@ import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
 import {categorySummary} from '../../data/home-categories.data';
 import {firstMonthSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
-import {mockJson, transformBankConnections} from '../../utils/api-mocks';
+import {mockJson, openDailyPace, transformBankConnections} from '../../utils/api-mocks';
 import {boxOf, expectNoHorizontalOverflow} from '../../utils/layout';
 
 const layouts = [
@@ -154,6 +154,7 @@ for (const {width, theme} of layouts) {
 test('the spending chart shows keyboard focus', async ({page}) => {
   await page.clock.setFixedTime(SEEDED_TRANSACTION_YEAR_NOW);
   await page.goto('/?month=2026-08');
+  await openDailyPace(page);
   const surface = page.getByTestId('spending-summary').locator('.recharts-surface[tabindex="0"]');
   await surface.focus();
   const outline = await surface.evaluate((element) => {
@@ -174,6 +175,7 @@ test('a narrow first-month view contains the hidden and keyboard-revealed daily 
   await expect(page.getByTestId('spending-summary')).toContainText(
     'No earlier months to compare with yet.',
   );
+  await openDailyPace(page);
   await expectNoHorizontalOverflow(page);
   const table = page.getByRole('table', {name: 'Exact daily spending'});
   const wrapper = table.locator('..');
@@ -230,6 +232,7 @@ for (const theme of ['light', 'dark']) {
   test(`chart axes use readable theme text in ${theme}`, async ({page}) => {
     await page.addInitScript((value) => localStorage.setItem('vite-ui-theme', value), theme);
     await page.goto('/?month=2026-08');
+    await openDailyPace(page);
     const summary = page.getByTestId('spending-summary');
     const period = summary.getByText('spent in August 2026', {exact: true});
     await expect(period).toBeVisible();

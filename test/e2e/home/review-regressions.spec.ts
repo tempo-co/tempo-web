@@ -2,7 +2,7 @@ import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
 import {octoberFirstSummary, septemberSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
-import {mockJson} from '../../utils/api-mocks';
+import {mockJson, openDailyPace} from '../../utils/api-mocks';
 
 test.use({storageState: VERIFIED_USER_AUTH_FILE});
 test.beforeEach(async ({page}) => {
@@ -53,6 +53,7 @@ test('ranks a positive refund bucket by its amount', async ({page}) => {
 test('shows a visible subject marker on the first day', async ({page}) => {
   await mockJson(page, '**/bank-transactions/summary**', octoberFirstSummary);
   await page.goto('/');
+  await openDailyPace(page);
   await expect(
     page.getByTestId('spending-summary').locator('.recharts-line-dots circle'),
   ).toHaveCount(1);

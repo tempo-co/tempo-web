@@ -24,6 +24,11 @@ export function periodDrill(from: string, to: string): BankTransactionDrillSearc
   return {bookingDate: bookingRange(from, to)};
 }
 
+/** Exactly the rows behind a cash flow bar: spending and income with a base-currency amount. */
+export function cashFlowDrill(from: string, to: string): BankTransactionDrillSearch {
+  return {...periodDrill(from, to), cashFlows: ['SPENDING', 'INCOME'], baseAmount: 'PRESENT'};
+}
+
 /**
  * Exactly the rows behind a spending or income total between two dates: that cash flow, and, when the period
  * has rows still waiting for a base-currency amount, only rows that have one, since totals leave the rest out.

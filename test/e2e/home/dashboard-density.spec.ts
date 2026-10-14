@@ -3,7 +3,13 @@ import {join} from 'node:path';
 
 import {septemberSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
-import {fulfillJson, mockBankConnections, mockJson} from '../../utils/api-mocks';
+import {
+  fulfillJson,
+  mockBankConnections,
+  mockCashFlow,
+  mockJson,
+  openDailyPace,
+} from '../../utils/api-mocks';
 import {boxOf, expectNoHorizontalOverflow} from '../../utils/layout';
 
 // Every response is synthetic: these checks never read or mutate a shared API stack.
@@ -63,6 +69,7 @@ test.beforeEach(async ({page}) => {
     }),
   );
   await mockJson(page, '**/bank-transactions/summary**', septemberSummary);
+  await mockCashFlow(page);
   await mockJson(page, '**/bank-transactions/review-counts', {
     needsReview: 0,
     categorizationFailed: 0,
@@ -137,6 +144,7 @@ test('balances emphasize the bank with the account holder below it', async ({pag
 
 test('chart legend contains comparisons without an interaction caption', async ({page}) => {
   await page.goto('/?month=2026-09');
+  await openDailyPace(page);
   const legend = page.getByTestId('spending-summary').getByText('Lowest to highest').locator('..');
   await expect(legend).toBeVisible();
   await expect(page.getByTestId('spending-summary')).not.toContainText('Hover a day');
@@ -182,6 +190,10 @@ for (const width of [1440, 390]) {
       await expect(
         page.getByRole('region', {name: 'Latest in September 2026'}).locator('li'),
       ).toHaveCount(5);
+      await expect(
+        page.getByTestId('cash-flow').locator('.recharts-bar-rectangle').first(),
+      ).toBeVisible();
+      await openDailyPace(page);
       await expect(
         page.getByTestId('spending-summary').getByText('Lowest to highest'),
       ).toBeVisible();

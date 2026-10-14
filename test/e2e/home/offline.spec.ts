@@ -6,7 +6,7 @@ import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
 import {septemberSummary} from '../../data/home-summary.data';
 import {API_URL, expect, test} from '../../fixtures';
-import {fulfillJson, mockBankConnections} from '../../utils/api-mocks';
+import {fulfillJson, mockBankConnections, mockCashFlow} from '../../utils/api-mocks';
 
 const CACHE_KEY = 'tempo-offline-cache';
 type SavedCache = {
@@ -41,6 +41,7 @@ async function mockHome(page: Page, padding = 0) {
   const state = {refreshed: false};
   await page.clock.install({time: SEEDED_TRANSACTION_YEAR_NOW});
   await mockBankConnections(page, () => [connection]);
+  await mockCashFlow(page);
   await page.route('**/bank-transactions/summary**', (route) => {
     const params = new URL(route.request().url()).searchParams;
     return fulfillJson(route, {
