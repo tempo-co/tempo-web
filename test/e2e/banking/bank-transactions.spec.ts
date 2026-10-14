@@ -813,9 +813,9 @@ test.describe('bank transactions', () => {
 
     await page.getByRole('option', {name: 'Manual', exact: true}).click();
     await page.getByRole('option', {name: 'From your history', exact: true}).click();
-    expect(JSON.parse(new URL(page.url()).searchParams.get('categorySources')!)).toEqual([
-      'HISTORY',
-    ]);
+    const historySourceParam = new URL(page.url()).searchParams.get('categorySources');
+    expect(historySourceParam).not.toBeNull();
+    expect(JSON.parse(historySourceParam!)).toEqual(['HISTORY']);
     const historyRow = page.getByTestId(/^bank-transaction-row-/).first();
     await expect(historyRow.getByText('From your history', {exact: true})).toBeVisible();
     await expect(page.getByText('Coffee shop', {exact: true})).not.toBeVisible();

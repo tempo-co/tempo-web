@@ -144,14 +144,16 @@ export function formatBankTransactionCategoryStatus(
   return 'Not categorized';
 }
 
+const CATEGORY_SOURCE_LABELS: Record<BankTransactionCategorizationSource, string> = {
+  AI: 'Suggested by AI',
+  HISTORY: 'From your history',
+  MANUAL: 'Manual',
+};
+
 export function formatBankTransactionCategorySource(
   value: BankTransactionCategorizationSource | null | undefined,
 ) {
-  const normalized = value?.toUpperCase();
-  if (normalized === 'AI') return 'Suggested by AI';
-  if (normalized === 'HISTORY') return 'From your history';
-  if (normalized === 'MANUAL') return 'Manual';
-  return null;
+  return value ? (CATEGORY_SOURCE_LABELS[value] ?? null) : null;
 }
 
 /**
@@ -179,7 +181,8 @@ export function formatBankTransactionCategorySubtitle(transaction: BankTransacti
     return cashFlowTreatment;
   }
 
-  if (isManual || transaction.categorySource === 'HISTORY') return source;
+  // AI is the default, so only other sources get a subtitle.
+  if (transaction.categorySource && transaction.categorySource !== 'AI') return source;
   if (transaction.categoryStatus === 'COMPLETED') return null;
   return formatBankTransactionCategoryStatus(transaction.categoryStatus);
 }
