@@ -68,12 +68,3 @@ export const reviewDrills = {
   // Internal rows are left out of the count, so they are left out of the list too.
   missingBaseAmount: {cashFlows: ['SPENDING', 'INCOME', 'UNKNOWN'], baseAmount: 'MISSING'},
 } as const satisfies Record<keyof BankTransactionReviewCounts, BankTransactionDrillSearch>;
-
-/** Rows a period leaves out of its totals, matching the summary's `excluded` counts. */
-export function excludedDrill(
-  key: 'unknownDirection' | 'missingBaseAmount',
-  from: string,
-  to: string,
-): BankTransactionDrillSearch {
-  return {bookingDate: bookingRange(from, to), ...reviewDrills[key]};
-}

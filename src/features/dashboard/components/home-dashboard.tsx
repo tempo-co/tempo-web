@@ -18,7 +18,6 @@ import {CategoryBreakdown} from './category-breakdown';
 import {HomeSyncStatus} from './home-sync-status';
 import {MonthNavigation} from './month-navigation';
 import {RecentTransactions} from './recent-transactions';
-import {SpendingSummaryCard} from './spending-summary-card';
 
 type HomeDashboardProps = {
   month: string;
@@ -75,12 +74,7 @@ function MonthlySpending({month, isCurrentMonth}: HomeDashboardProps) {
   if (isPending) return <Skeleton className='h-96' aria-label='Loading spending' />;
   if (isError || !summary)
     return <SectionError message='Could not load spending.' onRetry={refetch} />;
-  return (
-    <div className='grid min-w-0 content-start gap-6'>
-      <SpendingSummaryCard summary={summary} isCurrentMonth={isCurrentMonth} />
-      <CategoryBreakdown summary={summary} isCurrentMonth={isCurrentMonth} />
-    </div>
-  );
+  return <CategoryBreakdown summary={summary} isCurrentMonth={isCurrentMonth} />;
 }
 
 function HomeAttention({baseCurrency}: {baseCurrency: string | null}) {

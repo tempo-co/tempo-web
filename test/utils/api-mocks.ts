@@ -1,4 +1,4 @@
-import {Page, Route, expect} from '@playwright/test';
+import {Page, Route} from '@playwright/test';
 
 import type {BankConnection} from '../../src/features/banking/types/bank-connection';
 
@@ -26,15 +26,6 @@ export function mockCashFlow(page: Page) {
     const interval = new URL(route.request().url()).searchParams.get('interval');
     return fulfillJson(route, {...syntheticCashFlow, interval});
   });
-}
-
-/** Opens the collapsed day-by-day chart under the spending headline. */
-export async function openDailyPace(page: Page) {
-  const toggle = page.getByTestId('spending-summary').getByRole('button', {name: 'Daily pace'});
-  // Keyboard, so focus checks on the chart afterwards still see :focus-visible.
-  await toggle.focus();
-  await page.keyboard.press('Enter');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 /** Answers every request to `url` with the same JSON response. */

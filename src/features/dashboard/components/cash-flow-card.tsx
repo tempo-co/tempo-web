@@ -184,7 +184,7 @@ export function CashFlowCard({month}: {month: string}) {
   );
 }
 
-/** The selected month's income and what was left, the half of the month the spending card omits. */
+/** The selected month's totals, each linking to exactly the rows behind it. */
 function SelectedMonth({
   period,
   currency,
@@ -199,21 +199,28 @@ function SelectedMonth({
       className='-mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm'
       data-testid='cash-flow-selected-month'
     >
-      <div className='flex items-baseline gap-1.5'>
-        <dt className='text-muted-foreground'>{formatMonth(monthOf(period))} income</dt>
-        <dd>
-          <Link
-            to='/bank-transactions'
-            search={flowDrill('INCOME', period.start, period.end, true)}
-            className='font-medium tabular-nums underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
-          >
-            {formatMoney(period.income, currency)}
-          </Link>
-        </dd>
-      </div>
+      {(
+        [
+          ['SPENDING', `${formatMonth(monthOf(period))} spent`, period.spending],
+          ['INCOME', 'Income', period.income],
+        ] as const
+      ).map(([flow, label, amount]) => (
+        <div key={flow} className='flex items-baseline gap-1.5'>
+          <dt className='text-muted-foreground'>{label}</dt>
+          <dd>
+            <Link
+              to='/bank-transactions'
+              search={flowDrill(flow, period.start, period.end, true)}
+              className='font-mono font-medium tabular-nums underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
+            >
+              {formatMoney(amount, currency)}
+            </Link>
+          </dd>
+        </div>
+      ))}
       <div className='flex items-baseline gap-1.5'>
         <dt className='text-muted-foreground'>{net < 0 ? 'Overspent' : 'Kept'}</dt>
-        <dd className={cn('font-medium tabular-nums', net > 0 && 'text-success')}>
+        <dd className={cn('font-mono font-medium tabular-nums', net > 0 && 'text-success')}>
           {formatMoney(Math.abs(net) / 100, currency)}
         </dd>
       </div>
@@ -243,7 +250,7 @@ function Averages({
   return (
     <p className='mt-1 text-xs text-muted-foreground'>
       Average {noun} ({complete.length} full {noun}s):{' '}
-      <span className='font-medium text-foreground tabular-nums'>
+      <span className='font-mono font-medium text-foreground tabular-nums'>
         {formatMoney(spent / complete.length / 100, currency)}
       </span>{' '}
       spent
@@ -429,6 +436,7 @@ function CashFlowChart({
             domain={[0, ticks[ticks.length - 1]]}
             ticks={ticks}
             interval={0}
+            tick={{className: 'font-mono'}}
             tickFormatter={(value: number) => axis.format(value)}
           />
           <ChartTooltip
@@ -689,9 +697,15 @@ function Difference({
             difference > 0 ? 'text-primary' : difference < 0 && 'text-success',
           )}
         >
-          {difference === 0
-            ? 'the same spending'
-            : `${money(Math.abs(difference) / 100)} ${difference > 0 ? 'more' : 'less'} spent (${difference > 0 ? '+' : '−'}${percent}%)`}
+          {difference === 0 ? (
+            'the same spending'
+          ) : (
+            <>
+              <span className='font-mono tabular-nums'>{money(Math.abs(difference) / 100)}</span>{' '}
+              {difference > 0 ? 'more' : 'less'} spent ({difference > 0 ? '+' : '−'}
+              {percent}%)
+            </>
+          )}
         </span>
       </p>
       <p className='text-xs text-muted-foreground'>{detail}</p>
@@ -704,5 +718,5 @@ function Footnote({children}: {children: ReactNode}) {
 }
 
 function Amount({children}: {children: ReactNode}) {
-  return <span className='font-medium text-foreground tabular-nums'>{children}</span>;
+  return <span className='font-mono font-medium text-foreground tabular-nums'>{children}</span>;
 }

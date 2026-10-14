@@ -87,7 +87,6 @@ test('hides zero-count rows and keeps overlapping counts separate', async ({page
       .getByRole('region', {name: 'Processing', exact: true})
       .getByRole('link', {name: /^Preparing EUR amounts/}),
   ).toContainText('1 transaction · all months');
-  // One group cannot overlap with another, so the note is left out.
   await expect(card).not.toContainText('A transaction can appear in more than one group.');
   await expect(card).not.toContainText('2 transactions');
   await expectNoHorizontalOverflow(page);
@@ -116,7 +115,7 @@ test('shows only Processing for background work and hides it once complete', asy
     missingBaseAmount: 0,
   } satisfies BankTransactionReviewCounts);
   await page.reload();
-  await expect(page.getByTestId('spending-summary')).toBeVisible();
+  await expect(page.getByTestId('category-breakdown')).toBeVisible();
   await expect(page.getByLabel('Loading attention counts')).toHaveCount(0);
   await expect(processing).toHaveCount(0);
 });
@@ -131,7 +130,7 @@ test('hides Needs attention when every review count is zero', async ({page}) => 
   } satisfies BankTransactionReviewCounts);
   await page.goto('/?month=2026-09');
   // Wait for the review counts to render something else first, so the card can't be loading.
-  await expect(page.getByTestId('spending-summary')).toBeVisible();
+  await expect(page.getByTestId('category-breakdown')).toBeVisible();
   await expect(page.getByLabel('Loading attention counts')).toHaveCount(0);
   await expect(page.getByRole('region', {name: 'Needs attention', exact: true})).toHaveCount(0);
 });

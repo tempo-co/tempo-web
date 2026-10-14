@@ -1,8 +1,10 @@
 import type {Page} from '@playwright/test';
 
+import type {BankTransactionSummary} from '@/features/dashboard/types/bank-transaction-summary';
+
 import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
-import {expect, test} from '../../fixtures';
+import {API_URL, expect, test} from '../../fixtures';
 import {fulfillJson} from '../../utils/api-mocks';
 import {expectNoHorizontalOverflow} from '../../utils/layout';
 
@@ -37,13 +39,21 @@ const localMidnight = (page: Page, year: number, month: number, day: number) =>
 test('months match the monthly summary and select the month for the rest of Home', async ({
   page,
 }) => {
+  const response = await page.request.get(
+    `${API_URL}/bank-transactions/summary?month=2026-08&asOf=2026-09-01`,
+  );
+  const summary = (await response.json()) as BankTransactionSummary;
+  const spent = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: summary.baseCurrency!,
+  }).format(Number(summary.totals.spending));
   await page.goto('/?month=2026-08');
-  const spent = await page.getByTestId('spending-summary').getByRole('link').first().innerText();
   const august = table(page, 'month').getByRole('row', {name: /August 2026/, includeHidden: true});
   await expect(august).toContainText(spent);
+  await expect(page.getByTestId('cash-flow-selected-month')).toContainText(spent);
 
   // Income and what was left for the selected month sit under the chart.
-  await expect(page.getByTestId('cash-flow-selected-month')).toContainText('August 2026 income');
+  await expect(page.getByTestId('cash-flow-selected-month')).toContainText('August 2026 spent');
 
   await page.goto('/');
   await openRow(page, 'month', 'August 2026');

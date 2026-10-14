@@ -1,8 +1,8 @@
 import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
-import {octoberFirstSummary, septemberSummary} from '../../data/home-summary.data';
+import {septemberSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
-import {mockJson, openDailyPace} from '../../utils/api-mocks';
+import {mockJson} from '../../utils/api-mocks';
 
 test.use({storageState: VERIFIED_USER_AUTH_FILE});
 test.beforeEach(async ({page}) => {
@@ -46,19 +46,8 @@ test('ranks a positive refund bucket by its amount', async ({page}) => {
   });
   await page.goto('/?month=2026-09');
   const rows = page.getByTestId('category-breakdown').getByRole('link');
-  // Fixed costs lead on their own line; the refund then ranks first among everyday spending.
-  await expect(rows.first()).toContainText('Fixed costs');
-  await expect(rows.nth(1)).toContainText('Refund');
-  await expect(rows.nth(1)).toContainText('€500.00');
-});
-
-test('shows a visible subject marker on the first day', async ({page}) => {
-  await mockJson(page, '**/bank-transactions/summary**', octoberFirstSummary);
-  await page.goto('/');
-  await openDailyPace(page);
-  await expect(
-    page.getByTestId('spending-summary').locator('.recharts-line-dots circle'),
-  ).toHaveCount(1);
+  await expect(rows.first()).toContainText('Refund');
+  await expect(rows.first()).toContainText('€500.00');
 });
 
 test('does not relabel previous month rows during loading', async ({page}) => {

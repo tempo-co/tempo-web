@@ -11,71 +11,32 @@ test.beforeEach(async ({page}) => {
   await mockJson(page, '**/bank-transactions/summary**', categorySummary);
 });
 
-test('groups fixed costs on one line and ranks everyday categories', async ({page}) => {
+test('shows six positive categories, remaining count and refunds last', async ({page}) => {
   await page.goto('/?month=2026-09');
   const card = page.getByTestId('category-breakdown');
   await expect(card.getByRole('heading', {name: 'Where it went'})).toBeVisible();
-  const rows = card.getByTestId('category-rows').getByRole('link');
+  const links = card.getByRole('link');
+  await expect(links).toHaveCount(8);
   const labels = [
-    'Fixed costs',
+    'Housing and utilities',
     'Food and drink',
     'Transportation',
     'Shopping',
+    'Subscriptions',
     'Uncategorized',
-    'Transfer out',
-    'Other',
+    '2 more categories',
     'Refunds (subtracted)',
   ];
-  await expect(rows).toHaveCount(labels.length);
   for (const [index, label] of labels.entries()) {
-    await expect(rows.nth(index)).toContainText(label);
+    await expect(links.nth(index)).toContainText(label);
   }
-  await expect(rows.first()).toContainText('€1,080.00');
-  await expect(rows.first()).toContainText('Housing and utilities, subscriptions');
-  await expect(rows.last()).toContainText('-€40.00');
-  await expect(card).not.toContainText('more categories');
-});
-
-test('fixed costs drill to exactly their categories', async ({page}) => {
-  await page.goto('/?month=2026-09');
-  const link = page.getByTestId('category-breakdown').getByRole('link', {name: /Fixed costs/});
-  const search = new URL((await link.getAttribute('href'))!, page.url()).searchParams;
-  expect(JSON.parse(search.get('categories')!)).toEqual(['HOUSING_AND_UTILITIES', 'SUBSCRIPTIONS']);
-  expect(JSON.parse(search.get('cashFlows')!)).toEqual(['SPENDING']);
-});
-
-test('lists the biggest everyday changes against usual, by amount', async ({page}) => {
-  await page.goto('/?month=2026-09');
-  const changes = page.getByTestId('biggest-changes').getByRole('listitem');
-  // Shopping moved 11% and Subscriptions is a fixed cost, so neither is listed.
-  await expect(changes).toHaveCount(3);
-  await expect(changes.nth(0)).toContainText('Food and drink+€200.00 (+100%)');
-  await expect(changes.nth(1)).toContainText('Transportation−€100.00 (−25%)');
-  // Spending where there usually is none reads as new rather than an infinite percentage.
-  await expect(changes.nth(2)).toContainText('Transfer out+€20.00 (new)');
-  await changes.nth(0).getByRole('link').click();
-  await expect(page).toHaveURL(/categories=.*FOOD_AND_DRINK/);
-});
-
-test('leaves out the changes list when nothing moved much', async ({page}) => {
-  await mockJson(page, '**/bank-transactions/summary**', {
-    ...categorySummary,
-    categories: categorySummary.categories.map((row) => ({
-      ...row,
-      baselineAverage: row.baselineAverage === null ? null : row.spending,
-    })),
-  });
-  await page.goto('/?month=2026-09');
-  await expect(page.getByTestId('category-breakdown')).toContainText('Food and drink');
-  await expect(page.getByTestId('biggest-changes')).toHaveCount(0);
+  await expect(links.last()).toContainText('-€40.00');
+  await expect(card).not.toContainText('Payments to people');
 });
 
 test('drills to the exact category and booking range', async ({page}) => {
   await page.goto('/?month=2026-09');
-  const link = page
-    .getByTestId('category-breakdown')
-    .getByRole('link')
-    .filter({hasText: '12 transactions'});
+  const link = page.getByTestId('category-breakdown').getByRole('link', {name: /Food and drink/});
   const href = await link.getAttribute('href');
   expect(href).not.toBeNull();
   const search = new URL(href!, page.url()).searchParams;
@@ -93,32 +54,38 @@ test('drills to the exact category and booking range', async ({page}) => {
 });
 
 test('remaining categories drill excludes the top six and refunds', async ({page}) => {
-  await mockJson(page, '**/bank-transactions/summary**', {
-    ...categorySummary,
-    categories: [
-      ...categorySummary.categories,
-      {category: 'HEALTH', spending: '12.00', count: 1, baselineAverage: null},
-    ],
-  });
   await page.goto('/?month=2026-09');
-  const link = page.getByTestId('category-breakdown').getByRole('link', {name: /1 more category/});
-  const search = new URL((await link.getAttribute('href'))!, page.url()).searchParams;
-  expect(JSON.parse(search.get('categories')!)).toEqual(['HEALTH']);
+  const link = page
+    .getByTestId('category-breakdown')
+    .getByRole('link', {name: /2 more categories/});
+  const href = await link.getAttribute('href');
+  expect(href).not.toBeNull();
+  const search = new URL(href!, page.url()).searchParams;
+  expect(JSON.parse(search.get('categories')!)).toEqual(['TRANSFER_OUT', 'OTHER']);
   expect(JSON.parse(search.get('cashFlows')!)).toEqual(['SPENDING']);
   expect(search.get('baseAmount')).toBe('PRESENT');
 });
 
-test('shows counts, usual amounts and the usual tick', async ({page}) => {
+test('shows counts, threshold comparisons and the usual tick', async ({page}) => {
   await page.goto('/?month=2026-09');
   const card = page.getByTestId('category-breakdown');
-  const food = card.getByRole('link').filter({hasText: '12 transactions'});
-  await expect(food).toContainText('12 transactions · usually €200.00');
+  await expect(card.getByRole('link', {name: /Housing and utilities/})).toContainText(
+    '2 transactions · about usual',
+  );
+  const food = card.getByRole('link', {name: /Food and drink/});
+  await expect(food).toContainText('12 transactions · +100%');
   await expect(food.getByRole('img', {name: 'Usual spending: €200.00'})).toBeVisible();
-  await expect(card.getByRole('link').filter({hasText: '6 transactions'})).toContainText(
-    '6 transactions · usually €400.00',
+  await expect(card.getByRole('link', {name: /Transportation/})).toContainText(
+    '6 transactions · −25%',
+  );
+  await expect(card.getByRole('link', {name: /Shopping/})).toContainText(
+    '3 transactions · about usual',
+  );
+  await expect(card.getByRole('link', {name: /Subscriptions/})).toContainText(
+    '1 transaction · usually €10.00',
   );
   const uncategorized = card.getByRole('link', {name: /Uncategorized/});
-  await expect(uncategorized).toHaveText(/2 transactions$/);
+  await expect(uncategorized).toContainText('2 transactions');
   await expect(uncategorized.getByRole('img')).toHaveCount(0);
 });
 
@@ -142,8 +109,8 @@ test('fits a phone with current-month comparison context and a zero baseline', a
   await page.goto('/');
   const card = page.getByTestId('category-breakdown');
   await expect(card).toContainText('Compared with usual by this day of the month.');
-  await expect(
-    card.getByTestId('category-rows').getByRole('link', {name: /Transfer out/}),
-  ).toContainText('1 transaction · usually €0.00');
+  await expect(card.getByRole('link', {name: /Transfer out/})).toContainText(
+    '1 transaction · usually €0.00',
+  );
   await expectNoHorizontalOverflow(page);
 });

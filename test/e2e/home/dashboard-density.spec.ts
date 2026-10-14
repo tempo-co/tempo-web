@@ -3,13 +3,7 @@ import {join} from 'node:path';
 
 import {septemberSummary} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
-import {
-  fulfillJson,
-  mockBankConnections,
-  mockCashFlow,
-  mockJson,
-  openDailyPace,
-} from '../../utils/api-mocks';
+import {fulfillJson, mockBankConnections, mockCashFlow, mockJson} from '../../utils/api-mocks';
 import {boxOf, expectNoHorizontalOverflow} from '../../utils/layout';
 
 // Every response is synthetic: these checks never read or mutate a shared API stack.
@@ -142,14 +136,6 @@ test('balances emphasize the bank with the account holder below it', async ({pag
   expect(bankSize).toBeGreaterThan(holderSize);
 });
 
-test('chart legend contains comparisons without an interaction caption', async ({page}) => {
-  await page.goto('/?month=2026-09');
-  await openDailyPace(page);
-  const legend = page.getByTestId('spending-summary').getByText('Lowest to highest').locator('..');
-  await expect(legend).toBeVisible();
-  await expect(page.getByTestId('spending-summary')).not.toContainText('Hover a day');
-});
-
 for (const width of [1440, 390, 320]) {
   test(`month navigation stays anchored across different title lengths at ${width}px`, async ({
     page,
@@ -192,10 +178,6 @@ for (const width of [1440, 390]) {
       ).toHaveCount(5);
       await expect(
         page.getByTestId('cash-flow').locator('.recharts-bar-rectangle').first(),
-      ).toBeVisible();
-      await openDailyPace(page);
-      await expect(
-        page.getByTestId('spending-summary').getByText('Lowest to highest'),
       ).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       await expectNoHorizontalOverflow(page);
