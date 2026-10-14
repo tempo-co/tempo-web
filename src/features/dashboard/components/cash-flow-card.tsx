@@ -1,6 +1,6 @@
 import {Link, useNavigate} from '@tanstack/react-router';
 import {format, startOfWeek, subWeeks} from 'date-fns';
-import {type ReactNode, useState} from 'react';
+import {useState} from 'react';
 import {Bar, BarChart, CartesianGrid, Cell, ReferenceArea, XAxis, YAxis} from 'recharts';
 
 import {Button} from '@/components/ui/button';
@@ -60,7 +60,7 @@ function moneyFor(interval: CashFlowInterval, currency: string | null) {
 /** Opaque, so the selected-month band never tints income into a different-looking series. */
 const incomeSwatch = 'bg-[hsl(37_16%_72%)] dark:bg-[hsl(36_6%_40%)]';
 
-/** The dates to load for each zoom level. Month loads a year more than it shows, for last year's month. */
+/** The dates to load for each zoom level. */
 function requestRange(interval: CashFlowInterval, month: string) {
   const today = localDate();
   if (interval === 'week') {
@@ -74,7 +74,7 @@ function requestRange(interval: CashFlowInterval, month: string) {
   const windowEnd =
     month > shiftMonth(thisMonth, -MONTHS_SHOWN) ? thisMonth : shiftMonth(month, MONTHS_SHOWN - 1);
   return {
-    from: `${shiftMonth(windowEnd, -(MONTHS_SHOWN * 2 - 1))}-01`,
+    from: `${shiftMonth(windowEnd, -(MONTHS_SHOWN - 1))}-01`,
     to: windowEnd === thisMonth ? today : monthDates(windowEnd).to,
   };
 }
@@ -155,12 +155,6 @@ export function CashFlowCard({month}: {month: string}) {
               currency={loaded.baseCurrency}
             />
           )}
-          <Comparison
-            periods={interval === 'week' ? shown : loaded.periods}
-            interval={interval}
-            selectedMonth={month}
-            currency={loaded.baseCurrency}
-          />
         </>
       )}
     </Card>
@@ -319,10 +313,6 @@ function CashFlowChart({
     if (interval === 'month') void navigate({to: '/', search: monthSearch(monthOf(period))});
     else void navigate({to: '/bank-transactions', search: cashFlowDrill(period.start, period.end)});
   };
-  const hint =
-    interval === 'month'
-      ? 'Select a month to show it below.'
-      : `Select a ${interval} to see its transactions.`;
   // The running period reads as "so far"; a first period cut by where history starts is "partial".
   const partialCount = periods.filter((period) => !period.complete).length;
   const runningLabel =
@@ -480,7 +470,6 @@ function CashFlowChart({
             {runningLabel}
           </span>
         )}
-        <span className='ms-auto hidden sm:inline'>{hint}</span>
       </div>
       <div className='sr-only focus-within:not-sr-only focus-within:mt-4 focus-within:max-w-full focus-within:overflow-x-auto'>
         <table
@@ -545,162 +534,4 @@ function TooltipRow({
       <span className={cn('font-mono tabular-nums', className)}>{value}</span>
     </p>
   );
-}
-
-/**
- * One plain-language comparison under the chart. Month: the selected month against the same month
- * last year. Week: last full week against the average full week before it. Year: last full year
- * against the one before.
- */
-function Comparison({
-  periods,
-  interval,
-  selectedMonth,
-  currency,
-}: {
-  periods: CashFlowPeriod[];
-  interval: CashFlowInterval;
-  selectedMonth: string;
-  currency: string | null;
-}) {
-  const money = moneyFor(interval, currency);
-  if (interval === 'month') {
-    const byMonth = new Map(periods.map((period) => [monthOf(period), period]));
-    const previous = shiftMonth(selectedMonth, -12);
-    const current = byMonth.get(selectedMonth);
-    const lastYear = byMonth.get(previous);
-    if (!lastYear) return <Footnote>No {formatMonth(previous)} to compare with yet.</Footnote>;
-    // History starting partway through last year's month would make this month look dearer.
-    if (!lastYear.complete)
-      return (
-        <Footnote>
-          {formatMonth(previous)} is only partly synced, so there is nothing to compare.
-        </Footnote>
-      );
-    if (!current || !current.complete) {
-      return (
-        <Footnote>
-          Same month last year, {formatMonth(previous)}: spent{' '}
-          <Amount>{money(lastYear.spending)}</Amount>, income{' '}
-          <Amount>{money(lastYear.income)}</Amount>
-        </Footnote>
-      );
-    }
-    return (
-      <Difference
-        lead={`${formatMonth(selectedMonth)} vs ${formatMonth(previous)}`}
-        current={toCents(current.spending)}
-        reference={toCents(lastYear.spending)}
-        detail={
-          <>
-            {formatMonth(previous)}: <Amount>{money(lastYear.spending)}</Amount> spent ·{' '}
-            <Amount>{money(lastYear.income)}</Amount> income
-          </>
-        }
-        money={money}
-      />
-    );
-  }
-
-  const complete = periods.filter((period) => period.complete);
-  const latest = complete[complete.length - 1] as CashFlowPeriod | undefined;
-  if (!latest) return null;
-
-  if (interval === 'week') {
-    const earlier = complete.slice(0, -1);
-    if (earlier.length === 0) return null;
-    // The median, so the one week a month that carries rent doesn't make every other week look cheap.
-    const sorted = earlier.map((period) => toCents(period.spending)).sort((a, b) => a - b);
-    const middle = Math.floor(sorted.length / 2);
-    const typical =
-      sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) / 2);
-    return (
-      <Difference
-        lead={`Last week (${formatWeek(latest)}) vs a typical week`}
-        current={toCents(latest.spending)}
-        reference={typical}
-        detail={
-          <>
-            <Amount>{money(latest.spending)}</Amount> spent · typical{' '}
-            <Amount>{money(typical / 100)}</Amount>, the median of the {earlier.length} weeks before
-          </>
-        }
-        money={money}
-      />
-    );
-  }
-
-  const before = complete[complete.length - 2] as CashFlowPeriod | undefined;
-  const year = latest.start.slice(0, 4);
-  if (!before) {
-    return (
-      <Footnote>
-        {year}: spent <Amount>{money(latest.spending)}</Amount>, income{' '}
-        <Amount>{money(latest.income)}</Amount>
-      </Footnote>
-    );
-  }
-  return (
-    <Difference
-      lead={`${year} vs ${before.start.slice(0, 4)}`}
-      current={toCents(latest.spending)}
-      reference={toCents(before.spending)}
-      detail={
-        <>
-          <Amount>{money(latest.spending)}</Amount> spent · <Amount>{money(latest.income)}</Amount>{' '}
-          income
-        </>
-      }
-      money={money}
-    />
-  );
-}
-
-function Difference({
-  lead,
-  current,
-  reference,
-  detail,
-  money,
-}: {
-  lead: string;
-  current: number;
-  reference: number;
-  detail: ReactNode;
-  money: (value: string | number) => string;
-}) {
-  const difference = current - reference;
-  const percent = Math.round((Math.abs(difference) / Math.max(1, reference)) * 100);
-  return (
-    <div className='flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-t pt-4 text-sm'>
-      <p>
-        <span className='text-muted-foreground'>{lead}: </span>
-        <span
-          className={cn(
-            'font-medium',
-            difference > 0 ? 'text-primary' : difference < 0 && 'text-success',
-          )}
-        >
-          {difference === 0 ? (
-            'the same spending'
-          ) : (
-            <>
-              <span className='font-mono tabular-nums'>{money(Math.abs(difference) / 100)}</span>{' '}
-              {difference > 0 ? 'more' : 'less'} spent ({difference > 0 ? '+' : '−'}
-              {percent}%)
-            </>
-          )}
-        </span>
-      </p>
-      <p className='text-xs text-muted-foreground'>{detail}</p>
-    </div>
-  );
-}
-
-function Footnote({children}: {children: ReactNode}) {
-  return <p className='border-t pt-4 text-sm text-muted-foreground'>{children}</p>;
-}
-
-function Amount({children}: {children: ReactNode}) {
-  return <span className='font-mono font-medium text-foreground tabular-nums'>{children}</span>;
 }
