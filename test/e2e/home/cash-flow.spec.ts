@@ -27,7 +27,7 @@ function bookingRange(page: Page) {
   const search = new URL(page.url()).searchParams;
   // Only the rows the bar counts: spending and income with a base-currency amount.
   expect(JSON.parse(search.get('cashFlows')!)).toEqual(['SPENDING', 'INCOME']);
-  expect(JSON.parse(search.get('baseAmount')!)).toBe('PRESENT');
+  expect(search.get('baseAmount')).toBe('PRESENT');
   return JSON.parse(search.get('bookingDate')!) as {from: string; to: string};
 }
 
