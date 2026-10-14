@@ -128,7 +128,11 @@ export function BalanceTrendCard({connections}: {connections: BankConnection[]})
       ) : isPending || !loaded ? (
         <Skeleton className='h-[17rem]' role='img' aria-label='Loading total balance' />
       ) : periods.length === 0 ? (
-        <p className='text-sm text-muted-foreground'>No balance history yet.</p>
+        <p className='text-sm text-muted-foreground'>
+          {loaded.baseCurrency
+            ? 'No balance history yet.'
+            : 'The balance trend appears once Tempo has picked a base currency.'}
+        </p>
       ) : (
         <>
           <BalanceChart
@@ -137,7 +141,12 @@ export function BalanceTrendCard({connections}: {connections: BankConnection[]})
             currency={loaded.baseCurrency}
             labels={labels}
           />
-          <LateAccounts periods={periods} interval={interval} labels={labels} />
+          <LateAccounts
+            accounts={loaded.accounts}
+            periods={periods}
+            interval={interval}
+            labels={labels}
+          />
         </>
       )}
     </Card>
@@ -156,8 +165,18 @@ function Change({
 }) {
   const first = periods[0];
   const last = periods[periods.length - 1];
-  const difference = toCents(last.total!) - toCents(first.total!);
-  const base = Math.abs(toCents(first.total!));
+  // Only accounts already counted at the first point, so an account joining is not growth.
+  const held = new Set(
+    first.accounts.filter((account) => account.balance !== null).map((account) => account.id),
+  );
+  const sumHeld = (period: BalanceTrendPeriod) =>
+    period.accounts.reduce(
+      (sum, account) =>
+        held.has(account.id) && account.balance !== null ? sum + toCents(account.balance) : sum,
+      0,
+    );
+  const difference = sumHeld(last) - sumHeld(first);
+  const base = Math.abs(sumHeld(first));
   const percent = base > 0 ? Math.round((Math.abs(difference) / base) * 100) : null;
   return (
     <p className='mt-1 text-xs text-muted-foreground'>
@@ -182,23 +201,22 @@ function Change({
 
 /** Accounts whose history starts inside the window make the line jump; say so. */
 function LateAccounts({
+  accounts,
   periods,
   interval,
   labels,
 }: {
+  accounts: {id: string; since: string}[];
   periods: BalanceTrendPeriod[];
   interval: CashFlowInterval;
   labels: Map<string, string>;
 }) {
-  const late = periods[0].accounts
-    .filter((account) => account.balance === null)
-    .map((account) => {
-      const joined = periods.find(
-        (period) => period.accounts.find((item) => item.id === account.id)?.balance != null,
-      );
-      return joined && {id: account.id, joined};
-    })
-    .filter((item) => item != null);
+  const late = accounts
+    .filter(
+      (account) =>
+        account.since > periods[0].end && account.since <= periods[periods.length - 1].end,
+    )
+    .map((account) => ({id: account.id, joined: {start: account.since}}));
   if (late.length === 0) return null;
   return (
     <p className='-mt-2 text-xs text-muted-foreground'>
@@ -214,7 +232,7 @@ function LateAccounts({
             }`,
         )
         .join(' · ')}
-      , when its history in Tempo starts.
+      , when its history in Tempo starts, and is left out of the change.
     </p>
   );
 }
@@ -367,7 +385,7 @@ function BalanceChart({
           </span>
         )}
       </div>
-      <div className='sr-only focus-within:not-sr-only focus-within:mt-4 focus-within:max-w-full focus-within:overflow-x-auto'>
+      <div className='sr-only'>
         <table
           aria-label={`Total balance per ${interval}`}
           className='w-full text-right text-sm [&_td]:px-2 [&_td]:py-1 [&_td]:font-mono [&_td]:tabular-nums [&_th]:px-2 [&_th]:py-2'

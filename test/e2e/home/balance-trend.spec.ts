@@ -54,6 +54,10 @@ async function mockAccounts(page: Page) {
     fulfillJson(route, {
       baseCurrency: 'EUR',
       interval: new URL(route.request().url()).searchParams.get('interval'),
+      accounts: [
+        {id: CURRENT, since: '2026-07-02'},
+        {id: SAVINGS, since: '2026-08-05'},
+      ],
       periods: [
         month('2026-07-01', '2026-07-31', '1000.00', null),
         month('2026-08-01', '2026-08-31', '1200.00', '500.00'),
@@ -78,10 +82,10 @@ test('states today’s total, the change since the first point and when accounts
   await mockAccounts(page);
   await page.goto('/');
   await expect(card(page)).toContainText(
-    '€3,100.00 today · +€2,100.00 (+210%) since end of July 2026',
+    '€3,100.00 today · +€1,400.00 (+140%) since end of July 2026',
   );
   await expect(card(page)).toContainText(
-    'Rainy day counts from August 2026, when its history in Tempo starts.',
+    'Rainy day counts from August 2026, when its history in Tempo starts, and is left out of the change.',
   );
   await expect(card(page)).toContainText('Balance at the end of each month');
   await expect(

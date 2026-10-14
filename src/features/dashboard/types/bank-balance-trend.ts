@@ -8,7 +8,7 @@ export type BalanceTrendPeriod = {
   end: string;
   /** False while the period is still running. */
   complete: boolean;
-  /** Sum of the converted balances in the base currency; null when none could be converted. */
+  /** Sum of the balances in the base currency; null when an account with history has no rate. */
   total: string | null;
   /** Every connected account; null before its history starts or without an exchange rate. */
   accounts: {id: string; balance: string | null}[];
@@ -17,5 +17,7 @@ export type BalanceTrendPeriod = {
 export type BankBalanceTrend = {
   baseCurrency: string | null;
   interval: CashFlowInterval;
+  /** Each connected account and the day its history in Tempo starts. */
+  accounts: {id: string; since: string}[];
   periods: BalanceTrendPeriod[];
 };
