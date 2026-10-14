@@ -1,5 +1,5 @@
 import {Link, useNavigate} from '@tanstack/react-router';
-import {format, startOfWeek, subWeeks} from 'date-fns';
+import {format} from 'date-fns';
 import {useState} from 'react';
 import {Bar, BarChart, CartesianGrid, Cell, ReferenceArea, XAxis, YAxis} from 'recharts';
 
@@ -7,7 +7,6 @@ import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
 import {ChartContainer, ChartTooltip} from '@/components/ui/chart';
 import {Skeleton} from '@/components/ui/skeleton';
-import {ToggleGroup, ToggleGroupItem} from '@/components/ui/toggle-group';
 import {useIsMobile} from '@/hooks/use-is-mobile';
 import {cn} from '@/utils/cn';
 
@@ -15,18 +14,10 @@ import {useGetBankTransactionCashFlow} from '../api/use-get-bank-transaction-cas
 import type {CashFlowInterval, CashFlowPeriod} from '../types/bank-transaction-cash-flow';
 import {axisFormatter, axisTicks} from '../utils/chart-axis';
 import {cashFlowDrill, flowDrill, parseCalendarDate} from '../utils/drill-links';
-import {formatMoney, toCents} from '../utils/money';
+import {formatMoney, formatWholeMoney, toCents} from '../utils/money';
 import {currentMonth, formatMonth, localDate, monthDates, shiftMonth} from '../utils/month';
-
-const INTERVALS: {value: CashFlowInterval; label: string; noun: string}[] = [
-  {value: 'week', label: 'Week', noun: 'week'},
-  {value: 'month', label: 'Month', noun: 'month'},
-  {value: 'year', label: 'Year', noun: 'year'},
-];
-const WEEKS_SHOWN = 26;
-const WEEKS_SHOWN_PHONE = 13;
-const MONTHS_SHOWN = 12;
-const YEARS_SHOWN = 10;
+import {MONTHS_SHOWN, latestWindow, shownWeeks} from '../utils/period-window';
+import {IntervalToggle} from './interval-toggle';
 
 const day = (value: string) => parseCalendarDate(value);
 const monthOf = (period: CashFlowPeriod) => period.start.slice(0, 7);
@@ -49,12 +40,9 @@ function periodName(period: CashFlowPeriod, interval: CashFlowInterval) {
 
 /** Year totals read better without cents; weeks and months keep them so they match the list. */
 function moneyFor(interval: CashFlowInterval, currency: string | null) {
-  if (interval !== 'year') return (value: string | number) => formatMoney(value, currency);
-  const whole = new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 0,
-    ...(currency ? {style: 'currency', currency} : {}),
-  });
-  return (value: string | number) => whole.format(Number(value));
+  return interval === 'year'
+    ? (value: string | number) => formatWholeMoney(value, currency)
+    : (value: string | number) => formatMoney(value, currency);
 }
 
 /** Opaque, so the selected-month band never tints income into a different-looking series. */
@@ -62,13 +50,8 @@ const incomeSwatch = 'bg-[hsl(37_16%_72%)] dark:bg-[hsl(36_6%_40%)]';
 
 /** The dates to load for each zoom level. */
 function requestRange(interval: CashFlowInterval, month: string) {
+  if (interval !== 'month') return latestWindow(interval);
   const today = localDate();
-  if (interval === 'week') {
-    const thisWeek = startOfWeek(parseCalendarDate(today), {weekStartsOn: 1});
-    return {from: format(subWeeks(thisWeek, WEEKS_SHOWN - 1), 'yyyy-MM-dd'), to: today};
-  }
-  if (interval === 'year')
-    return {from: `${Number(today.slice(0, 4)) - (YEARS_SHOWN - 1)}-01-01`, to: today};
   const thisMonth = currentMonth();
   // The window ends at the current month, or at the selected month once it falls out of view.
   const windowEnd =
@@ -95,40 +78,17 @@ export function CashFlowCard({month}: {month: string}) {
   );
   const loaded = cashFlow?.interval === interval ? cashFlow : undefined;
 
-  const shown = (() => {
-    if (!loaded) return [];
-    const periods = loaded.periods;
-    if (interval === 'week') return periods.slice(-(isMobile ? WEEKS_SHOWN_PHONE : WEEKS_SHOWN));
-    if (interval === 'month') return periods.slice(-MONTHS_SHOWN);
-    return periods;
-  })();
-  const noun = INTERVALS.find((item) => item.value === interval)!.noun;
+  const periods = loaded?.periods ?? [];
+  const shown = interval === 'week' ? shownWeeks(periods, isMobile) : periods;
 
   return (
     <Card className='@container grid min-w-0 gap-5 p-5 sm:p-6' data-testid='cash-flow'>
       <header className='flex flex-wrap items-start justify-between gap-x-6 gap-y-3'>
         <div className='min-w-0'>
           <h2 className='text-base font-semibold'>Cash flow</h2>
-          {loaded && <Averages periods={shown} noun={noun} currency={loaded.baseCurrency} />}
+          {loaded && <Averages periods={shown} noun={interval} currency={loaded.baseCurrency} />}
         </div>
-        <ToggleGroup
-          type='single'
-          variant='outline'
-          size='sm'
-          value={interval}
-          onValueChange={(value) => value && setGrouping(value as CashFlowInterval)}
-          aria-label='Group cash flow by'
-        >
-          {INTERVALS.map((item) => (
-            <ToggleGroupItem
-              key={item.value}
-              value={item.value}
-              className='min-h-9 px-3 text-xs data-[state=on]:bg-secondary data-[state=on]:font-semibold data-[state=on]:text-secondary-foreground'
-            >
-              {item.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <IntervalToggle value={interval} onChange={setGrouping} label='Group cash flow by' />
       </header>
       {isError && !loaded ? (
         <div className='grid justify-items-start gap-3'>
@@ -216,7 +176,7 @@ function Averages({
   currency: string | null;
 }) {
   const complete = periods.filter((period) => period.complete);
-  // A single full period is not an average; the comparison below already states it.
+  // A single full period is not an average.
   if (complete.length < 2) return null;
   const sum = (key: 'spending' | 'income') =>
     complete.reduce((total, period) => total + toCents(period[key]), 0);

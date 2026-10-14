@@ -24,7 +24,13 @@ const month = (
   current: string,
   savings: string | null,
   complete = true,
-) => ({
+): {
+  start: string;
+  end: string;
+  complete: boolean;
+  total: string | null;
+  accounts: {id: string; balance: string | null}[];
+} => ({
   start,
   end,
   complete,
@@ -35,8 +41,15 @@ const month = (
   ],
 });
 
+const MONTHS = [
+  month('2026-07-01', '2026-07-31', '1000.00', null),
+  month('2026-08-01', '2026-08-31', '1200.00', '500.00'),
+  month('2026-09-01', '2026-09-30', '900.00', '700.00'),
+  month('2026-10-01', '2026-10-01', '2400.00', '700.00', false),
+];
+
 /** Two synthetic accounts; savings history starts in August. */
-async function mockAccounts(page: Page) {
+async function mockAccounts(page: Page, periods = MONTHS) {
   await transformBankConnections(page, (connections) =>
     connections.map((connection, index) => ({
       ...connection,
@@ -58,12 +71,7 @@ async function mockAccounts(page: Page) {
         {id: CURRENT, since: '2026-07-02'},
         {id: SAVINGS, since: '2026-08-05'},
       ],
-      periods: [
-        month('2026-07-01', '2026-07-31', '1000.00', null),
-        month('2026-08-01', '2026-08-31', '1200.00', '500.00'),
-        month('2026-09-01', '2026-09-30', '900.00', '700.00'),
-        month('2026-10-01', '2026-10-01', '2400.00', '700.00', false),
-      ],
+      periods,
     }),
   );
 }
@@ -91,6 +99,19 @@ test('states today’s total, the change since the first point and when accounts
   await expect(
     table(page, 'month').getByRole('row', {name: /31 Aug 2026/, includeHidden: true}),
   ).toContainText('€1,700');
+});
+
+test('leaves out a point whose exchange rate is missing and says so', async ({page}) => {
+  await mockAccounts(page, [
+    MONTHS[0],
+    {...MONTHS[1], total: null, accounts: [MONTHS[1].accounts[0], {id: SAVINGS, balance: null}]},
+    ...MONTHS.slice(2),
+  ]);
+  await page.goto('/');
+  await expect(card(page)).toContainText('One point is left out until its exchange rate is in.');
+  await expect(
+    table(page, 'month').getByRole('row', {name: /31 Aug 2026/, includeHidden: true}),
+  ).toHaveCount(0);
 });
 
 test('switches to weeks and years and fits a phone', async ({page}) => {

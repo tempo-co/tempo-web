@@ -29,7 +29,7 @@ export function mockCashFlow(page: Page) {
 }
 
 /** Synthetic month-end balances for specs that mock Home without a real session. */
-export const syntheticBalanceTrend = {
+const syntheticBalanceTrend = {
   baseCurrency: 'EUR',
   interval: 'month',
   accounts: [{id: '00000000-0000-4000-8000-000000000001', since: '2026-07-01'}],
