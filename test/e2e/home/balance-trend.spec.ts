@@ -101,8 +101,9 @@ test('switches to weeks and years and fits a phone', async ({page}) => {
 });
 
 test('offers a retry when the trend fails to load', async ({page}) => {
+  // A rate limit is final, so the card shows the error without waiting out the retries.
   await page.route('**/bank-transactions/balance-trend**', (route) =>
-    fulfillJson(route, {message: 'Unavailable'}, 503),
+    fulfillJson(route, {statusCode: 429, message: 'ThrottlerException: Too Many Requests'}, 429),
   );
   await page.goto('/');
   await expect(card(page)).toContainText('Could not load the balance trend.');
