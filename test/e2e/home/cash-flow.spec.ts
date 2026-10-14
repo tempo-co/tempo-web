@@ -42,8 +42,10 @@ test('months match the monthly summary and select the month for the rest of Home
   const august = table(page, 'month').getByRole('row', {name: /August 2026/, includeHidden: true});
   await expect(august).toContainText(spent);
 
+  // Income and what was left for the selected month sit under the chart.
+  await expect(page.getByTestId('cash-flow-selected-month')).toContainText('August 2026 income');
+
   await page.goto('/');
-  await expect(card(page)).toContainText('No October 2025 to compare with yet.');
   await openRow(page, 'month', 'August 2026');
   await expect(page).toHaveURL(/month=2026-08/);
   await expect(page.getByRole('heading', {level: 1})).toHaveText('August 2026');

@@ -87,7 +87,8 @@ test('hides zero-count rows and keeps overlapping counts separate', async ({page
       .getByRole('region', {name: 'Processing', exact: true})
       .getByRole('link', {name: /^Preparing EUR amounts/}),
   ).toContainText('1 transaction · all months');
-  await expect(card).toContainText('A transaction can appear in more than one group.');
+  // One group cannot overlap with another, so the note is left out.
+  await expect(card).not.toContainText('A transaction can appear in more than one group.');
   await expect(card).not.toContainText('2 transactions');
   await expectNoHorizontalOverflow(page);
 });

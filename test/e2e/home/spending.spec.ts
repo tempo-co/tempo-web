@@ -1,6 +1,11 @@
 import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
-import {firstMonthSummary, septemberSummary} from '../../data/home-summary.data';
+import {categorySummary} from '../../data/home-categories.data';
+import {
+  firstMonthSummary,
+  octoberFirstSummary,
+  septemberSummary,
+} from '../../data/home-summary.data';
 import {expect, test} from '../../fixtures';
 import {mockJson, openDailyPace} from '../../utils/api-mocks';
 
@@ -51,4 +56,29 @@ test('explains missing history without inventing a range', async ({page}) => {
   const card = page.getByTestId('spending-summary');
   await expect(card).toContainText('No earlier months to compare with yet.');
   await expect(card.getByText('Lowest to highest')).toHaveCount(0);
+});
+
+test('splits spending into everyday and fixed costs, each against its usual amount', async ({
+  page,
+}) => {
+  await mockJson(page, '**/bank-transactions/summary**', categorySummary);
+  await page.goto('/?month=2026-09');
+  const card = page.getByTestId('spending-summary');
+  // €2,025 spent: €1,080 of housing and subscriptions, the rest everyday.
+  await expect(card.getByText('Everyday', {exact: true}).locator('..')).toContainText(
+    '€945.00 · usually €340.00',
+  );
+  await expect(card.getByText('Fixed', {exact: true}).locator('..')).toContainText('€1,080.00');
+  const everyday = card.getByRole('link', {name: '€945.00', exact: true});
+  const search = new URL((await everyday.getAttribute('href'))!, page.url()).searchParams;
+  expect(JSON.parse(search.get('categories')!)).not.toContain('HOUSING_AND_UTILITIES');
+});
+
+test('projects the month end from whole earlier months', async ({page}) => {
+  await mockJson(page, '**/bank-transactions/summary**', octoberFirstSummary);
+  await page.goto('/');
+  // €60 so far, plus the €1,305 earlier months still spent after the 1st.
+  await expect(page.getByTestId('spending-summary')).toContainText(
+    'On track for about €1,370 by month end',
+  );
 });

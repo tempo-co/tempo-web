@@ -84,7 +84,10 @@ export function AttentionList({reviewCounts, baseCurrency}: AttentionListProps) 
                 </li>
               ))}
             </ul>
-            <p className='text-xs text-muted-foreground'>{description}</p>
+            {/* Overlap only matters once more than one group is listed. */}
+            {(visibleGroups.length > 1 || index > 0) && (
+              <p className='text-xs text-muted-foreground'>{description}</p>
+            )}
           </Card>
         );
       })}

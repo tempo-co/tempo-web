@@ -145,8 +145,6 @@ test.describe('Home', () => {
     await expect(homePage.emptyStateTitle).toBeHidden();
     const totals = page.getByTestId('spending-summary');
     await expect(totals.getByRole('link', {name: '€1,200.00', exact: true})).toBeVisible();
-    await expect(totals.getByRole('link', {name: '€2,500.00', exact: true})).toBeVisible();
-    await expect(totals.getByText('€1,300.00', {exact: true})).toBeVisible();
     const balances = page.getByRole('region', {name: 'Balances'});
     await expect(
       balances

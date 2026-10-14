@@ -30,6 +30,8 @@ export type BankTransactionSummary = {
     /** Same-day range for the current month; full-month range for completed months. */
     spendingRangeByThrough: {low: string; high: string} | null;
     incomeByThrough: string | null;
+    /** Average whole-month spending of the baseline months, every day counted. */
+    spendingFullMonth: string | null;
   };
   categories: BankTransactionSummaryCategory[];
 };

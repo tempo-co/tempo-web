@@ -26,6 +26,7 @@ export const septemberSummary: BankTransactionSummary = {
     spendingByThrough: '1350.00',
     spendingRangeByThrough: {low: '1050.00', high: '1650.00'},
     incomeByThrough: '2400.00',
+    spendingFullMonth: '1350.00',
   },
   categories: [],
 };
@@ -46,6 +47,7 @@ export const firstMonthSummary: BankTransactionSummary = {
     spendingByThrough: null,
     spendingRangeByThrough: null,
     incomeByThrough: null,
+    spendingFullMonth: null,
   },
 };
 

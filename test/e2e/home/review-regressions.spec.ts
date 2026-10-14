@@ -46,8 +46,10 @@ test('ranks a positive refund bucket by its amount', async ({page}) => {
   });
   await page.goto('/?month=2026-09');
   const rows = page.getByTestId('category-breakdown').getByRole('link');
-  await expect(rows.first()).toContainText('Refund');
-  await expect(rows.first()).toContainText('€500.00');
+  // Fixed costs lead on their own line; the refund then ranks first among everyday spending.
+  await expect(rows.first()).toContainText('Fixed costs');
+  await expect(rows.nth(1)).toContainText('Refund');
+  await expect(rows.nth(1)).toContainText('€500.00');
 });
 
 test('shows a visible subject marker on the first day', async ({page}) => {

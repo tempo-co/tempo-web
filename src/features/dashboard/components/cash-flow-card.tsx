@@ -13,7 +13,7 @@ import {cn} from '@/utils/cn';
 
 import {useGetBankTransactionCashFlow} from '../api/use-get-bank-transaction-cash-flow';
 import type {CashFlowInterval, CashFlowPeriod} from '../types/bank-transaction-cash-flow';
-import {cashFlowDrill, parseCalendarDate} from '../utils/drill-links';
+import {cashFlowDrill, flowDrill, parseCalendarDate} from '../utils/drill-links';
 import {formatMoney, toCents} from '../utils/money';
 import {currentMonth, formatMonth, localDate, monthDates, shiftMonth} from '../utils/month';
 
@@ -51,7 +51,7 @@ function axisTicks(cents: number) {
   const rough = (Math.max(cents / 100, 100) * 1.06) / 4;
   const magnitude = 10 ** Math.floor(Math.log10(rough));
   const step =
-    [1, 1.2, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => s * magnitude >= rough)! * magnitude;
+    [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => s * magnitude >= rough)! * magnitude;
   return [0, 1, 2, 3, 4].map((index) => index * step);
 }
 
@@ -166,6 +166,12 @@ export function CashFlowCard({month}: {month: string}) {
             selectedMonth={month}
             currency={loaded.baseCurrency}
           />
+          {interval === 'month' && (
+            <SelectedMonth
+              period={loaded.periods.find((period) => monthOf(period) === month)}
+              currency={loaded.baseCurrency}
+            />
+          )}
           <Comparison
             periods={interval === 'week' ? shown : loaded.periods}
             interval={interval}
@@ -175,6 +181,43 @@ export function CashFlowCard({month}: {month: string}) {
         </>
       )}
     </Card>
+  );
+}
+
+/** The selected month's income and what was left, the half of the month the spending card omits. */
+function SelectedMonth({
+  period,
+  currency,
+}: {
+  period: CashFlowPeriod | undefined;
+  currency: string | null;
+}) {
+  if (!period) return null;
+  const net = toCents(period.net);
+  return (
+    <dl
+      className='-mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm'
+      data-testid='cash-flow-selected-month'
+    >
+      <div className='flex items-baseline gap-1.5'>
+        <dt className='text-muted-foreground'>{formatMonth(monthOf(period))} income</dt>
+        <dd>
+          <Link
+            to='/bank-transactions'
+            search={flowDrill('INCOME', period.start, period.end, true)}
+            className='font-medium tabular-nums underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
+          >
+            {formatMoney(period.income, currency)}
+          </Link>
+        </dd>
+      </div>
+      <div className='flex items-baseline gap-1.5'>
+        <dt className='text-muted-foreground'>{net < 0 ? 'Overspent' : 'Kept'}</dt>
+        <dd className={cn('font-medium tabular-nums', net > 0 && 'text-success')}>
+          {formatMoney(Math.abs(net) / 100, currency)}
+        </dd>
+      </div>
+    </dl>
   );
 }
 
@@ -558,7 +601,7 @@ function Comparison({
         reference={toCents(lastYear.spending)}
         detail={
           <>
-            Then <Amount>{money(lastYear.spending)}</Amount> spent ·{' '}
+            {formatMonth(previous)}: <Amount>{money(lastYear.spending)}</Amount> spent ·{' '}
             <Amount>{money(lastYear.income)}</Amount> income
           </>
         }

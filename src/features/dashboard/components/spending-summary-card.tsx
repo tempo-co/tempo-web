@@ -7,7 +7,8 @@ import {Card} from '@/components/ui/card';
 import {cn} from '@/utils/cn';
 
 import type {BankTransactionSummary} from '../types/bank-transaction-summary';
-import {excludedDrill, flowDrill, parseCalendarDate} from '../utils/drill-links';
+import {categoryDrill, excludedDrill, flowDrill, parseCalendarDate} from '../utils/drill-links';
+import {fixedCostLabel, fixedCosts, isFixedCost} from '../utils/fixed-costs';
 import {formatMoney, toCents} from '../utils/money';
 import {formatMonth, formatMonthRange, monthDates} from '../utils/month';
 import {SpendingPaceChart} from './spending-pace-chart';
@@ -54,24 +55,7 @@ export function SpendingSummaryCard({summary, isCurrentMonth}: SpendingSummaryCa
         <SpendingComparison summary={summary} isCurrentMonth={isCurrentMonth} />
       </div>
       <dl className='mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm'>
-        <div className='flex items-baseline gap-1.5'>
-          <dt className='text-muted-foreground'>Income</dt>
-          <dd>
-            <Link
-              to='/bank-transactions'
-              search={flowDrill('INCOME', from, through, hasMissing)}
-              className={cn('font-mono tabular-nums', linkClassName)}
-            >
-              {formatMoney(totals.income, baseCurrency)}
-            </Link>
-          </dd>
-        </div>
-        <div className='flex items-baseline gap-1.5'>
-          <dt className='text-muted-foreground'>Net</dt>
-          <dd className={cn('font-mono tabular-nums', toCents(totals.net) > 0 && 'text-success')}>
-            {formatMoney(totals.net, baseCurrency)}
-          </dd>
-        </div>
+        <SpendingSplit summary={summary} from={from} />
         <NotInTotals summary={summary} from={from} />
       </dl>
       <PaceDetails summary={summary} isCurrentMonth={isCurrentMonth} />
@@ -133,6 +117,71 @@ function SpendingComparison({summary, isCurrentMonth}: SpendingSummaryCardProps)
   );
 }
 
+/**
+ * Rent and other bills land whatever the month looks like, so the split shows what is left to
+ * steer: everyday spending, against its own usual amount.
+ */
+function SpendingSplit({summary, from}: {summary: BankTransactionSummary; from: string}) {
+  const {through, baseCurrency, categories, baseline} = summary;
+  const hasMissing = summary.excluded.missingBaseAmount > 0;
+  const fixed = fixedCosts(categories);
+  if (fixed.rows.length === 0) return null;
+  const everyday = toCents(summary.totals.spending) - fixed.spent;
+  const everydayCategories = categories
+    .filter((row) => !isFixedCost(row.category))
+    .map((row) => row.category);
+  const usualEveryday =
+    baseline.spendingByThrough === null ? null : toCents(baseline.spendingByThrough) - fixed.usual;
+
+  return (
+    <>
+      <div className='flex items-baseline gap-1.5'>
+        <dt className='text-muted-foreground'>Everyday</dt>
+        <dd>
+          {everydayCategories.length > 0 ? (
+            <Link
+              to='/bank-transactions'
+              search={categoryDrill(everydayCategories, from, through, hasMissing)}
+              className={cn('font-mono tabular-nums', linkClassName)}
+            >
+              {formatMoney(everyday / 100, baseCurrency)}
+            </Link>
+          ) : (
+            <span className='font-mono tabular-nums'>{formatMoney(0, baseCurrency)}</span>
+          )}
+          {usualEveryday !== null && (
+            <span className='text-xs text-muted-foreground'>
+              {' '}
+              · usually {formatMoney(Math.max(0, usualEveryday) / 100, baseCurrency)}
+            </span>
+          )}
+        </dd>
+      </div>
+      <div className='flex items-baseline gap-1.5'>
+        <dt className='text-muted-foreground'>Fixed</dt>
+        <dd>
+          <Link
+            to='/bank-transactions'
+            search={categoryDrill(
+              fixed.rows.map((row) => row.category),
+              from,
+              through,
+              hasMissing,
+            )}
+            className={cn('font-mono tabular-nums', linkClassName)}
+          >
+            {formatMoney(fixed.spent / 100, baseCurrency)}
+          </Link>
+          <span className='text-xs text-muted-foreground'>
+            {' '}
+            · {fixedCostLabel(fixed.rows).toLowerCase()}
+          </span>
+        </dd>
+      </div>
+    </>
+  );
+}
+
 /** Rows the totals leave out, each linking to exactly the rows its count covers. */
 function NotInTotals({summary, from}: {summary: BankTransactionSummary; from: string}) {
   const {excluded, through, baseCurrency} = summary;
@@ -176,11 +225,12 @@ function NotInTotals({summary, from}: {summary: BankTransactionSummary; from: st
 function PaceDetails({summary, isCurrentMonth}: SpendingSummaryCardProps) {
   const [open, setOpen] = useState(false);
   const {baseline, baseCurrency} = summary;
-  const usualMonth = baseline.daily[baseline.daily.length - 1];
+  // What earlier months still spent after this day, on top of this month so far. Whole months,
+  // so a 30-day month still counts the 31st its baseline months had.
   const projection =
-    isCurrentMonth && usualMonth && baseline.spendingByThrough !== null
+    isCurrentMonth && baseline.spendingFullMonth !== null && baseline.spendingByThrough !== null
       ? toCents(summary.totals.spending) +
-        Math.max(0, toCents(usualMonth.average) - toCents(baseline.spendingByThrough))
+        Math.max(0, toCents(baseline.spendingFullMonth) - toCents(baseline.spendingByThrough))
       : null;
 
   return (
