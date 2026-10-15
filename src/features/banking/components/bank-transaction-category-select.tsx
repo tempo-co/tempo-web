@@ -1,5 +1,4 @@
-import {useQueryClient} from '@tanstack/react-query';
-import {useEffect, useRef, useState} from 'react';
+import {useState} from 'react';
 import {toast} from 'sonner';
 
 import {
@@ -9,12 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {EmailNotVerifiedError, SessionExpiredError} from '@/utils/api';
+import {isAuthError} from '@/utils/api';
 
-import {
-  fetchBankTransactionCategoryImpact,
-  useUpdateBankTransactionCategory,
-} from '../api/use-update-bank-transaction-category';
+import {usePreviewBankTransactionCategory} from '../api/use-preview-bank-transaction-category';
+import {useUpdateBankTransactionCategory} from '../api/use-update-bank-transaction-category';
 import {
   BANK_TRANSACTION_CATEGORIES,
   BankTransaction,
@@ -36,21 +33,13 @@ type BankTransactionCategorySelectProps = {
 };
 
 export function BankTransactionCategorySelect({transaction}: BankTransactionCategorySelectProps) {
-  const queryClient = useQueryClient();
   const {updateBankTransactionCategory, isPending} = useUpdateBankTransactionCategory();
-  const [isChecking, setIsChecking] = useState(false);
+  const {previewBankTransactionCategory, isPending: isChecking} =
+    usePreviewBankTransactionCategory();
   const [draft, setDraft] = useState<{
     category: BankTransactionCategory;
     impact: BankTransactionCategoryImpact;
   } | null>(null);
-  const previewVersion = useRef(0);
-  // A late preview must not save after the owner closes the inspector. Keep the API read deadline.
-  useEffect(
-    () => () => {
-      previewVersion.current++;
-    },
-    [],
-  );
   const selectId = `transaction-${transaction.id}-category`;
   const statusId = `transaction-${transaction.id}-category-status`;
   const selectedCategory =
@@ -73,30 +62,25 @@ export function BankTransactionCategorySelect({transaction}: BankTransactionCate
     }
   };
 
-  const handleValueChange = async (value: string) => {
+  const handleValueChange = (value: string) => {
     if (!isBankTransactionCategory(value)) return;
-    const version = ++previewVersion.current;
-    setIsChecking(true);
-    try {
-      const impact = await fetchBankTransactionCategoryImpact(queryClient, transaction.id, value);
-      if (version !== previewVersion.current) return;
-      if (impact.transactions.length > 0) {
-        setDraft({category: value, impact});
-      } else {
-        await save(value, []);
-      }
-    } catch (error) {
-      // An expired session or unverified email has its own toast and redirect.
-      const isAuthError =
-        error instanceof SessionExpiredError || error instanceof EmailNotVerifiedError;
-      if (version === previewVersion.current && !isAuthError) {
-        toast.error(
-          'Category changes could not be previewed. Nothing was saved. Please try again.',
-        );
-      }
-    } finally {
-      if (version === previewVersion.current) setIsChecking(false);
-    }
+    previewBankTransactionCategory(
+      {id: transaction.id, category: value},
+      {
+        onSuccess: (impact) => {
+          if (impact.transactions.length > 0) setDraft({category: value, impact});
+          else void save(value, []);
+        },
+        onError: (error) => {
+          // An expired session or unverified email has its own toast and redirect.
+          if (!isAuthError(error)) {
+            toast.error(
+              'Category changes could not be previewed. Nothing was saved. Please try again.',
+            );
+          }
+        },
+      },
+    );
   };
 
   return (

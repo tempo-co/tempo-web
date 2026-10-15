@@ -112,9 +112,27 @@ async function mockCorrection(page: Page, preview: BankTransactionCategoryImpact
   return state;
 }
 
+const PREVIEW_FAILED =
+  'Category changes could not be previewed. Nothing was saved. Please try again.';
+const categorySelect = (page: Page) => page.getByRole('combobox', {name: 'Transaction category'});
+const impactDialog = (page: Page) => page.getByRole('dialog', {name: 'Update other transactions?'});
+
 async function chooseTravel(page: Page) {
-  await page.getByRole('combobox', {name: 'Transaction category'}).click();
+  await categorySelect(page).click();
   await page.getByRole('option', {name: 'Travel', exact: true}).click();
+}
+
+/** Holds the preview until the returned function is called, then answers with `body`. */
+async function holdPreview(page: Page, body: unknown) {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/bank-transactions/${ID}/category-impact?**`, async (route) => {
+    await held;
+    await fulfillJson(route, body);
+  });
+  return release;
 }
 
 for (const viewport of [
@@ -129,7 +147,7 @@ for (const viewport of [
     }, testInfo) => {
       const state = await mockCorrection(page);
       await chooseTravel(page);
-      const dialog = page.getByRole('dialog', {name: 'Update other transactions?'});
+      const dialog = impactDialog(page);
       await expect(dialog).toBeVisible();
       expect(state.writes).toEqual([]);
       await expect(dialog.getByRole('checkbox')).toHaveCount(2);
@@ -147,7 +165,7 @@ for (const viewport of [
       await dialog.getByRole('button', {name: 'Update selected (1)', exact: true}).click();
       await expect(dialog).toBeHidden();
       expect(state.writes).toEqual([{category: 'TRAVEL', applyToTransactionIds: [FIRST_ID]}]);
-      await expect(page.getByRole('combobox', {name: 'Transaction category'})).toHaveText('Travel');
+      await expect(categorySelect(page)).toHaveText('Travel');
     });
 
     for (const dismissal of ['Cancel', 'Escape']) {
@@ -156,16 +174,14 @@ for (const viewport of [
       }) => {
         const state = await mockCorrection(page);
         await chooseTravel(page);
-        const dialog = page.getByRole('dialog', {name: 'Update other transactions?'});
+        const dialog = impactDialog(page);
         await expect(dialog).toBeVisible();
         if (dismissal === 'Cancel')
           await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
         else await page.keyboard.press('Escape');
         await expect(dialog).toBeHidden();
         await expect(page.getByTestId('bank-transaction-inspector')).toBeVisible();
-        await expect(page.getByRole('combobox', {name: 'Transaction category'})).toHaveText(
-          'Not categorized',
-        );
+        await expect(categorySelect(page)).toHaveText('Not categorized');
         expect(state.writes).toEqual([]);
         // A cancelled selection is not held locally: a fresh correction starts with all ticked again.
         await chooseTravel(page);
@@ -176,7 +192,7 @@ for (const viewport of [
     test('Just this one sends an empty selection', async ({page}) => {
       const state = await mockCorrection(page);
       await chooseTravel(page);
-      const dialog = page.getByRole('dialog', {name: 'Update other transactions?'});
+      const dialog = impactDialog(page);
       await dialog.getByRole('button', {name: 'Just this one', exact: true}).click();
       await expect(dialog).toBeHidden();
       expect(state.writes).toEqual([{category: 'TRAVEL', applyToTransactionIds: []}]);
@@ -190,7 +206,7 @@ for (const viewport of [
         total: 0,
       });
       await chooseTravel(page);
-      await expect(page.getByRole('combobox', {name: 'Transaction category'})).toHaveText('Travel');
+      await expect(categorySelect(page)).toHaveText('Travel');
       await expect(page.getByTestId('category-impact-dialog')).toHaveCount(0);
       expect(state.writes).toEqual([{category: 'TRAVEL', applyToTransactionIds: []}]);
     });
@@ -203,7 +219,7 @@ for (const viewport of [
         total: 600,
       });
       await chooseTravel(page);
-      const dialog = page.getByRole('dialog', {name: 'Update other transactions?'});
+      const dialog = impactDialog(page);
       await expect(dialog).toContainText('Showing the newest 2 of 600 matches');
       await expect(
         dialog.getByText('Shopping → Will be re-checked by AI', {exact: true}),
@@ -219,14 +235,8 @@ for (const viewport of [
       const state = await mockCorrection(page);
       state.previewStatus = 429;
       await chooseTravel(page);
-      await expect(
-        page.getByText(
-          'Category changes could not be previewed. Nothing was saved. Please try again.',
-        ),
-      ).toBeVisible();
-      await expect(page.getByRole('combobox', {name: 'Transaction category'})).toHaveText(
-        'Not categorized',
-      );
+      await expect(page.getByText(PREVIEW_FAILED)).toBeVisible();
+      await expect(categorySelect(page)).toHaveText('Not categorized');
       expect(state.writes).toEqual([]);
     });
 
@@ -236,9 +246,7 @@ for (const viewport of [
       await chooseTravel(page);
       await expect(page.getByText('Your session has expired')).toBeVisible();
       await expect(page).toHaveURL(/\/login/);
-      await expect(
-        page.getByText('Category changes could not be previewed.', {exact: false}),
-      ).toHaveCount(0);
+      await expect(page.getByText(PREVIEW_FAILED)).toHaveCount(0);
       expect(state.writes).toEqual([]);
     });
 
@@ -248,18 +256,16 @@ for (const viewport of [
       const state = await mockCorrection(page);
       await page.clock.install();
       await page.clock.resume();
-      let releasePreview!: () => void;
-      const held = new Promise<void>((resolve) => {
-        releasePreview = resolve;
-      });
       let healthReads = 0;
       await page.route('**/health', (route) => {
         healthReads++;
         return fulfillJson(route, {status: 'ok'});
       });
-      await page.route(`**/bank-transactions/${ID}/category-impact?**`, async (route) => {
-        await held;
-        await fulfillJson(route, {action: null, category: null, transactions: [], total: 0});
+      const releasePreview = await holdPreview(page, {
+        action: null,
+        category: null,
+        transactions: [],
+        total: 0,
       });
       try {
         const requested = page.waitForRequest(`**/bank-transactions/${ID}/category-impact?**`);
@@ -288,25 +294,14 @@ for (const viewport of [
     }) => {
       test.setTimeout(30_000);
       const state = await mockCorrection(page);
-      let releasePreview!: () => void;
-      const held = new Promise<void>((resolve) => {
-        releasePreview = resolve;
-      });
-      await page.route(`**/bank-transactions/${ID}/category-impact?**`, async (route) => {
-        await held;
-        await fulfillJson(route, impact);
-      });
+      const releasePreview = await holdPreview(page, impact);
       try {
         await chooseTravel(page);
         await expect(page.getByTestId('bank-transaction-category-status')).toContainText(
           'Checking other transactions',
         );
-        await expect(
-          page.getByText(
-            'Category changes could not be previewed. Nothing was saved. Please try again.',
-          ),
-        ).toBeVisible({timeout: 20_000});
-        await expect(page.getByRole('combobox', {name: 'Transaction category'})).toBeEnabled();
+        await expect(page.getByText(PREVIEW_FAILED)).toBeVisible({timeout: 20_000});
+        await expect(categorySelect(page)).toBeEnabled();
         expect(state.writes).toEqual([]);
       } finally {
         releasePreview();
@@ -317,7 +312,7 @@ for (const viewport of [
       const state = await mockCorrection(page);
       state.saveStatus = 429;
       await chooseTravel(page);
-      const dialog = page.getByRole('dialog', {name: 'Update other transactions?'});
+      const dialog = impactDialog(page);
       await dialog.getByRole('checkbox').nth(1).uncheck();
       await dialog.getByRole('button', {name: 'Update selected (1)', exact: true}).click();
       await expect(

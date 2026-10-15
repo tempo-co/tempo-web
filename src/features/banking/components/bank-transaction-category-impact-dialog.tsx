@@ -3,6 +3,7 @@ import {useState} from 'react';
 
 import {CurrencyAmount} from '@/components/shared/currency-amount';
 import {Button} from '@/components/ui/button';
+import {Checkbox} from '@/components/ui/checkbox';
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -15,7 +16,6 @@ import {
 import {BankTransactionCategory, BankTransactionCategoryImpact} from '../types/bank-transaction';
 import {formatBankTransactionCategory, formatBankTransactionDate} from '../utils/formatters';
 import {BankTransactionCategoryIcon} from './bank-transaction-category-icon';
-import {FilterCheckIndicator} from './bank-transaction-multi-select-filter';
 
 type BankTransactionCategoryImpactDialogProps = {
   category: BankTransactionCategory;
@@ -76,51 +76,41 @@ export function BankTransactionCategoryImpactDialog({
           <fieldset disabled={isPending}>
             <legend className='sr-only'>Other transactions to change</legend>
             <ul className='divide-y'>
-              {impact.transactions.map((transaction) => {
-                const isSelected = selectedIds.has(transaction.id);
-                return (
-                  <li key={transaction.id}>
-                    <label className='flex cursor-pointer items-start gap-3 py-3'>
-                      <span className='relative mt-0.5 flex shrink-0'>
-                        <input
-                          type='checkbox'
-                          className='peer absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed'
-                          checked={isSelected}
-                          onChange={(event) => toggle(transaction.id, event.target.checked)}
-                        />
-                        <FilterCheckIndicator
-                          isSelected={isSelected}
-                          className='peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-disabled:opacity-50 [&_svg]:size-4'
+              {impact.transactions.map((transaction) => (
+                <li key={transaction.id}>
+                  <label className='flex cursor-pointer items-start gap-3 py-3'>
+                    <Checkbox
+                      className='mt-0.5'
+                      checked={selectedIds.has(transaction.id)}
+                      onCheckedChange={(checked) => toggle(transaction.id, checked === true)}
+                    />
+                    <span className='min-w-0 flex-1 space-y-1'>
+                      <span className='block text-sm leading-none font-medium wrap-anywhere'>
+                        {transaction.displayDescription}
+                      </span>
+                      <span className='block text-xs text-muted-foreground'>
+                        {formatBankTransactionDate(
+                          transaction.transactionDate ?? transaction.bookingDate,
+                        )}
+                        {' · '}
+                        <CurrencyAmount
+                          amount={Number(transaction.amount)}
+                          currency={transaction.currency}
                         />
                       </span>
-                      <span className='min-w-0 flex-1 space-y-1'>
-                        <span className='block text-sm leading-none font-medium wrap-anywhere'>
-                          {transaction.displayDescription}
-                        </span>
-                        <span className='block text-xs text-muted-foreground'>
-                          {formatBankTransactionDate(
-                            transaction.transactionDate ?? transaction.bookingDate,
-                          )}
-                          {' · '}
-                          <CurrencyAmount
-                            amount={Number(transaction.amount)}
-                            currency={transaction.currency}
-                          />
-                        </span>
-                        <span className='flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-sm'>
-                          <CategoryLabel category={transaction.category} />
-                          <span className='text-muted-foreground'>{' → '}</span>
-                          {impact.action === 'RECHECK' ? (
-                            <span>Will be re-checked by AI</span>
-                          ) : (
-                            <CategoryLabel category={impact.category} />
-                          )}
-                        </span>
+                      <span className='flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-sm'>
+                        <CategoryLabel category={transaction.category} />
+                        <span className='text-muted-foreground'>{' → '}</span>
+                        {impact.action === 'RECHECK' ? (
+                          <span>Will be re-checked by AI</span>
+                        ) : (
+                          <CategoryLabel category={impact.category} />
+                        )}
                       </span>
-                    </label>
-                  </li>
-                );
-              })}
+                    </span>
+                  </label>
+                </li>
+              ))}
             </ul>
           </fieldset>
           <p className='mt-3 text-xs text-muted-foreground'>

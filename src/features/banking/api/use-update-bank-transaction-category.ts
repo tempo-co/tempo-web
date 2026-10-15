@@ -1,4 +1,4 @@
-import {QueryClient, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 
 import {HttpError, api} from '@/utils/api';
@@ -7,7 +7,6 @@ import {
   BANK_TRANSACTION_UNCATEGORIZED,
   BankTransaction,
   BankTransactionCategory,
-  BankTransactionCategoryImpact,
   BankTransactionFilterParams,
   BankTransactionsResponse,
 } from '../types/bank-transaction';
@@ -20,29 +19,6 @@ type UpdateBankTransactionCategoryInput = {
   /** The owner's other rows from the preview that change too; omitted changes only this row. */
   applyToTransactionIds?: BankTransaction['id'][];
 };
-
-/**
- * Which of the owner's other rows a correction would change. Read fresh for every correction and
- * through the query cache, so an expired session signs out as on any other read. Never retried or
- * kept: the owner is waiting, and a stale preview must not be confirmed.
- */
-export const fetchBankTransactionCategoryImpact = (
-  queryClient: QueryClient,
-  id: BankTransaction['id'],
-  category: BankTransactionCategory,
-) =>
-  queryClient.fetchQuery({
-    queryKey: ['bank-transaction-category-impact', id, category],
-    queryFn: () =>
-      api.get<BankTransactionCategoryImpact>(
-        `/bank-transactions/${id}/category-impact?${new URLSearchParams({category})}`,
-      ),
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    // Fail like any other read when Tempo is unreachable instead of waiting to reconnect.
-    networkMode: 'always',
-  });
 
 export const useUpdateBankTransactionCategory = () => {
   const queryClient = useQueryClient();
