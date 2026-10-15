@@ -78,6 +78,7 @@
 
   --color-chart-primary: hsl(var(--chart-primary));
   --color-chart-secondary: hsl(var(--chart-secondary));
+  --color-chart-secondary-edge: hsl(var(--chart-secondary-edge));
   --color-scrim: hsl(var(--scrim));
 
   --color-category-housing: rgb(var(--category-housing));
@@ -189,7 +190,8 @@
     --clay: 13.7 46.3% 51.8%; /* Clay #BD654B — large accents and logo plane */
 
     --chart-primary: 270 7% 30%;   /* Ink-led data series: spending, balance line */
-    --chart-secondary: 37 14% 52%; /* warm grey second series: income */
+    --chart-secondary: 37 16% 74%; /* light warm tint second series: income */
+    --chart-secondary-edge: 37 12% 48%; /* its 1px outline, 3:1 on card */
     --scrim: 252 10.2% 9.6%;       /* Night: overlay backdrop in both themes */
 
     --category-housing: 138 103 18;
@@ -258,6 +260,7 @@
 
     --chart-primary: 38 28% 80%;
     --chart-secondary: 36 6% 48%;
+    --chart-secondary-edge: 36 6% 48%;
 
     --category-housing: 214 176 75;
     --category-food-and-drink: 229 152 108;

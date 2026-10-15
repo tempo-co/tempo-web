@@ -50,7 +50,8 @@ colors:
   light-destructive: "hsl(6 62% 42%)"
   light-destructive-foreground: "hsl(8 60% 96%)"
   light-chart-primary: "hsl(270 7% 30%)"
-  light-chart-secondary: "hsl(37 14% 52%)"
+  light-chart-secondary: "hsl(37 16% 74%)"
+  light-chart-secondary-edge: "hsl(37 12% 48%)"
 typography:
   page-title:
     fontFamily: "Inter Variable, Inter, sans-serif"
@@ -208,7 +209,9 @@ rings, chart marks and category chip icons.
 ### Charts
 
 Data series use `chart-primary` (Ink on light, warm Paper on dark) and `chart-secondary` (a
-warm grey), never Clay: Clay marks only the selected period or an action, so it keeps its
+light warm tint on light, warm grey on dark), never Clay. The light tint stays quiet next to the
+lead series, so its bars carry a 1px `chart-secondary-edge` outline that keeps them at 3:1 on the
+card. Clay marks only the selected period or an action, so it keeps its
 meaning on the dashboard. Chart colors come from tokens, never literals in components.
 
 For transaction categorization, the category label, source (`Suggested by AI` or `Manual`), and
@@ -264,7 +267,7 @@ decorative headers, metric-tile mosaics, or hero space before the data.
 
 Mostly flat tonal layering: page field, surfaces, accent washes, borders, whitespace. Cards
 keep `shadow-xs`; overlays (dialogs, popovers, drawers) may lift. Modal backdrops are the Night
-`scrim` at 60% in both themes, never black. Focus rings are functional emphasis. No glow,
+`scrim` at 60% on light and 80% on dark, never black. Focus rings are functional emphasis. No glow,
 glass, backdrop blur, or nested shadows. Resting content stays quiet.
 
 ## Shapes

@@ -46,7 +46,7 @@ function moneyFor(interval: CashFlowInterval, currency: string | null) {
 }
 
 /** Opaque, so the selected-month band never tints income into a different-looking series. */
-const incomeSwatch = 'bg-chart-secondary';
+const incomeSwatch = 'bg-chart-secondary ring-1 ring-chart-secondary-edge ring-inset';
 
 /** The dates to load for each zoom level. */
 function requestRange(interval: CashFlowInterval, month: string) {
@@ -404,7 +404,13 @@ function CashFlowChart({
               );
             }}
           />
-          <Bar dataKey='income' fill='var(--color-income)' isAnimationActive={false}>
+          <Bar
+            dataKey='income'
+            fill='var(--color-income)'
+            stroke='hsl(var(--chart-secondary-edge))'
+            strokeWidth={1}
+            isAnimationActive={false}
+          >
             {periods.map((period) => (
               <Cell key={period.start} fillOpacity={period.complete ? 1 : 0.5} />
             ))}
