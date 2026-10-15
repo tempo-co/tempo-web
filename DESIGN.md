@@ -27,7 +27,7 @@ colors:
   warning-foreground: "hsl(48 100% 13%)"
   info: "hsl(200 98% 39%)"
   info-foreground: "hsl(204 100% 13%)"
-  destructive: "hsl(2 84% 31%)"
+  destructive: "hsl(2 84% 61%)"
   destructive-foreground: "hsl(0 70% 13%)"
   light-background: "hsl(38.6 43.8% 93.7%)"
   light-surface: "hsl(42 55.6% 96.5%)"
@@ -161,7 +161,9 @@ the uses listed above.
 - **Destructive** (`{colors.destructive}`): failed operations and irreversible actions.
 
 Semantic colors are separate from the brand palette and must be paired with text, an icon, or
-another non-color cue. Never communicate transaction direction, synchronization state, or
+another non-color cue. As text they clear WCAG AA (4.5:1) on the page, card and popover
+grounds and on their own toast grounds in both themes. Labels on a destructive fill use
+`destructive-foreground`, never a fixed white. Never communicate transaction direction, synchronization state, or
 error state by hue alone.
 
 For transaction categorization, the category label, source (`Suggested by AI` or `Manual`), and

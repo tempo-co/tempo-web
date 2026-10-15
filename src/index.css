@@ -179,13 +179,13 @@
     --category-transfer-out: 108 92 75;
     --category-other: 98 94 102;
 
-    --destructive: 8 87% 51%;
+    --destructive: 8 87% 44%;
     --destructive-foreground: 8 87% 96%;
 
-    --warning: 32 95% 44%;
+    --warning: 32 95% 33%;
     --warning-foreground: 48 100% 97%;
 
-    --info: 200 98% 39%;
+    --info: 200 98% 34%;
     --info-foreground: 204 100% 98%;
 
     --success: 142 76% 28%;
@@ -243,7 +243,7 @@
     --category-transfer-out: 191 173 155;
     --category-other: 183 176 186;
 
-    --destructive: 2 84% 31%;
+    --destructive: 2 84% 61%;
     --destructive-foreground: 0 70% 13%;
 
     --warning: 32 95% 44%;
