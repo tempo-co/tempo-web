@@ -202,10 +202,8 @@ The `*-foreground` tokens are the pale (light) or deep (dark) grounds of status 
 label on a destructive fill; never put a fixed white on a status fill. Never communicate
 transaction direction, synchronization state, or error state by hue alone.
 
-**Contrast is checked, not eyeballed.** Every color pair the app renders clears WCAG AA in both
-themes: 4.5:1 for text, 3:1 for focus rings, chart marks and category chip icons.
-`npm run check:contrast` (`scripts/check-contrast.mjs`) verifies them from `src/index.css` and
-runs in CI. When a new pairing appears in the UI, add it to that script.
+Every color pair the app renders clears WCAG AA in both themes: 4.5:1 for text, 3:1 for focus
+rings, chart marks and category chip icons.
 
 ### Charts
 

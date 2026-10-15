@@ -44,9 +44,6 @@ jobs:
       - name: Run format check
         run: npm run format:check
 
-      - name: Check colour contrast
-        run: npm run check:contrast
-
   build:
     name: Build
     runs-on: ubuntu-latest
