@@ -56,7 +56,7 @@ typography:
     fontFamily: "Inter Variable, Inter, sans-serif"
     fontSize: "1.5rem"
     fontWeight: 600
-    lineHeight: 1.25
+    lineHeight: "2rem"
     letterSpacing: "-0.025em"
   section-title:
     fontFamily: "Inter Variable, Inter, sans-serif"
@@ -231,7 +231,7 @@ The named styles are Tailwind utilities defined in `src/index.css` (`text-page-t
 there reaches every use. Use them instead of rebuilding a style from size and weight classes,
 and don't introduce sizes outside this scale.
 
-- **Page title** (`text-page-title`: `600`, `1.5rem`, `1.25`, `-0.025em`): one per page,
+- **Page title** (`text-page-title`: `600`, `1.5rem`, `2rem`, `-0.025em`): one per page,
   including error and auth pages.
 - **Section title** (`text-section-title`: `600`, `1.125rem`, `1.35`): dialog and drawer
   titles, detail views, empty states.

@@ -29,7 +29,7 @@
 
   /* Named type styles from DESIGN.md: size, leading and weight in one utility (text-page-title). */
   --text-page-title: 1.5rem;
-  --text-page-title--line-height: 1.25;
+  --text-page-title--line-height: calc(2 / 1.5);
   --text-page-title--letter-spacing: -0.025em;
   --text-page-title--font-weight: 600;
   --text-section-title: 1.125rem;
