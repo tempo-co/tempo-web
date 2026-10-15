@@ -192,7 +192,7 @@
     --chart-primary: 270 7% 30%;   /* Ink-led data series: spending, balance line */
     --chart-secondary: 37 16% 74%; /* light warm tint second series: income */
     --chart-secondary-edge: 37 12% 48%; /* its 1px outline, 3:1 on card */
-    --scrim: 252 10.2% 9.6%;       /* Night: overlay backdrop in both themes */
+    --scrim: 252 10.2% 9.6%;       /* Night: overlay backdrop (dark uses a deeper Night) */
 
     --category-housing: 138 103 18;
     --category-food-and-drink: 160 86 44;
@@ -261,6 +261,7 @@
     --chart-primary: 38 28% 80%;
     --chart-secondary: 36 6% 48%;
     --chart-secondary-edge: 36 6% 48%;
+    --scrim: 252 12% 3%;            /* deeper Night: the dark page is already Night */
 
     --category-housing: 214 176 75;
     --category-food-and-drink: 229 152 108;

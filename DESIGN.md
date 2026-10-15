@@ -31,7 +31,8 @@ colors:
   destructive-foreground: "hsl(4 40% 12%)"
   chart-primary: "hsl(38 28% 80%)"
   chart-secondary: "hsl(36 6% 48%)"
-  scrim: "hsl(252 10.2% 9.6%)"
+  scrim: "hsl(252 12% 3%)"
+  light-scrim: "hsl(252 10.2% 9.6%)"
   light-background: "hsl(38.6 43.8% 93.7%)"
   light-surface: "hsl(42 55.6% 96.5%)"
   light-foreground: "hsl(270 7.5% 15.7%)"
@@ -267,7 +268,8 @@ decorative headers, metric-tile mosaics, or hero space before the data.
 
 Mostly flat tonal layering: page field, surfaces, accent washes, borders, whitespace. Cards
 keep `shadow-xs`; overlays (dialogs, popovers, drawers) may lift. Modal backdrops are the Night
-`scrim` at 60% on light and 80% on dark, never black. Focus rings are functional emphasis. No glow,
+`scrim` at 60% on light (Night) and 85% on dark (a deeper Night, since the dark page is
+already Night), never pure black. Focus rings are functional emphasis. No glow,
 glass, backdrop blur, or nested shadows. Resting content stays quiet.
 
 ## Shapes
