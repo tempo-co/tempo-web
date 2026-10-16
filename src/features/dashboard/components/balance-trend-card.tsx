@@ -72,14 +72,15 @@ export function BalanceTrendCard({connections}: {connections: BankConnection[]})
   );
 
   return (
-    <Card className='@container grid min-w-0 gap-5 p-5 sm:p-6' data-testid='balance-trend'>
+    <Card className='@container grid min-w-0 gap-4 p-5 sm:p-6' data-testid='balance-trend'>
       {/* The title and switch share the first row; the summary spans the card below them. */}
       <header className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1'>
         <h2 className='text-card-title'>Total balance</h2>
         {loaded && periods.length > 1 && (
           <Change periods={periods} interval={interval} currency={loaded.baseCurrency} />
         )}
-        <div className='col-start-2 row-start-1'>
+        {/* Overhangs the title row so the title sits where it does on every other card. */}
+        <div className='col-start-2 row-start-1 -my-1.5'>
           <IntervalToggle value={interval} onChange={setGrouping} label='Show total balance by' />
         </div>
       </header>
