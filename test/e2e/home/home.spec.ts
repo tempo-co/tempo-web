@@ -71,7 +71,7 @@ test.describe('Home', () => {
     await page.setViewportSize({width: 390, height: 844});
     await page.goto('/');
     await expect(homePage.monthHeading).toBeVisible();
-    await expect(page.getByText('Your bank synced about 1 month ago')).toBeHidden();
+    await expect(homePage.syncStatus).toBeHidden();
   });
 
   test('warns about consent that ends within a week', async ({page, homePage}) => {

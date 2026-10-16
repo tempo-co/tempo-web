@@ -86,11 +86,11 @@ export function CashFlowCard({month}: {month: string}) {
       {/* The title and switch share the first row; the summary spans the card below them. */}
       <header className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1'>
         <h2 className='text-card-title'>Cash flow</h2>
-        {loaded && <Averages periods={shown} interval={interval} currency={loaded.baseCurrency} />}
         {/* Overhangs the title row so the title sits where it does on every other card. */}
-        <div className='col-start-2 row-start-1 -my-1.5'>
+        <div className='-my-1.5'>
           <IntervalToggle value={interval} onChange={setGrouping} label='Group cash flow by' />
         </div>
+        {loaded && <Averages periods={shown} interval={interval} currency={loaded.baseCurrency} />}
       </header>
       {isError && !loaded ? (
         <div className='grid justify-items-start gap-3'>
