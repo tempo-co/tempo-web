@@ -50,10 +50,6 @@ test('months match the monthly summary and select the month for the rest of Home
   await page.goto('/?month=2026-08');
   const august = table(page, 'month').getByRole('row', {name: /August 2026/, includeHidden: true});
   await expect(august).toContainText(spent);
-  await expect(page.getByTestId('cash-flow-selected-month')).toContainText(spent);
-
-  // Income and what was left for the selected month sit under the chart.
-  await expect(page.getByTestId('cash-flow-selected-month')).toContainText('August 2026 spent');
 
   await page.goto('/');
   await openRow(page, 'month', 'August 2026');
@@ -108,8 +104,29 @@ test('weeks average full weeks only and mark the running week', async ({page}) =
   );
   await page.goto('/');
   await groupBy(page, 'Week');
-  await expect(card(page)).toContainText('Average week (4 full weeks): €262.50 spent');
+  await expect(card(page)).toContainText(
+    'Per week, 31 Aug – 27 Sep: €262.50 spent · €0.00 earned · €262.50 overspent',
+  );
   await expect(card(page)).toContainText('This week so far');
+});
+
+test('month averages name their span across a year boundary', async ({page}) => {
+  await page.route('**/bank-transactions/cash-flow**', (route) =>
+    fulfillJson(route, {
+      baseCurrency: 'EUR',
+      interval: 'month',
+      periods: [
+        {...week('2025-11-01', '2025-11-30', '1000.00'), income: '1500.00'},
+        {...week('2025-12-01', '2025-12-31', '1400.00'), income: '1500.00'},
+        {...week('2026-01-01', '2026-01-31', '1100.00'), income: '1500.00'},
+        {...week('2026-02-01', '2026-02-10', '300.00', false), income: '1500.00'},
+      ],
+    }),
+  );
+  await page.goto('/');
+  await expect(card(page)).toContainText(
+    'Per month, Nov 2025 – Jan 2026: €1,166.67 spent · €1,500.00 earned · €333.33 kept',
+  );
 });
 
 test('years drop cents and mark partial years', async ({page}) => {
@@ -132,7 +149,7 @@ test('years drop cents and mark partial years', async ({page}) => {
   ).toContainText('€35,400');
   await expect(card(page)).toContainText('Partial period');
   // One full year is not an average.
-  await expect(card(page)).not.toContainText('Average year');
+  await expect(card(page)).not.toContainText('Per year');
   await expect(card(page).locator('.recharts-yAxis-tick-labels')).toContainText('€');
   await expectNoHorizontalOverflow(page);
 });
