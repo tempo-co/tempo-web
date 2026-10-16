@@ -6,7 +6,7 @@ import {VERIFIED_USER_AUTH_FILE} from '../../constants/auth.constants';
 import {SEEDED_TRANSACTION_YEAR_NOW} from '../../constants/seed.constants';
 import {API_URL, expect, test} from '../../fixtures';
 import {fulfillJson} from '../../utils/api-mocks';
-import {expectNoHorizontalOverflow} from '../../utils/layout';
+import {boxOf, expectNoHorizontalOverflow} from '../../utils/layout';
 
 test.use({storageState: VERIFIED_USER_AUTH_FILE});
 test.beforeEach(async ({page}) => {
@@ -127,6 +127,32 @@ test('month averages name their span across a year boundary', async ({page}) => 
   await expect(card(page)).toContainText(
     'Per month, Nov 2025 – Jan 2026: €1,166.67 spent · €1,500.00 earned · €333.33 kept',
   );
+});
+
+test('a long summary wraps under the switch instead of pushing it below the title', async ({
+  page,
+}) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await page.route('**/bank-transactions/cash-flow**', (route) =>
+    fulfillJson(route, {
+      baseCurrency: 'EUR',
+      interval: 'month',
+      periods: [
+        {...week('2025-11-01', '2025-11-30', '2777.46'), income: '2742.65'},
+        {...week('2025-12-01', '2025-12-31', '2777.46'), income: '2742.65'},
+        {...week('2026-01-01', '2026-01-10', '300.00', false), income: '0.00'},
+      ],
+    }),
+  );
+  await page.goto('/');
+  const summary = card(page).getByText(/^Per month/);
+  await expect(summary).toBeVisible();
+  const title = await boxOf(card(page).getByRole('heading', {name: 'Cash flow'}));
+  const toggle = await boxOf(card(page).getByRole('group', {name: 'Group cash flow by'}));
+  // The switch shares the title's row, and the summary starts below both.
+  expect(toggle.y).toBeLessThan(title.y + title.height);
+  expect(toggle.y + toggle.height).toBeGreaterThan(title.y);
+  expect((await boxOf(summary)).y).toBeGreaterThanOrEqual(toggle.y + toggle.height);
 });
 
 test('years drop cents and mark partial years', async ({page}) => {

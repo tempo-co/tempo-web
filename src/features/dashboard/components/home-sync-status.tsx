@@ -49,7 +49,10 @@ export function HomeSyncStatus({connections}: {connections: BankConnection[]}) {
           </Link>
         </>
       ) : (
-        <span>{formatSyncedBanks(connections.length, oldestSyncedAt)}</span>
+        // Only problems earn space on a phone; an all-clear line just pushes Home down.
+        <span className='hidden md:inline'>
+          {formatSyncedBanks(connections.length, oldestSyncedAt)}
+        </span>
       )}
       {expiringConsents.map(({connection, daysLeft}) => (
         <Link

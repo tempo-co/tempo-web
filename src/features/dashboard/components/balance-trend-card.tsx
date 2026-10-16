@@ -73,14 +73,15 @@ export function BalanceTrendCard({connections}: {connections: BankConnection[]})
 
   return (
     <Card className='@container grid min-w-0 gap-5 p-5 sm:p-6' data-testid='balance-trend'>
-      <header className='flex flex-wrap items-start justify-between gap-x-6 gap-y-3'>
-        <div className='min-w-0'>
-          <h2 className='text-card-title'>Total balance</h2>
-          {loaded && periods.length > 1 && (
-            <Change periods={periods} interval={interval} currency={loaded.baseCurrency} />
-          )}
+      {/* The title and switch share the first row; the summary spans the card below them. */}
+      <header className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1'>
+        <h2 className='text-card-title'>Total balance</h2>
+        {loaded && periods.length > 1 && (
+          <Change periods={periods} interval={interval} currency={loaded.baseCurrency} />
+        )}
+        <div className='col-start-2 row-start-1'>
+          <IntervalToggle value={interval} onChange={setGrouping} label='Show total balance by' />
         </div>
-        <IntervalToggle value={interval} onChange={setGrouping} label='Show total balance by' />
       </header>
       {isError && !loaded ? (
         <div className='grid justify-items-start gap-3'>
@@ -138,7 +139,7 @@ function Change({
   const before = counted(first);
   const added = [...counted(last)].filter((id) => !before.has(id)).length;
   return (
-    <p className='mt-1 text-xs text-muted-foreground'>
+    <p className='col-span-2 text-xs text-muted-foreground'>
       <span className='numeric font-medium text-foreground'>
         {formatMoney(last.total, currency)}
       </span>{' '}
