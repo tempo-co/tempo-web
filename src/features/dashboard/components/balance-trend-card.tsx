@@ -34,18 +34,16 @@ const DATE_LABEL: Record<CashFlowInterval, (date: string) => string> = {
   week: (date) => format(day(date), 'd MMM'),
 };
 
-/** Below this, a percentage change says more about the small start than about the money. */
-const MIN_PERCENT_BASE_CENTS = 100_00;
-
 /** "31 Aug 2026" for a past period's end; "today" while it is running. */
 function pointName(period: BalanceTrendPeriod) {
   return period.complete ? format(day(period.end), 'd MMM yyyy') : 'Today';
 }
 
+/** "on 26 Apr", "at the end of November 2025" or "at the end of 2021". */
 function startName(period: BalanceTrendPeriod, interval: CashFlowInterval) {
   return interval === 'week'
-    ? DATE_LABEL.week(period.end)
-    : `end of ${DATE_LABEL[interval](period.start)}`;
+    ? `on ${DATE_LABEL.week(period.end)}`
+    : `at the end of ${DATE_LABEL[interval](period.start)}`;
 }
 
 /**
@@ -121,7 +119,7 @@ export function BalanceTrendCard({connections}: {connections: BankConnection[]})
   );
 }
 
-/** The latest total and how far it moved since the first point shown. */
+/** The latest total and how far the line moved since its first point. */
 function Change({
   periods,
   interval,
@@ -133,34 +131,42 @@ function Change({
 }) {
   const first = periods[0];
   const last = periods[periods.length - 1];
-  // Only accounts already counted at the first point, so an account joining is not growth.
-  const held = new Set(
-    first.accounts.filter((account) => account.balance !== null).map((account) => account.id),
-  );
-  const sumHeld = (period: BalanceTrendPeriod) =>
-    period.accounts.reduce(
-      (sum, account) =>
-        held.has(account.id) && account.balance !== null ? sum + toCents(account.balance) : sum,
-      0,
-    );
-  const difference = sumHeld(last) - sumHeld(first);
-  const base = Math.abs(sumHeld(first));
-  const percent =
-    base >= MIN_PERCENT_BASE_CENTS ? Math.round((Math.abs(difference) / base) * 100) : null;
+  const difference = toCents(last.total) - toCents(first.total);
+  // Accounts whose history starts after the first point count toward the change, so say so.
+  const counted = (period: BalanceTrendPeriod) =>
+    new Set(period.accounts.filter((account) => account.balance !== null).map(({id}) => id));
+  const before = counted(first);
+  const added = [...counted(last)].filter((id) => !before.has(id)).length;
   return (
     <p className='mt-1 text-xs text-muted-foreground'>
       <span className='numeric font-medium text-foreground'>
         {formatMoney(last.total, currency)}
       </span>{' '}
-      {last.complete ? `on ${pointName(last)}` : 'today'} ·{' '}
-      <span
-        className={cn('numeric font-medium', difference > 0 ? 'text-success' : 'text-foreground')}
-      >
-        {difference >= 0 ? '+' : '−'}
-        {formatMoney(Math.abs(difference) / 100, currency)}
-        {percent !== null && ` (${difference >= 0 ? '+' : '−'}${percent}%)`}
-      </span>{' '}
-      <span className='whitespace-nowrap'>since {startName(first, interval)}</span>
+      {last.complete ? `on ${pointName(last)}` : 'now'} ·{' '}
+      {difference === 0 ? (
+        'the same as'
+      ) : (
+        <>
+          <span
+            className={cn(
+              'numeric font-medium',
+              difference > 0 ? 'text-success' : 'text-foreground',
+            )}
+          >
+            {formatMoney(Math.abs(difference) / 100, currency)}
+          </span>{' '}
+          {difference > 0 ? 'more than' : 'less than'}
+        </>
+      )}{' '}
+      <span className='whitespace-nowrap'>{startName(first, interval)}</span>
+      {added > 0 && (
+        <>
+          {' · '}
+          <span className='whitespace-nowrap'>
+            includes {added === 1 ? '1 account' : `${added} accounts`} added since
+          </span>
+        </>
+      )}
     </p>
   );
 }
