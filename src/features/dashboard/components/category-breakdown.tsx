@@ -109,7 +109,7 @@ export function CategoryBreakdown({summary, isCurrentMonth}: CategoryBreakdownPr
               through,
               hasMissing,
             )}
-            className='-my-3 inline-flex min-h-11 w-fit items-center text-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+            className='-my-3 inline-flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
           >
             {remaining.length} more {remaining.length === 1 ? 'category' : 'categories'}{' '}
             <span aria-hidden='true'>→</span>

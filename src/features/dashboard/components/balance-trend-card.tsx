@@ -74,7 +74,7 @@ export function BalanceTrendCard({connections}: {connections: BankConnection[]})
   return (
     <Card className='@container grid min-w-0 gap-4 p-5 sm:p-6' data-testid='balance-trend'>
       {/* The title and switch share the first row; the summary spans the card below them. */}
-      <header className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1'>
+      <header className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2.5'>
         <h2 className='text-card-title'>Total balance</h2>
         {/* Overhangs the title row so the title sits where it does on every other card. */}
         <div className='-my-1.5'>
