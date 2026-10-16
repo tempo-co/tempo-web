@@ -148,7 +148,7 @@ test('a long summary wraps under the switch instead of pushing it below the titl
   const summary = card(page).getByText(/^Per month/);
   await expect(summary).toBeVisible();
   const title = await boxOf(card(page).getByRole('heading', {name: 'Cash flow'}));
-  const toggle = await boxOf(card(page).getByRole('group', {name: 'Group cash flow by'}));
+  const toggle = await boxOf(card(page).getByRole('radiogroup', {name: 'Group cash flow by'}));
   // The switch shares the title's row, and the summary starts below both.
   expect(toggle.y).toBeLessThan(title.y + title.height);
   expect(toggle.y + toggle.height).toBeGreaterThan(title.y);
