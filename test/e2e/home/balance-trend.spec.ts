@@ -83,10 +83,10 @@ test('ends today on the live balances from the API', async ({page}) => {
 test('states the total now and how far the line moved since its first point', async ({page}) => {
   await mockAccounts(page);
   await page.goto('/');
-  // The savings account's history starts after July, so it counts toward the change and is named.
   await expect(card(page)).toContainText(
-    '€3,100.00 now · €2,100.00 more than at the end of July 2026 · includes 1 account added since',
+    '€3,100.00 now · €2,100.00 more than at the end of July 2026',
   );
+  await expect(card(page)).not.toContainText('added since');
   await expect(card(page)).toContainText('Balance at the end of each month');
   await expect(
     table(page, 'month').getByRole('row', {name: /31 Aug 2026/, includeHidden: true}),
@@ -106,7 +106,7 @@ test('leaves out a point whose exchange rate is missing and says so', async ({pa
   ).toHaveCount(0);
 });
 
-test('a lower balance reads as less, without an added-accounts note', async ({page}) => {
+test('a lower balance reads as less', async ({page}) => {
   await mockAccounts(page, [
     month('2026-08-01', '2026-08-31', '1200.00', '500.00'),
     month('2026-09-01', '2026-09-30', '900.00', '700.00'),
@@ -116,7 +116,6 @@ test('a lower balance reads as less, without an added-accounts note', async ({pa
   await expect(card(page)).toContainText(
     '€1,100.00 now · €600.00 less than at the end of August 2026',
   );
-  await expect(card(page)).not.toContainText('added since');
 });
 
 test('switches to weeks and years and fits a phone', async ({page}) => {

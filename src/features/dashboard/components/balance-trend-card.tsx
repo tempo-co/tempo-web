@@ -134,11 +134,6 @@ function Change({
   const first = periods[0];
   const last = periods[periods.length - 1];
   const difference = toCents(last.total) - toCents(first.total);
-  // Accounts whose history starts after the first point count toward the change, so say so.
-  const counted = (period: BalanceTrendPeriod) =>
-    new Set(period.accounts.filter((account) => account.balance !== null).map(({id}) => id));
-  const before = counted(first);
-  const added = [...counted(last)].filter((id) => !before.has(id)).length;
   return (
     <p className='col-span-2 text-xs text-muted-foreground'>
       <span className='numeric font-medium text-foreground'>
@@ -161,14 +156,6 @@ function Change({
         </>
       )}{' '}
       <span className='whitespace-nowrap'>{startName(first, interval)}</span>
-      {added > 0 && (
-        <>
-          {' · '}
-          <span className='whitespace-nowrap'>
-            includes {added === 1 ? '1 account' : `${added} accounts`} added since
-          </span>
-        </>
-      )}
     </p>
   );
 }
