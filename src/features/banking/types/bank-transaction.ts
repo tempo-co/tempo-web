@@ -206,6 +206,11 @@ export const bankTransactionSearchParamsSchema = paginationSearchParamsSchema.ex
   baseAmount: z.enum(BANK_TRANSACTION_BASE_AMOUNT_FILTER_VALUES).optional(),
   categoryStatuses: z.array(z.enum(BANK_TRANSACTION_CATEGORY_STATUS_FILTER_VALUES)).optional(),
   search: z.string().max(100).optional(),
+  /** Only the payments of one recurring series, from the Recurring screen. */
+  recurringSeriesKey: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/)
+    .optional(),
   transactionId: z.string().optional(),
   sort: z
     .object({
@@ -239,6 +244,7 @@ export type BankTransactionFilterParams = Pick<
   | 'cashFlows'
   | 'baseAmount'
   | 'categoryStatuses'
+  | 'recurringSeriesKey'
   | 'search'
 >;
 

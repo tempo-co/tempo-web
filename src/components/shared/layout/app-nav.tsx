@@ -1,5 +1,5 @@
 import {Link, useMatchRoute} from '@tanstack/react-router';
-import {ArrowLeftRight, Home, Landmark, LogOut, Settings} from 'lucide-react';
+import {ArrowLeftRight, Home, Landmark, LogOut, Repeat, Settings} from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import {cn} from '@/utils/cn';
 
 type NavItem = {
   label: string;
-  to: '/' | '/bank-connections' | '/bank-transactions' | '/settings/account';
+  to: '/' | '/bank-connections' | '/bank-transactions' | '/recurring' | '/settings/account';
   /** The route subtree that marks the item active. */
   match: string;
   icon: typeof Home;
@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
     match: '/bank-transactions',
     icon: ArrowLeftRight,
   },
+  {label: 'Recurring', to: '/recurring', match: '/recurring', icon: Repeat},
 ];
 
 const tabItems: NavItem[] = [
@@ -81,7 +82,7 @@ export function AppTabBar() {
       data-testid='app-tab-bar'
       className='fixed inset-x-0 bottom-0 z-20 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden'
     >
-      <ul className='grid grid-cols-4'>
+      <ul className='grid grid-cols-5'>
         {tabItems.map((item) => {
           const active = isActive(item);
           return (
