@@ -147,6 +147,7 @@ export function BankTransactionTable({
         cashFlows: undefined,
         baseAmount: undefined,
         categoryStatuses: undefined,
+        recurringSeriesKey: undefined,
         search: undefined,
         pageIndex: 0,
       }),

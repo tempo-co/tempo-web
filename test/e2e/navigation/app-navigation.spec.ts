@@ -7,6 +7,7 @@ test.use({storageState: VERIFIED_USER_AUTH_FILE});
 const destinations = [
   {label: 'Connections', url: /\/bank-connections$/},
   {label: 'Transactions', url: /\/bank-transactions(?:\?|$)/},
+  {label: 'Recurring', url: /\/recurring$/},
   {label: 'Settings', url: /\/settings\/account$/},
   {label: 'Home', url: /^https?:\/\/[^/]+\/(?:\?|$)/},
 ];
