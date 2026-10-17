@@ -197,6 +197,24 @@ test('opens a series as a removable filter on the transactions list', async ({pa
   await expect.poll(lastSeriesFilter).toBeNull();
 });
 
+test('lets a drill be cleared when its series is no longer found', async ({page}) => {
+  await mockRecurring(page);
+  await page.route('**/bank-transactions?**', (route) => {
+    if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.continue();
+    const url = new URL(route.request().url());
+    // A correction moved a payment out, so the series is gone; a rate limit keeps the test from waiting out retries.
+    return url.searchParams.get('filter[recurringSeriesKey]')
+      ? fulfillJson(route, {statusCode: 429, message: 'ThrottlerException: Too Many Requests'}, 429)
+      : fulfillJson(route, {transactions: [], total: 0});
+  });
+  await page.goto(`/bank-transactions?recurringSeriesKey=${GYM_KEY}`);
+  await expect(page.getByText('Could not load bank transactions')).toBeVisible();
+
+  await page.getByRole('button', {name: 'Clear filters'}).click();
+  await expect(page).not.toHaveURL(/recurringSeriesKey/);
+  await expect(page.getByText('Could not load bank transactions')).toBeHidden();
+});
+
 test('says so when nothing recurring is found and when loading fails', async ({page}) => {
   await mockJson(page, '**/accounts/me', {
     id: '00000000-0000-4000-8000-000000000301',
