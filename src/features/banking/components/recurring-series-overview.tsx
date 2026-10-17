@@ -255,7 +255,7 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
               ? `Last paid ${formatBankTransactionCompactDate(series.lastDate)}`
               : `Next around ${formatBankTransactionCompactDate(series.nextExpectedDate)}`}
           </span>
-          {series.flags.includes('OVERDUE') && <Badge variant='secondary'>Overdue</Badge>}
+          {series.flags.includes('LATE') && <Badge variant='secondary'>Late</Badge>}
           {series.flags.includes('PRICE_INCREASED') && (
             <Badge variant='secondary'>
               Price went up to {formatMoney(series.latestAmount, series.currency)}

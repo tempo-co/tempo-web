@@ -21,7 +21,7 @@ export type RecurringSeries = {
   lastDate: string;
   nextExpectedDate: string;
   status: 'ACTIVE' | 'ENDED';
-  flags: Array<'PRICE_INCREASED' | 'OVERDUE'>;
+  flags: Array<'PRICE_INCREASED' | 'LATE'>;
   decision: RecurringSeriesDecision | null;
 };
 

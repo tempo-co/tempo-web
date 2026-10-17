@@ -5,7 +5,7 @@ import {api} from '@/utils/api';
 import type {RecurringSeriesDirection, RecurringSeriesList} from '../types/recurring-series';
 import {recurringQueryKeys} from './recurring-query-keys';
 
-/** Recurring payments detected in the owner's history; overdue and ended are judged at `asOf`. */
+/** Recurring payments detected in the owner's history; late and ended are judged at `asOf`. */
 export const useGetRecurringSeries = (
   direction: RecurringSeriesDirection,
   asOf: string,

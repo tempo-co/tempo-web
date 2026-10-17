@@ -56,7 +56,7 @@ async function mockRecurring(page: Page) {
         amountKind: 'VARIABLE',
         typicalAmount: '85.00',
         monthlyEquivalent: '85.00',
-        flags: ['OVERDUE'],
+        flags: ['LATE'],
       }),
       series({
         key: OLD_KEY,
@@ -137,7 +137,7 @@ for (const viewport of [
     await expect(row(page, STREAMING_KEY)).toContainText('Price went up to €14.99');
     await expect(row(page, ENERGY_KEY)).toContainText('Variable amount');
     await expect(row(page, ENERGY_KEY)).toContainText('~€85.00');
-    await expect(row(page, ENERGY_KEY)).toContainText('Overdue');
+    await expect(row(page, ENERGY_KEY)).toContainText('Late');
     // Ended series stay folded away until asked for.
     await expect(row(page, OLD_KEY)).toBeHidden();
     await page.getByText('Ended (1)').click();
