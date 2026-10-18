@@ -75,7 +75,7 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
         <EmptyState
           icon={Repeat}
           title='No recurring payments found yet'
-          description='Tempo looks for payments to the same place on a regular rhythm, at least three times, or twice a year apart.'
+          description='Tempo looks for payments to the same place on a regular rhythm. Annual subscriptions can be suggested after two payments; other patterns need at least three.'
         />
       ) : (
         <>

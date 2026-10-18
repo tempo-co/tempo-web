@@ -9,7 +9,7 @@ import {fulfillJson, mockBankConnections, mockJson} from '../../utils/api-mocks'
 import {expectNoHorizontalOverflow} from '../../utils/layout';
 
 // Every API call is mocked, so no seeded session is needed.
-test.use({storageState: {cookies: [], origins: []}});
+test.use({storageState: {cookies: [], origins: []}, timezoneId: 'Europe/Amsterdam'});
 
 const GYM_KEY = 'a'.repeat(32);
 const STREAMING_KEY = 'b'.repeat(32);
@@ -165,6 +165,55 @@ for (const viewport of [
   });
 }
 
+for (const wakeAfterMidnight of [false, true]) {
+  test(`refreshes the local date and stops counting an ended payment ${wakeAfterMidnight ? 'when waking next day' : 'after midnight'}`, async ({
+    page,
+  }) => {
+    await page.clock.install({time: new Date('2026-06-18T21:59:50Z')});
+    await mockRecurring(page);
+    const dates: string[] = [];
+    await page.route('**/recurring-series?**', (route) => {
+      const asOf = new URL(route.request().url()).searchParams.get('asOf')!;
+      dates.push(asOf);
+      const ended = asOf >= '2026-06-19';
+      return fulfillJson(route, {
+        series: [
+          series({
+            key: GYM_KEY,
+            name: 'Example Gym',
+            decision: 'CONFIRMED',
+            status: ended ? 'ENDED' : 'ACTIVE',
+            nextExpectedDate: '2026-06-13',
+            flags: ended ? [] : ['LATE'],
+          }),
+        ],
+        confirmedMonthlyTotal: ended ? '0.00' : '30.00',
+        unconvertedConfirmedCount: 0,
+        baseCurrency: 'EUR',
+      } satisfies RecurringSeriesList);
+    });
+    await page.goto('/recurring');
+    await expect(
+      page.getByRole('region', {name: 'Confirmed'}).getByText('Example Gym'),
+    ).toBeVisible();
+    await expect(page.getByTestId('recurring-summary')).toContainText('€30.00');
+
+    if (wakeAfterMidnight) {
+      await page.clock.setSystemTime(new Date('2026-06-18T22:00:05Z'));
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    } else {
+      await page.clock.fastForward(15_000);
+    }
+    await expect.poll(() => dates[dates.length - 1]).toBe('2026-06-19');
+    await expect(
+      page.getByRole('region', {name: 'Confirmed'}).getByText('Example Gym'),
+    ).toHaveCount(0);
+    await expect(page.getByTestId('recurring-summary')).toContainText('Only confirmed ones');
+    await page.getByText('Ended (1)').click();
+    await expect(row(page, GYM_KEY)).toContainText('Last paid');
+  });
+}
+
 test('loads recurring income only when its section is opened', async ({page}) => {
   const state = await mockRecurring(page);
   await page.goto('/recurring');
@@ -237,6 +286,9 @@ test('says so when nothing recurring is found and when loading fails', async ({p
   );
   await page.goto('/recurring');
   await expect(page.getByText('No recurring payments found yet')).toBeVisible();
+  await expect(
+    page.getByText('Annual subscriptions can be suggested after two payments', {exact: false}),
+  ).toBeVisible();
 
   fail = true;
   await page.reload();
