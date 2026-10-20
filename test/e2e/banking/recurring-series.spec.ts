@@ -1,5 +1,9 @@
 import type {Page} from '@playwright/test';
 
+import {
+  type BankTransaction,
+  BankTransactionDirection,
+} from '../../../src/features/banking/types/bank-transaction';
 import type {
   RecurringSeries,
   RecurringSeriesList,
@@ -109,6 +113,52 @@ async function mockRecurring(page: Page) {
   return state;
 }
 
+/** Synthetic source rows returned by the drill endpoint, not input to a browser-side detector. */
+function payment(
+  index: number,
+  fields: Pick<
+    BankTransaction,
+    'bookingDate' | 'displayDescription' | 'amount' | 'bankAccountAlias'
+  >,
+): BankTransaction {
+  return {
+    id: `00000000-0000-4000-8000-${String(400 + index).padStart(12, '0')}`,
+    transactionDate: fields.bookingDate,
+    valueDate: fields.bookingDate,
+    description: fields.displayDescription ?? null,
+    counterpartyName: fields.displayDescription ?? null,
+    currency: 'EUR',
+    creditDebitIndicator: 'DBIT',
+    direction: BankTransactionDirection.EXPENSE,
+    transactionType: 'DIRECT_DEBIT',
+    transactionStatus: 'BOOK',
+    providerTransactionDescription: null,
+    merchantCategoryCode: null,
+    remittanceInformation: null,
+    balanceAfterAmount: null,
+    balanceAfterCurrency: null,
+    instructedAmount: null,
+    instructedCurrency: null,
+    exchangeRate: null,
+    exchangeRateUnitCurrency: null,
+    exchangeRateType: null,
+    referenceNumber: null,
+    referenceNumberScheme: null,
+    bankName: 'Example Bank',
+    bankCountry: 'NL',
+    bankAccountName: 'Example Account',
+    category: 'SUBSCRIPTIONS',
+    categoryStatus: 'COMPLETED',
+    categorySource: 'MANUAL',
+    categoryConfidence: null,
+    financialEventType: null,
+    financialEventSource: null,
+    financialEventRuleVersion: null,
+    cashFlowTreatment: 'EXPENSE',
+    ...fields,
+  };
+}
+
 const row = (page: Page, key: string) => page.getByTestId(`recurring-series-${key}`);
 
 /** Uses the keyboard, which works while a toast covers the bottom of a phone screen. */
@@ -162,6 +212,175 @@ for (const viewport of [
       {key: ENERGY_KEY, decision: 'DISMISSED'},
       {key: ENERGY_KEY, decision: null},
     ]);
+  });
+
+  // The API owns consolidation and eligibility; this only verifies consumption of its DTOs.
+  test(`renders consolidated histories, a separate plan and a weekly bill at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const state = await mockRecurring(page);
+    const ongoingKey = 'a1'.repeat(16);
+    const endedKey = 'b2'.repeat(16);
+    const concurrentKey = 'c3'.repeat(16);
+    const weeklyKey = 'd4'.repeat(16);
+    const histories = [
+      {
+        entry: series({
+          key: ongoingKey,
+          name: 'Example Cloud',
+          decision: 'CONFIRMED',
+          typicalAmount: '24.00',
+          latestAmount: '24.00',
+          monthlyEquivalent: '24.00',
+        }),
+        payments: ['04', '05', '06', '07', '08', '09'].map((month, index) =>
+          payment(index, {
+            bookingDate: `2026-${month}-03`,
+            displayDescription: index < 3 ? 'Example Cloud' : 'Example Cloud Billing',
+            amount: index < 3 ? '-18.00' : '-24.00',
+            bankAccountAlias: index < 3 ? 'Example Original Account' : 'Example Current Account',
+          }),
+        ),
+      },
+      {
+        entry: series({
+          key: endedKey,
+          name: 'Example Archive',
+          decision: 'CONFIRMED',
+          status: 'ENDED',
+          typicalAmount: '16.00',
+          latestAmount: '16.00',
+          monthlyEquivalent: '16.00',
+          transactionCount: 4,
+          firstDate: '2026-01-03',
+          lastDate: '2026-04-03',
+          nextExpectedDate: '2026-05-03',
+        }),
+        payments: ['01', '02', '03', '04'].map((month, index) =>
+          payment(10 + index, {
+            bookingDate: `2026-${month}-03`,
+            displayDescription: index < 2 ? 'Example Archive' : 'Example Archive Billing',
+            amount: '-16.00',
+            bankAccountAlias: index < 2 ? 'Example Original Account' : 'Example Current Account',
+          }),
+        ),
+      },
+      {
+        entry: series({
+          key: concurrentKey,
+          name: 'Example Cloud',
+          decision: 'CONFIRMED',
+          typicalAmount: '9.00',
+          latestAmount: '9.00',
+          monthlyEquivalent: '9.00',
+          transactionCount: 3,
+          firstDate: '2026-07-17',
+          lastDate: '2026-09-17',
+          nextExpectedDate: '2026-10-17',
+        }),
+        payments: ['07', '08', '09'].map((month, index) =>
+          payment(20 + index, {
+            bookingDate: `2026-${month}-17`,
+            displayDescription: 'Example Cloud',
+            amount: '-9.00',
+            bankAccountAlias: 'Example Original Account',
+          }),
+        ),
+      },
+      {
+        entry: series({
+          key: weeklyKey,
+          name: 'Example Weekly Bill',
+          cadence: 'WEEKLY',
+          typicalAmount: '12.00',
+          latestAmount: '12.00',
+          monthlyEquivalent: '52.00',
+          transactionCount: 3,
+          firstDate: '2026-09-01',
+          lastDate: '2026-09-15',
+          nextExpectedDate: '2026-09-22',
+        }),
+        payments: ['01', '08', '15'].map((day, index) =>
+          payment(30 + index, {
+            bookingDate: `2026-09-${day}`,
+            displayDescription: 'Example Weekly Bill',
+            amount: '-12.00',
+            bankAccountAlias: 'Example Current Account',
+          }),
+        ),
+      },
+    ];
+    state.expenses = histories.map(({entry}) => entry);
+    const drillKeys: Array<string | null> = [];
+    await page.route('**/bank-transactions?**', (route) => {
+      if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.continue();
+      const key = new URL(route.request().url()).searchParams.get('filter[recurringSeriesKey]');
+      drillKeys.push(key);
+      const payments = histories.find(({entry}) => entry.key === key)?.payments ?? [];
+      return fulfillJson(route, {transactions: [...payments].reverse(), total: payments.length});
+    });
+    await page.goto('/recurring');
+
+    const confirmed = page.getByRole('region', {name: 'Confirmed'});
+    const suggested = page.getByRole('region', {name: 'Suggested'});
+    await expect(page.getByTestId('recurring-summary')).toHaveText(
+      '€33.00 a month across 2 confirmed payments.',
+    );
+    await expect(
+      suggested.getByText('New suggestions exclude ordinary grocery and shopping patterns.', {
+        exact: false,
+      }),
+    ).toBeVisible();
+    await expect(confirmed.getByRole('link', {name: 'Example Cloud, 6 payments'})).toHaveCount(1);
+    await expect(confirmed.getByRole('link', {name: 'Example Cloud, 3 payments'})).toHaveCount(1);
+    await expect(row(page, ongoingKey)).toContainText('€24.00');
+    await expect(row(page, concurrentKey)).toContainText('€9.00');
+    await expect(row(page, endedKey)).toBeHidden();
+    await expect(
+      suggested.getByRole('link', {name: 'Example Weekly Bill, 3 payments'}),
+    ).toBeVisible();
+    await expect(row(page, weeklyKey)).toContainText('Weekly');
+    await expect(row(page, weeklyKey)).toContainText('€12.00');
+    await expect(row(page, weeklyKey)).toContainText('≈ €52.00 a month');
+    await expectNoHorizontalOverflow(page);
+
+    await page.getByRole('button', {name: 'Confirm Example Weekly Bill'}).click();
+    await expect(
+      confirmed.getByRole('link', {name: 'Example Weekly Bill, 3 payments'}),
+    ).toBeVisible();
+    await expect(page.getByTestId('recurring-summary')).toHaveText(
+      '€85.00 a month across 3 confirmed payments.',
+    );
+    expect(state.writes).toEqual([{key: weeklyKey, decision: 'CONFIRMED'}]);
+
+    for (const {entry, payments} of histories) {
+      if (entry.status === 'ENDED') {
+        await page.getByText('Ended (1)').click();
+        await expect(row(page, endedKey)).toContainText('Last paid');
+      }
+      await row(page, entry.key)
+        .getByRole('link', {name: `${entry.name}, ${payments.length} payments`, exact: true})
+        .click();
+      await expect(page).toHaveURL(new RegExp(`recurringSeriesKey=${entry.key}`));
+      await expect.poll(() => drillKeys[drillKeys.length - 1]).toBe(entry.key);
+      const transactionRows = page.getByTestId(/^bank-transaction-row-/);
+      await expect(transactionRows).toHaveCount(payments.length);
+      await expect
+        .poll(() =>
+          transactionRows.evaluateAll((rows) => rows.map((r) => r.getAttribute('data-testid'))),
+        )
+        .toEqual([...payments].reverse().map(({id}) => `bank-transaction-row-${id}`));
+      for (const transaction of payments) {
+        const transactionRow = page.getByTestId(`bank-transaction-row-${transaction.id}`);
+        await expect(transactionRow).toContainText(transaction.displayDescription!);
+      }
+      await expectNoHorizontalOverflow(page);
+      await page.goBack();
+      await expect(page.getByTestId('recurring-summary')).toHaveText(
+        '€85.00 a month across 3 confirmed payments.',
+      );
+    }
   });
 }
 
@@ -265,6 +484,7 @@ test('lets a drill be cleared when its series is no longer found', async ({page}
 });
 
 test('says so when nothing recurring is found and when loading fails', async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844});
   await mockJson(page, '**/accounts/me', {
     id: '00000000-0000-4000-8000-000000000301',
     name: 'Alex Example',
@@ -287,8 +507,14 @@ test('says so when nothing recurring is found and when loading fails', async ({p
   await page.goto('/recurring');
   await expect(page.getByText('No recurring payments found yet')).toBeVisible();
   await expect(
+    page.getByText('New suggestions exclude ordinary grocery and shopping patterns.', {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(
     page.getByText('Annual subscriptions can be suggested after two payments', {exact: false}),
   ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 
   fail = true;
   await page.reload();

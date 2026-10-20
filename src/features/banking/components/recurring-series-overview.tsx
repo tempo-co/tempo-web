@@ -75,7 +75,7 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
         <EmptyState
           icon={Repeat}
           title='No recurring payments found yet'
-          description='Tempo looks for payments to the same place on a regular rhythm. Annual subscriptions can be suggested after two payments; other patterns need at least three.'
+          description='Tempo looks for payments to the same place on a regular rhythm. New suggestions exclude ordinary grocery and shopping patterns. Annual subscriptions can be suggested after two payments; other patterns need at least three.'
         />
       ) : (
         <>
@@ -87,7 +87,7 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
           />
           <SeriesSection
             title='Suggested'
-            description='Detected from your history. Confirm or dismiss each one.'
+            description='New suggestions exclude ordinary grocery and shopping patterns. Confirm or dismiss each one.'
             series={groups.suggested}
             baseCurrency={data.baseCurrency}
             empty='No new suggestions.'
