@@ -5,6 +5,7 @@ import {
   BankTransactionDirection,
 } from '../../../src/features/banking/types/bank-transaction';
 import type {
+  RecurringContinuation,
   RecurringSeries,
   RecurringSeriesList,
 } from '../../../src/features/banking/types/recurring-series';
@@ -487,7 +488,7 @@ for (const viewport of [
     await page.route('**/recurring-series/*/continuation', async (route) => {
       const parts = route.request().url().split('/');
       const key = parts[parts.length - 2];
-      const {choice} = route.request().postDataJSON() as {choice: 'LINKED' | 'SEPARATE' | null};
+      const {choice} = route.request().postDataJSON() as Pick<RecurringContinuation, 'choice'>;
       writes.push({key, choice});
       await new Promise<void>((resolve) => held.push(resolve));
       state.expenses =

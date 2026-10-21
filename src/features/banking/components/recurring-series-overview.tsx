@@ -13,7 +13,11 @@ import {savedDataStatus} from '@/utils/query-status';
 import {useGetRecurringSeries} from '../api/use-get-recurring-series';
 import {useUpdateRecurringContinuation} from '../api/use-update-recurring-continuation';
 import {useUpdateRecurringSeriesDecision} from '../api/use-update-recurring-series-decision';
-import {RECURRING_CADENCE_LABELS, type RecurringSeries} from '../types/recurring-series';
+import {
+  RECURRING_CADENCE_LABELS,
+  type RecurringContinuation,
+  type RecurringSeries,
+} from '../types/recurring-series';
 import {formatBankTransactionCompactDate} from '../utils/formatters';
 
 type Groups = Record<'confirmed' | 'suggested' | 'ended' | 'dismissed', RecurringSeries[]>;
@@ -300,7 +304,9 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
           </Button>
         )}
       </div>
-      {series.continuation && <ContinuationQuestion series={series} />}
+      {series.continuation && (
+        <ContinuationQuestion seriesKey={series.key} continuation={series.continuation} />
+      )}
     </li>
   );
 }
@@ -309,11 +315,16 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
  * The detector found an earlier history that looks like this one under an older name. Only the
  * owner can say whether it is the same payment; until then both stay as they are.
  */
-function ContinuationQuestion({series}: {series: RecurringSeries}) {
+function ContinuationQuestion({
+  seriesKey,
+  continuation: {choice, previousName, previousFirstDate, previousLastDate},
+}: {
+  seriesKey: string;
+  continuation: RecurringContinuation;
+}) {
   const {updateContinuation, pendingKey} = useUpdateRecurringContinuation();
-  const busy = pendingKey === series.key;
-  const {choice, previousName, previousFirstDate, previousLastDate} = series.continuation!;
-  const answer = (next: typeof choice) => void updateContinuation({key: series.key, choice: next});
+  const busy = pendingKey === seriesKey;
+  const answer = (next: typeof choice) => void updateContinuation({key: seriesKey, choice: next});
   const status = busy && <span className='text-xs text-muted-foreground'>Saving…</span>;
 
   if (choice !== null) {
