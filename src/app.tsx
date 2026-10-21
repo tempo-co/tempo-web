@@ -50,15 +50,10 @@ export function App() {
         <LoadingScreen />
       ) : (
         <React.Suspense fallback={<LoadingScreen />}>
-          {/* eslint-disable-next-line react/no-unknown-property */}
-          <div vaul-drawer-wrapper=''>
-            <RouterProvider router={router} context={{isAuthenticated, isEmailVerified}} />
-          </div>
+          <RouterProvider router={router} context={{isAuthenticated, isEmailVerified}} />
         </React.Suspense>
       )}
       <Toaster
-        expand
-        duration={5000}
         offset={hasTabBar ? {bottom: TAB_BAR_TOAST_OFFSET} : undefined}
         mobileOffset={hasTabBar ? {bottom: TAB_BAR_TOAST_OFFSET} : undefined}
       />
