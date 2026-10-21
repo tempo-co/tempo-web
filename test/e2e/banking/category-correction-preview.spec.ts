@@ -329,3 +329,34 @@ for (const viewport of [
     });
   });
 }
+
+test('a category save confirms inline instead of with a toast', async ({page}) => {
+  const state = await mockCorrection(page, {...impact, total: 0, transactions: []});
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(`**/bank-transactions/${ID}/category`, async (route) => {
+    await held;
+    state.saved = {
+      ...state.saved,
+      category: 'TRAVEL',
+      categoryStatus: 'COMPLETED',
+      categorySource: 'MANUAL',
+    };
+    await fulfillJson(route, state.saved);
+  });
+  const status = page.getByTestId('bank-transaction-category-status');
+  const toasts = page.locator('[data-sonner-toast]');
+  try {
+    const saved = page.waitForRequest(`**/bank-transactions/${ID}/category`);
+    await chooseTravel(page);
+    await saved;
+    await expect(toasts).toHaveCount(0);
+    await expect(status).toContainText('Saving…');
+    await expect(categorySelect(page)).toBeDisabled();
+  } finally {
+    release();
+  }
+  await expect(status).toHaveText('Categorized · Manual');
+  await expect(categorySelect(page)).toHaveText('Travel');
+  await expect(toasts).toHaveCount(0);
+});
