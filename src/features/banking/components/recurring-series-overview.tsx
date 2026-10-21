@@ -11,6 +11,7 @@ import {formatMoney} from '@/features/dashboard/utils/money';
 import {savedDataStatus} from '@/utils/query-status';
 
 import {useGetRecurringSeries} from '../api/use-get-recurring-series';
+import {useUpdateRecurringContinuation} from '../api/use-update-recurring-continuation';
 import {useUpdateRecurringSeriesDecision} from '../api/use-update-recurring-series-decision';
 import {RECURRING_CADENCE_LABELS, type RecurringSeries} from '../types/recurring-series';
 import {formatBankTransactionCompactDate} from '../utils/formatters';
@@ -299,7 +300,84 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
           </Button>
         )}
       </div>
+      {series.continuation && <ContinuationQuestion series={series} />}
     </li>
+  );
+}
+
+/**
+ * The detector found an earlier history that looks like this one under an older name. Only the
+ * owner can say whether it is the same payment; until then both stay as they are.
+ */
+function ContinuationQuestion({series}: {series: RecurringSeries}) {
+  const {updateContinuation, pendingKey} = useUpdateRecurringContinuation();
+  const busy = pendingKey === series.key;
+  const {choice, previousName, previousFirstDate, previousLastDate} = series.continuation!;
+  const answer = (next: typeof choice) => void updateContinuation({key: series.key, choice: next});
+  const status = busy && <span className='text-xs text-muted-foreground'>Saving…</span>;
+
+  if (choice !== null) {
+    return (
+      <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:col-span-2'>
+        <span>
+          {choice === 'LINKED'
+            ? `Includes earlier payments to ${previousName}.`
+            : `Kept separate from ${previousName}.`}
+        </span>
+        <Button
+          size='sm'
+          variant='ghost'
+          className='h-8 px-2 max-sm:h-11'
+          disabled={busy}
+          onClick={() => answer(null)}
+          aria-label={
+            choice === 'LINKED' ? `Unlink ${previousName}` : `Ask again about ${previousName}`
+          }
+        >
+          {choice === 'LINKED' ? 'Unlink' : 'Ask again'}
+        </Button>
+        {status}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role='group'
+      aria-label='Same payment?'
+      className='grid gap-2 rounded-md border border-dashed px-3 py-2 text-sm sm:col-span-2 sm:flex sm:items-center sm:justify-between'
+    >
+      <p className='min-w-0'>
+        Same payment as {previousName}?{' '}
+        <span className='text-xs text-muted-foreground'>
+          Paid {formatBankTransactionCompactDate(previousFirstDate)} –{' '}
+          {formatBankTransactionCompactDate(previousLastDate)}
+        </span>
+      </p>
+      <div className='flex gap-2'>
+        <Button
+          size='sm'
+          variant='outline'
+          className='max-sm:h-11 max-sm:flex-1'
+          disabled={busy}
+          onClick={() => answer('LINKED')}
+          aria-label={`Link with ${previousName}`}
+        >
+          Link
+        </Button>
+        <Button
+          size='sm'
+          variant='ghost'
+          className='max-sm:h-11 max-sm:flex-1'
+          disabled={busy}
+          onClick={() => answer('SEPARATE')}
+          aria-label={`Keep separate from ${previousName}`}
+        >
+          Keep separate
+        </Button>
+        {status}
+      </div>
+    </div>
   );
 }
 

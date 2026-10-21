@@ -37,6 +37,7 @@ function series(overrides: Partial<RecurringSeries> & Pick<RecurringSeries, 'key
     status: 'ACTIVE',
     flags: [],
     decision: null,
+    continuation: null,
     ...overrides,
   } satisfies RecurringSeries;
 }
@@ -432,6 +433,142 @@ for (const wakeAfterMidnight of [false, true]) {
     await expect(row(page, GYM_KEY)).toContainText('Last paid');
   });
 }
+
+for (const viewport of [
+  {width: 1280, height: 800},
+  {width: 390, height: 844},
+]) {
+  test(`answers a same-payment question and undoes the answer at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const state = await mockRecurring(page);
+    const previousKey = 'e5'.repeat(16);
+    const currentKey = 'f6'.repeat(16);
+    const previous = series({
+      key: previousKey,
+      name: 'Example Motion Ltd',
+      status: 'ENDED',
+      transactionCount: 3,
+      firstDate: '2026-01-11',
+      lastDate: '2026-03-11',
+      typicalAmount: '24.00',
+      monthlyEquivalent: '24.00',
+    });
+    const asked = {
+      choice: null,
+      previousName: 'Example Motion Ltd',
+      previousFirstDate: '2026-01-11',
+      previousLastDate: '2026-03-11',
+    } as const;
+    const current = series({
+      key: currentKey,
+      name: 'Example Motion Exampletown',
+      transactionCount: 4,
+      firstDate: '2026-07-12',
+      typicalAmount: '25.00',
+      monthlyEquivalent: '25.00',
+      continuation: asked,
+    });
+    const joined = series({
+      ...current,
+      transactionCount: 7,
+      firstDate: '2026-01-11',
+      continuation: {...asked, choice: 'LINKED'},
+    });
+    state.expenses = [current, previous];
+    const writes: Array<{key: string; choice: string | null}> = [];
+    // Each answer is held until the test releases it, so its saving state can be observed.
+    const held: Array<() => void> = [];
+    const release = async () => {
+      await expect.poll(() => held.length).toBe(1);
+      held.shift()!();
+    };
+    await page.route('**/recurring-series/*/continuation', async (route) => {
+      const parts = route.request().url().split('/');
+      const key = parts[parts.length - 2];
+      const {choice} = route.request().postDataJSON() as {choice: 'LINKED' | 'SEPARATE' | null};
+      writes.push({key, choice});
+      await new Promise<void>((resolve) => held.push(resolve));
+      state.expenses =
+        choice === 'LINKED'
+          ? [joined]
+          : choice === 'SEPARATE'
+            ? [{...current, continuation: {...asked, choice}}, previous]
+            : [current, previous];
+      return route.fulfill({status: 204});
+    });
+    await page.goto('/recurring');
+
+    const question = row(page, currentKey).getByRole('group', {name: 'Same payment?'});
+    await expect(question).toContainText('Same payment as Example Motion Ltd?');
+    await expect(question).toContainText('11 Jan – 11 Mar');
+    await expectNoHorizontalOverflow(page);
+
+    await question.getByRole('button', {name: 'Link with Example Motion Ltd'}).click();
+    await expect(
+      question.getByRole('button', {name: 'Link with Example Motion Ltd'}),
+    ).toBeDisabled();
+    await expect(question).toContainText('Saving…');
+    await release();
+    await expect(row(page, currentKey)).toContainText(
+      'Includes earlier payments to Example Motion Ltd',
+    );
+    await expect(
+      page.getByRole('link', {name: 'Example Motion Exampletown, 7 payments'}),
+    ).toBeVisible();
+    await expect(row(page, previousKey)).toHaveCount(0);
+
+    await row(page, currentKey).getByRole('button', {name: 'Unlink Example Motion Ltd'}).focus();
+    await page.keyboard.press('Enter');
+    await release();
+    await expect(question).toContainText('Same payment as Example Motion Ltd?');
+
+    await question.getByRole('button', {name: 'Keep separate from Example Motion Ltd'}).focus();
+    await page.keyboard.press('Enter');
+    await release();
+    await expect(row(page, currentKey)).toContainText('Kept separate from Example Motion Ltd');
+    await row(page, currentKey)
+      .getByRole('button', {name: 'Ask again about Example Motion Ltd'})
+      .focus();
+    await page.keyboard.press('Enter');
+    await release();
+    await expect(question).toContainText('Same payment as Example Motion Ltd?');
+    await expectNoHorizontalOverflow(page);
+
+    expect(writes).toEqual([
+      {key: currentKey, choice: 'LINKED'},
+      {key: currentKey, choice: null},
+      {key: currentKey, choice: 'SEPARATE'},
+      {key: currentKey, choice: null},
+    ]);
+    expect(state.writes).toEqual([]);
+  });
+}
+
+test('says so when a same-payment answer could not be saved', async ({page}) => {
+  const state = await mockRecurring(page);
+  const key = 'f7'.repeat(16);
+  state.expenses = [
+    series({
+      key,
+      name: 'Example Renamed Plan',
+      continuation: {
+        choice: null,
+        previousName: 'Example Plan',
+        previousFirstDate: '2026-01-11',
+        previousLastDate: '2026-03-11',
+      },
+    }),
+  ];
+  await page.route('**/recurring-series/*/continuation', (route) =>
+    fulfillJson(route, {statusCode: 404, message: 'Recurring payment not found.'}, 404),
+  );
+  await page.goto('/recurring');
+  await page.getByRole('button', {name: 'Link with Example Plan'}).click();
+  await expect(page.getByText('Could not save. Please try again.')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Link with Example Plan'})).toBeEnabled();
+});
 
 test('loads recurring income only when its section is opened', async ({page}) => {
   const state = await mockRecurring(page);
