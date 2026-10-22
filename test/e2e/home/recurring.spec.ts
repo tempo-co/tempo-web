@@ -74,9 +74,16 @@ for (const viewport of [
     expect(dates).toEqual(['2026-10-01']);
     await expectNoHorizontalOverflow(page);
 
-    await card(page).getByRole('link', {name: 'See all recurring payments'}).click();
-    await expect(page).toHaveURL(/\/recurring$/);
-    await expect(page.getByRole('heading', {name: 'Recurring', level: 1})).toBeVisible();
+    // The full list opens over Home, and Back closes it.
+    await card(page).getByRole('button', {name: 'See all recurring payments'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Recurring payments'});
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/[?&]recurring=open/);
+    await page.goBack();
+    await expect(dialog).toBeHidden();
+    await expect(card(page)).toBeVisible();
+    await page.goto('/recurring');
+    await expect(page.getByRole('dialog', {name: 'Recurring payments'})).toBeHidden();
   });
 }
 

@@ -199,9 +199,9 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     const state = await mockRecurring(page);
-    await page.goto('/recurring');
+    await page.goto('/?recurring=open');
 
-    await expect(page.getByRole('heading', {name: 'Recurring', level: 1})).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'Recurring payments'})).toBeVisible();
     // Bills and income come from one request.
     await expect(page.getByRole('region', {name: 'Income'})).toBeVisible();
     expect(state.listReads).toHaveLength(1);
@@ -302,7 +302,7 @@ for (const viewport of [
       state.expenses = linked ? [joined] : [current, previous];
       return route.fulfill({status: 204});
     });
-    await page.goto('/recurring');
+    await page.goto('/?recurring=open');
 
     await expect(row(page, joinedKey)).toContainText(
       'Includes earlier payments to Example Motion Ltd',
@@ -334,7 +334,7 @@ test('says so when hiding could not be saved', async ({page}) => {
   await page.route('**/recurring-series/*/hidden', (route) =>
     fulfillJson(route, {statusCode: 404, message: 'Recurring payment not found.'}, 404),
   );
-  await page.goto('/recurring');
+  await page.goto('/?recurring=open');
   await chooseFromRowMenu(page, 'Example Gym', 'Not recurring');
   await expect(page.getByText('Could not save. Please try again.')).toBeVisible();
   await expect(row(page, GYM_KEY)).toBeVisible();
@@ -386,7 +386,7 @@ test('drills a series and a weekly bill through to exactly their payments', asyn
     const payments = histories.find(({entry}) => entry.key === key)?.payments ?? [];
     return fulfillJson(route, {transactions: [...payments].reverse(), total: payments.length});
   });
-  await page.goto('/recurring');
+  await page.goto('/?recurring=open');
   await expect(row(page, weeklyKey)).toContainText('Weekly');
   await expect(row(page, weeklyKey)).toContainText('≈ €52.00 a month');
 
@@ -428,7 +428,7 @@ for (const wakeAfterMidnight of [false, true]) {
         ]),
       );
     });
-    await page.goto('/recurring');
+    await page.goto('/?recurring=open');
     await expect(row(page, GYM_KEY)).toBeVisible();
     await expect(page.getByTestId('recurring-summary')).toContainText('€30.00');
 
@@ -447,7 +447,7 @@ for (const wakeAfterMidnight of [false, true]) {
 
 test('lists recurring income next to bills', async ({page}) => {
   await mockRecurring(page);
-  await page.goto('/recurring');
+  await page.goto('/?recurring=open');
   const income = page.getByRole('region', {name: 'Income'});
   await expect(income.getByText('Example Employer')).toBeVisible();
   await expect(income).toContainText('€2,500.00 a month');
@@ -463,7 +463,7 @@ test('opens a series as a removable filter on the transactions list', async ({pa
     listRequests.push(new URL(route.request().url()));
     return fulfillJson(route, {transactions: [], total: 0});
   });
-  await page.goto('/recurring');
+  await page.goto('/?recurring=open');
 
   await page.getByRole('link', {name: 'Example Gym, 6 payments'}).click();
   await expect(page).toHaveURL(new RegExp(`recurringSeriesKey=${GYM_KEY}`));
@@ -508,7 +508,7 @@ test('says so when nothing recurring is found and when loading fails', async ({p
       ? fulfillJson(route, {statusCode: 429, message: 'ThrottlerException: Too Many Requests'}, 429)
       : fulfillJson(route, listsOf([])),
   );
-  await page.goto('/recurring');
+  await page.goto('/?recurring=open');
   await expect(page.getByText('No recurring payments found yet')).toBeVisible();
   await expect(
     page.getByText('Annual subscriptions count after two payments', {exact: false}),

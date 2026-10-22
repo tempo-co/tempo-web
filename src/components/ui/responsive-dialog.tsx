@@ -88,12 +88,18 @@ const ResponsiveDialogClose = ({className, children, ...props}: ResponsiveDialog
   );
 };
 
+/** A toast's action (such as Undo) answers what happened in the dialog; it is not a click outside it. */
+const keepOpenForToasts = (event: {target: EventTarget | null; preventDefault: () => void}) => {
+  if (event.target instanceof Element && event.target.closest('[data-sonner-toaster]'))
+    event.preventDefault();
+};
+
 const ResponsiveDialogContent = ({className, children, ...props}: ResponsiveDialogProps) => {
   const {isDesktop} = useResponsiveDialogContext();
   const ResponsiveDialogContent = isDesktop ? DialogContent : DrawerContent;
 
   return (
-    <ResponsiveDialogContent className={className} {...props}>
+    <ResponsiveDialogContent className={className} onInteractOutside={keepOpenForToasts} {...props}>
       {children}
     </ResponsiveDialogContent>
   );

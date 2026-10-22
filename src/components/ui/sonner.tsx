@@ -10,7 +10,8 @@ const Toaster = ({...props}: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
-      className='toaster group'
+      // A modal dialog makes the rest of the page inert; a toast's Undo must still work over it.
+      className='toaster group pointer-events-auto'
       toastOptions={{
         classNames: {
           // Utilities are layered in Tailwind v4, so sonner's injected (unlayered) defaults win unless

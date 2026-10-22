@@ -1,4 +1,4 @@
-import {Link} from '@tanstack/react-router';
+import {useNavigate} from '@tanstack/react-router';
 
 import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
@@ -13,6 +13,7 @@ import {formatMoney, toCents} from '../utils/money';
 export function RecurringCard() {
   const asOf = useLocalDate();
   const {summary, isPending, isError, refetch} = useGetRecurringSummary(asOf);
+  const navigate = useNavigate({from: '/'});
 
   if (isPending) return <Skeleton className='h-48' aria-label='Loading recurring payments' />;
 
@@ -21,13 +22,14 @@ export function RecurringCard() {
       {/* The 44px link overhangs the title row so the title and content line up with other cards. */}
       <header className='-my-2.5 flex flex-wrap items-center justify-between gap-x-2'>
         <h2 className='text-card-title'>Recurring</h2>
-        <Link
-          to='/recurring'
+        <button
+          type='button'
+          onClick={() => void navigate({search: (prev) => ({...prev, recurring: 'open'})})}
           className='-mr-3 inline-flex min-h-11 items-center px-3 text-xs text-primary underline-offset-4 hover:bg-accent/50 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
           aria-label='See all recurring payments'
         >
           See all
-        </Link>
+        </button>
       </header>
       {isError || !summary ? (
         <div className='grid justify-items-start gap-3'>
