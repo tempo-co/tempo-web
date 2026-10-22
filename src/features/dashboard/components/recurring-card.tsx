@@ -46,8 +46,8 @@ export function RecurringCard() {
                 {formatMoney(summary.expenseMonthlyTotal, summary.baseCurrency)}
               </span>{' '}
               a month in bills
-              {summary.unconvertedCount > 0 &&
-                `, excluding ${summary.unconvertedCount} not converted yet`}
+              {summary.expenseUnconvertedCount > 0 &&
+                `, excluding ${summary.expenseUnconvertedCount} not converted yet`}
             </p>
             {toCents(summary.incomeMonthlyTotal) > 0 && (
               <p className='text-sm text-muted-foreground'>

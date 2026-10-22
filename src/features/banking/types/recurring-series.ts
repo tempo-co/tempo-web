@@ -57,7 +57,8 @@ export type RecurringSummary = {
   expenseMonthlyTotal: string;
   incomeMonthlyTotal: string;
   upcoming: RecurringUpcomingPayment[];
-  unconvertedCount: number;
+  expenseUnconvertedCount: number;
+  incomeUnconvertedCount: number;
   baseCurrency: string | null;
 };
 

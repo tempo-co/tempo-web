@@ -41,7 +41,8 @@ const summary: RecurringSummary = {
       currency: 'EUR',
     },
   ],
-  unconvertedCount: 0,
+  expenseUnconvertedCount: 0,
+  incomeUnconvertedCount: 0,
   baseCurrency: 'EUR',
 };
 
@@ -106,8 +107,17 @@ test('says when nothing recurring is found yet', async ({page}) => {
 
 test('says how many bills the total leaves out until they are converted', async ({page}) => {
   await page.route('**/recurring-series/summary?**', (route) =>
-    fulfillJson(route, {...summary, unconvertedCount: 2}),
+    fulfillJson(route, {...summary, expenseUnconvertedCount: 2, incomeUnconvertedCount: 1}),
   );
   await page.goto('/');
   await expect(card(page)).toContainText('€129.99 a month in bills, excluding 2 not converted yet');
+
+  // Unconverted income is not counted against the bills.
+  await page.unrouteAll();
+  await page.route('**/recurring-series/summary?**', (route) =>
+    fulfillJson(route, {...summary, incomeUnconvertedCount: 1}),
+  );
+  await page.reload();
+  await expect(card(page)).toContainText('€129.99 a month in bills');
+  await expect(card(page)).not.toContainText('not converted');
 });
