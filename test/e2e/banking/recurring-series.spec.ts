@@ -7,6 +7,7 @@ import {
 import type {
   RecurringSeries,
   RecurringSeriesList,
+  RecurringSeriesLists,
 } from '../../../src/features/banking/types/recurring-series';
 import {expect, test} from '../../fixtures';
 import {fulfillJson, mockBankConnections, mockJson} from '../../utils/api-mocks';
@@ -42,6 +43,14 @@ function series(overrides: Partial<RecurringSeries> & Pick<RecurringSeries, 'key
     continuation: null,
     ...overrides,
   } satisfies RecurringSeries;
+}
+
+/** The list response: bills and income from one read. */
+function listsOf(
+  expenses: RecurringSeries[],
+  income: RecurringSeries[] = [],
+): RecurringSeriesLists {
+  return {expenses: listOf(expenses), income: listOf(income)};
 }
 
 function listOf(entries: RecurringSeries[]): RecurringSeriesList {
@@ -100,6 +109,7 @@ async function mockRecurring(page: Page) {
       }),
     ] as RecurringSeries[],
     writes: [] as Array<{key: string; hidden?: boolean; linked?: boolean}>,
+    listReads: [] as string[],
   };
   await mockJson(page, '**/accounts/me', {
     id: '00000000-0000-4000-8000-000000000300',
@@ -109,8 +119,8 @@ async function mockRecurring(page: Page) {
   });
   await mockBankConnections(page, () => []);
   await page.route('**/recurring-series?**', (route) => {
-    const income = new URL(route.request().url()).searchParams.get('direction') === 'INCOME';
-    return fulfillJson(route, listOf(income ? state.income : state.expenses));
+    state.listReads.push(new URL(route.request().url()).search);
+    return fulfillJson(route, listsOf(state.expenses, state.income));
   });
   await page.route('**/recurring-series/*/hidden', (route) => {
     const parts = route.request().url().split('/');
@@ -192,6 +202,10 @@ for (const viewport of [
     await page.goto('/recurring');
 
     await expect(page.getByRole('heading', {name: 'Recurring', level: 1})).toBeVisible();
+    // Bills and income come from one request.
+    await expect(page.getByRole('region', {name: 'Income'})).toBeVisible();
+    expect(state.listReads).toHaveLength(1);
+    expect(new URLSearchParams(state.listReads[0]).has('direction')).toBe(false);
     // Gym, streaming at its new price, energy and phone; the ended plan does not count.
     await expect(page.getByTestId('recurring-summary')).toHaveText(
       '€135.49 a month across 4 payments.',
@@ -398,13 +412,12 @@ for (const wakeAfterMidnight of [false, true]) {
     const dates: string[] = [];
     await page.route('**/recurring-series?**', (route) => {
       const url = new URL(route.request().url());
-      if (url.searchParams.get('direction') === 'INCOME') return fulfillJson(route, listOf([]));
       const asOf = url.searchParams.get('asOf')!;
       dates.push(asOf);
       const ended = asOf >= '2026-06-19';
       return fulfillJson(
         route,
-        listOf([
+        listsOf([
           series({
             key: GYM_KEY,
             name: 'Example Gym',
@@ -493,7 +506,7 @@ test('says so when nothing recurring is found and when loading fails', async ({p
   await page.route('**/recurring-series?**', (route) =>
     fail
       ? fulfillJson(route, {statusCode: 429, message: 'ThrottlerException: Too Many Requests'}, 429)
-      : fulfillJson(route, listOf([])),
+      : fulfillJson(route, listsOf([])),
   );
   await page.goto('/recurring');
   await expect(page.getByText('No recurring payments found yet')).toBeVisible();

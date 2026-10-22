@@ -1,8 +1,5 @@
-import type {RecurringSeriesDirection} from '../types/recurring-series';
-
 export const recurringQueryKeys = {
   root: ['recurring-series'] as const,
-  list: (direction: RecurringSeriesDirection, asOf: string) =>
-    ['recurring-series', direction, asOf] as const,
+  lists: (asOf: string) => ['recurring-series', 'lists', asOf] as const,
   summary: (asOf: string) => ['recurring-series', 'summary', asOf] as const,
 };

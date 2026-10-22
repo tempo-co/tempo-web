@@ -48,6 +48,12 @@ export type RecurringSeriesList = {
   baseCurrency: string | null;
 };
 
+/** Bills and income, from one read. */
+export type RecurringSeriesLists = {
+  expenses: RecurringSeriesList;
+  income: RecurringSeriesList;
+};
+
 export type RecurringUpcomingPayment = Pick<
   RecurringSeries,
   'key' | 'name' | 'direction' | 'nextExpectedDate' | 'typicalAmount' | 'currency'

@@ -19,7 +19,11 @@ import {savedDataStatus} from '@/utils/query-status';
 
 import {useGetRecurringSeries} from '../api/use-get-recurring-series';
 import {useUpdateRecurringSeries} from '../api/use-update-recurring-series';
-import {RECURRING_CADENCE_LABELS, type RecurringSeries} from '../types/recurring-series';
+import {
+  RECURRING_CADENCE_LABELS,
+  type RecurringSeries,
+  type RecurringSeriesList,
+} from '../types/recurring-series';
 import {formatBankTransactionCompactDate} from '../utils/formatters';
 
 type Groups = Record<'active' | 'ended' | 'hidden', RecurringSeries[]>;
@@ -43,12 +47,10 @@ function formatPriceChange({amount, since}: {amount: string; since: string}, cur
 
 /** Every recurring payment Tempo found counts; a wrong one can be hidden and restored. */
 export function RecurringSeriesOverview({asOf}: {asOf: string}) {
-  const query = useGetRecurringSeries('EXPENSE', asOf);
+  const query = useGetRecurringSeries(asOf);
   const {isPending, isError} = savedDataStatus(query);
-  const {data} = query;
-
   if (isPending) return <RecurringSkeleton />;
-  if (isError || !data) {
+  if (isError || !query.data) {
     return (
       <EmptyState
         icon={RefreshCw}
@@ -63,6 +65,7 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
     );
   }
 
+  const {expenses: data, income} = query.data;
   const groups = groupSeries(data.series);
 
   return (
@@ -88,7 +91,7 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
           <FoldedSection title='Hidden' series={groups.hidden} baseCurrency={data.baseCurrency} />
         </>
       )}
-      <IncomeSection asOf={asOf} />
+      <IncomeSection data={income} />
     </div>
   );
 }
@@ -136,18 +139,9 @@ function FoldedSection({
 }
 
 /** Recurring income, with the same rows and folds as bills. */
-function IncomeSection({asOf}: {asOf: string}) {
-  const query = useGetRecurringSeries('INCOME', asOf);
-  const {isError} = savedDataStatus(query);
-  const {data} = query;
-  if (data === undefined && !isError) return <Skeleton className='h-16' />;
-  if (isError || !data) {
-    return (
-      <p className='text-sm text-muted-foreground'>Recurring income is unavailable right now.</p>
-    );
-  }
-  const groups = groupSeries(data.series);
+function IncomeSection({data}: {data: RecurringSeriesList}) {
   if (data.series.length === 0) return null;
+  const groups = groupSeries(data.series);
   return (
     <section aria-label='Income' className='grid gap-3 border-t pt-6'>
       <header>
