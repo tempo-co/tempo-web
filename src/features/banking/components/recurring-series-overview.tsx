@@ -1,39 +1,47 @@
 import {Link} from '@tanstack/react-router';
-import {RefreshCw, Repeat} from 'lucide-react';
-import {useState} from 'react';
+import {format} from 'date-fns';
+import {MoreHorizontal, RefreshCw, Repeat} from 'lucide-react';
 
 import {EmptyState} from '@/components/shared/layout/app-empty-state';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {Skeleton} from '@/components/ui/skeleton';
+import {parseCalendarDate} from '@/features/dashboard/utils/drill-links';
 import {formatMoney} from '@/features/dashboard/utils/money';
 import {savedDataStatus} from '@/utils/query-status';
 
 import {useGetRecurringSeries} from '../api/use-get-recurring-series';
-import {useUpdateRecurringContinuation} from '../api/use-update-recurring-continuation';
-import {useUpdateRecurringSeriesDecision} from '../api/use-update-recurring-series-decision';
-import {
-  RECURRING_CADENCE_LABELS,
-  type RecurringContinuation,
-  type RecurringSeries,
-} from '../types/recurring-series';
+import {useUpdateRecurringSeries} from '../api/use-update-recurring-series';
+import {RECURRING_CADENCE_LABELS, type RecurringSeries} from '../types/recurring-series';
 import {formatBankTransactionCompactDate} from '../utils/formatters';
 
-type Groups = Record<'confirmed' | 'suggested' | 'ended' | 'dismissed', RecurringSeries[]>;
+type Groups = Record<'active' | 'ended' | 'hidden', RecurringSeries[]>;
 
 function groupSeries(series: RecurringSeries[]): Groups {
-  const groups: Groups = {confirmed: [], suggested: [], ended: [], dismissed: []};
+  const groups: Groups = {active: [], ended: [], hidden: []};
   for (const entry of series) {
-    if (entry.decision === 'DISMISSED') groups.dismissed.push(entry);
+    if (entry.hidden) groups.hidden.push(entry);
     else if (entry.status === 'ENDED') groups.ended.push(entry);
-    else if (entry.decision === 'CONFIRMED') groups.confirmed.push(entry);
-    else groups.suggested.push(entry);
+    else groups.active.push(entry);
   }
   return groups;
 }
 
-/** Recurring payments: confirmed ones with their monthly cost, suggestions to confirm or dismiss. */
+/** "+€2.20 since Aug" or "−€3.50 since Jan", against the price before the change. */
+function formatPriceChange({amount, since}: {amount: string; since: string}, currency: string) {
+  const value = Number(amount);
+  const sign = value < 0 ? '−' : '+';
+  return `${sign}${formatMoney(Math.abs(value), currency)} since ${format(parseCalendarDate(since), 'MMM')}`;
+}
+
+/** Every recurring payment Tempo found counts; a wrong one can be hidden and restored. */
 export function RecurringSeriesOverview({asOf}: {asOf: string}) {
   const query = useGetRecurringSeries('EXPENSE', asOf);
   const {isPending, isError} = savedDataStatus(query);
@@ -56,53 +64,28 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
   }
 
   const groups = groupSeries(data.series);
-  const nothingFound = data.series.length === 0;
 
   return (
     <div className='grid gap-6'>
-      <p className='text-sm text-muted-foreground' data-testid='recurring-summary'>
-        {groups.confirmed.length > 0 ? (
-          <>
-            <span className='numeric font-semibold text-foreground'>
-              {formatMoney(data.confirmedMonthlyTotal, data.baseCurrency)}
-            </span>{' '}
-            a month across {groups.confirmed.length} confirmed{' '}
-            {groups.confirmed.length === 1 ? 'payment' : 'payments'}
-            {data.unconvertedConfirmedCount > 0 &&
-              `, excluding ${data.unconvertedConfirmedCount} not converted yet`}
-            .
-          </>
-        ) : (
-          'Confirm the payments that really repeat. Only confirmed ones will count toward forecasts.'
-        )}
-      </p>
-      {nothingFound ? (
+      {data.series.length === 0 ? (
         <EmptyState
           icon={Repeat}
           title='No recurring payments found yet'
-          description='Tempo looks for payments to the same place on a regular rhythm. New suggestions exclude ordinary grocery and shopping patterns. Annual subscriptions can be suggested after two payments; other patterns need at least three.'
+          description='Tempo looks for payments to the same place on a regular rhythm, leaving out ordinary grocery and shopping patterns. Annual subscriptions count after two payments; other patterns need at least three.'
         />
       ) : (
         <>
-          <SeriesSection
-            title='Confirmed'
-            series={groups.confirmed}
-            baseCurrency={data.baseCurrency}
-            empty='Nothing confirmed yet.'
-          />
-          <SeriesSection
-            title='Suggested'
-            description='New suggestions exclude ordinary grocery and shopping patterns. Confirm or dismiss each one.'
-            series={groups.suggested}
-            baseCurrency={data.baseCurrency}
-            empty='No new suggestions.'
-          />
-          <CollapsedSection title='Ended' series={groups.ended} baseCurrency={data.baseCurrency} />
-          <CollapsedSection
-            title='Dismissed'
-            series={groups.dismissed}
-            baseCurrency={data.baseCurrency}
-          />
+          <p className='text-sm text-muted-foreground' data-testid='recurring-summary'>
+            <span className='numeric font-semibold text-foreground'>
+              {formatMoney(data.monthlyTotal, data.baseCurrency)}
+            </span>{' '}
+            a month across {groups.active.length}{' '}
+            {groups.active.length === 1 ? 'payment' : 'payments'}
+            {data.unconvertedCount > 0 && `, excluding ${data.unconvertedCount} not converted yet`}.
+          </p>
+          <SeriesSection title='Bills' series={groups.active} baseCurrency={data.baseCurrency} />
+          <FoldedSection title='Ended' series={groups.ended} baseCurrency={data.baseCurrency} />
+          <FoldedSection title='Hidden' series={groups.hidden} baseCurrency={data.baseCurrency} />
         </>
       )}
       <IncomeSection asOf={asOf} />
@@ -112,35 +95,25 @@ export function RecurringSeriesOverview({asOf}: {asOf: string}) {
 
 function SeriesSection({
   title,
-  description,
   series,
   baseCurrency,
-  empty,
 }: {
   title: string;
-  description?: string;
   series: RecurringSeries[];
   baseCurrency: string | null;
-  empty: string;
 }) {
+  if (series.length === 0) return null;
   return (
     <section aria-label={title} className='grid gap-3'>
-      <header>
-        <h2 className='text-section-title'>
-          {title} <span className='text-sm font-normal text-muted-foreground'>{series.length}</span>
-        </h2>
-        {description && <p className='mt-1 text-sm text-muted-foreground'>{description}</p>}
-      </header>
-      {series.length === 0 ? (
-        <p className='text-sm text-muted-foreground'>{empty}</p>
-      ) : (
-        <SeriesList series={series} baseCurrency={baseCurrency} />
-      )}
+      <h2 className='text-section-title'>
+        {title} <span className='text-sm font-normal text-muted-foreground'>{series.length}</span>
+      </h2>
+      <SeriesList series={series} baseCurrency={baseCurrency} />
     </section>
   );
 }
 
-function CollapsedSection({
+function FoldedSection({
   title,
   series,
   baseCurrency,
@@ -162,36 +135,43 @@ function CollapsedSection({
   );
 }
 
-/** Recurring income, folded away: it matters for forecasts, not for this screen's spending view. */
+/** Recurring income, with the same rows and folds as bills. */
 function IncomeSection({asOf}: {asOf: string}) {
-  const [open, setOpen] = useState(false);
-  const query = useGetRecurringSeries('INCOME', asOf, {enabled: open});
+  const query = useGetRecurringSeries('INCOME', asOf);
   const {isError} = savedDataStatus(query);
-  const series = query.data?.series ?? [];
-
+  const {data} = query;
+  if (data === undefined && !isError) return <Skeleton className='h-16' />;
+  if (isError || !data) {
+    return (
+      <p className='text-sm text-muted-foreground'>Recurring income is unavailable right now.</p>
+    );
+  }
+  const groups = groupSeries(data.series);
+  if (data.series.length === 0) return null;
   return (
-    <details
-      aria-label='Income'
-      className='border-t pt-4'
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary className='flex min-h-11 cursor-pointer items-center text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'>
-        Recurring income
-      </summary>
-      <div className='mt-3'>
-        {!open ? null : query.data === undefined && !isError ? (
-          <Skeleton className='h-16' />
-        ) : isError ? (
-          <p className='text-sm text-muted-foreground'>
-            Recurring income is unavailable right now.
-          </p>
-        ) : series.length === 0 ? (
-          <p className='text-sm text-muted-foreground'>No recurring income found yet.</p>
-        ) : (
-          <SeriesList series={series} baseCurrency={query.data?.baseCurrency ?? null} />
-        )}
-      </div>
-    </details>
+    <section aria-label='Income' className='grid gap-3 border-t pt-6'>
+      <header>
+        <h2 className='text-section-title'>
+          Income{' '}
+          <span className='text-sm font-normal text-muted-foreground'>{groups.active.length}</span>
+        </h2>
+        <p className='mt-1 text-sm text-muted-foreground'>
+          <span className='numeric font-semibold text-foreground'>
+            {formatMoney(data.monthlyTotal, data.baseCurrency)}
+          </span>{' '}
+          a month
+        </p>
+      </header>
+      {groups.active.length > 0 && (
+        <SeriesList series={groups.active} baseCurrency={data.baseCurrency} />
+      )}
+      <FoldedSection title='Ended income' series={groups.ended} baseCurrency={data.baseCurrency} />
+      <FoldedSection
+        title='Hidden income'
+        series={groups.hidden}
+        baseCurrency={data.baseCurrency}
+      />
+    </section>
   );
 }
 
@@ -203,7 +183,7 @@ function SeriesList({
   baseCurrency: string | null;
 }) {
   return (
-    <Card className='divide-y divide-border/60 overflow-hidden p-0'>
+    <Card className='overflow-hidden p-0'>
       <ul className='divide-y divide-border/60'>
         {series.map((entry) => (
           <SeriesRow key={entry.key} series={entry} baseCurrency={baseCurrency} />
@@ -214,21 +194,20 @@ function SeriesList({
 }
 
 function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrency: string | null}) {
-  const {updateDecision, pendingKey} = useUpdateRecurringSeriesDecision();
+  const {update, pendingKey} = useUpdateRecurringSeries();
   const busy = pendingKey === series.key;
-  const cadence = RECURRING_CADENCE_LABELS[series.cadence];
   const showMonthly =
     series.monthlyEquivalent !== null &&
     (series.cadence !== 'MONTHLY' || series.currency !== baseCurrency);
-  const decide = (decision: RecurringSeries['decision']) =>
-    void updateDecision({key: series.key, decision});
+  const {continuation} = series;
 
   return (
     <li
-      className='grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center'
+      className='flex items-start gap-2 px-4 py-3'
       data-testid={`recurring-series-${series.key}`}
+      aria-busy={busy || undefined}
     >
-      <div className='min-w-0'>
+      <div className='min-w-0 flex-1'>
         <div className='flex items-baseline justify-between gap-3'>
           <Link
             to='/bank-transactions'
@@ -239,12 +218,11 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
             {series.name}
           </Link>
           <p className='shrink-0 text-right numeric text-sm'>
-            {series.amountKind === 'VARIABLE' && '~'}
             {formatMoney(series.typicalAmount, series.currency)}
           </p>
         </div>
         <p className='mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground'>
-          <span>{cadence}</span>
+          <span>{RECURRING_CADENCE_LABELS[series.cadence]}</span>
           {series.amountKind === 'VARIABLE' && <Badge variant='outline'>Variable amount</Badge>}
           {showMonthly && (
             <span>
@@ -261,134 +239,66 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
               : `Next around ${formatBankTransactionCompactDate(series.nextExpectedDate)}`}
           </span>
           {series.flags.includes('LATE') && <Badge variant='secondary'>Late</Badge>}
-          {series.flags.includes('PRICE_INCREASED') && (
-            <Badge variant='secondary'>
-              Price went up to {formatMoney(series.latestAmount, series.currency)}
+          {series.priceChange && (
+            <Badge variant='secondary' className='numeric'>
+              {formatPriceChange(series.priceChange, series.currency)}
             </Badge>
           )}
         </p>
-      </div>
-      <div className='flex gap-2 sm:justify-end'>
-        {series.decision === null ? (
-          <>
-            <Button
-              size='sm'
-              className='max-sm:h-11 max-sm:flex-1'
-              disabled={busy}
-              onClick={() => decide('CONFIRMED')}
-              aria-label={`Confirm ${series.name}`}
-            >
-              Confirm
-            </Button>
-            <Button
-              size='sm'
-              variant='outline'
-              className='max-sm:h-11 max-sm:flex-1'
-              disabled={busy}
-              onClick={() => decide('DISMISSED')}
-              aria-label={`Dismiss ${series.name}`}
-            >
-              Dismiss
-            </Button>
-          </>
-        ) : (
-          <Button
-            size='sm'
-            variant='ghost'
-            className='max-sm:h-11'
-            disabled={busy}
-            onClick={() => decide(null)}
-            aria-label={`Undo ${series.decision === 'CONFIRMED' ? 'confirm' : 'dismiss'} for ${series.name}`}
-          >
-            Undo
-          </Button>
+        {continuation && (
+          <p className='mt-1 text-xs text-muted-foreground'>
+            Includes earlier payments to {continuation.previousName}.
+          </p>
         )}
       </div>
-      {series.continuation && (
-        <ContinuationQuestion seriesKey={series.key} continuation={series.continuation} />
+      {series.hidden ? (
+        <Button
+          size='sm'
+          variant='ghost'
+          className='-my-1 max-sm:h-11'
+          disabled={busy}
+          onClick={() => void update({kind: 'hidden', key: series.key, hidden: false})}
+          aria-label={`Show ${series.name} again`}
+        >
+          Show again
+        </Button>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size='icon'
+              variant='ghost'
+              className='-my-1 -mr-2 size-11 shrink-0 sm:size-8'
+              disabled={busy}
+              aria-label={`More for ${series.name}`}
+            >
+              <MoreHorizontal aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end'>
+            <DropdownMenuItem
+              onSelect={() => void update({kind: 'hidden', key: series.key, hidden: true})}
+            >
+              Not recurring
+            </DropdownMenuItem>
+            {continuation && (
+              <DropdownMenuItem
+                onSelect={() =>
+                  void update({
+                    kind: 'linked',
+                    key: series.key,
+                    linked: false,
+                    previousName: continuation.previousName,
+                  })
+                }
+              >
+                Unlink {continuation.previousName}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </li>
-  );
-}
-
-/**
- * The detector found an earlier history that looks like this one under an older name. Only the
- * owner can say whether it is the same payment; until then both stay as they are.
- */
-function ContinuationQuestion({
-  seriesKey,
-  continuation: {choice, previousName, previousFirstDate, previousLastDate},
-}: {
-  seriesKey: string;
-  continuation: RecurringContinuation;
-}) {
-  const {updateContinuation, pendingKey} = useUpdateRecurringContinuation();
-  const busy = pendingKey === seriesKey;
-  const answer = (next: typeof choice) => void updateContinuation({key: seriesKey, choice: next});
-  const status = busy && <span className='text-xs text-muted-foreground'>Saving…</span>;
-
-  if (choice !== null) {
-    return (
-      <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:col-span-2'>
-        <span>
-          {choice === 'LINKED'
-            ? `Includes earlier payments to ${previousName}.`
-            : `Kept separate from ${previousName}.`}
-        </span>
-        <Button
-          size='sm'
-          variant='ghost'
-          className='h-8 px-2 max-sm:h-11'
-          disabled={busy}
-          onClick={() => answer(null)}
-          aria-label={
-            choice === 'LINKED' ? `Unlink ${previousName}` : `Ask again about ${previousName}`
-          }
-        >
-          {choice === 'LINKED' ? 'Unlink' : 'Ask again'}
-        </Button>
-        {status}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      role='group'
-      aria-label='Same payment?'
-      className='grid gap-2 rounded-md border border-dashed px-3 py-2 text-sm sm:col-span-2 sm:flex sm:items-center sm:justify-between'
-    >
-      <p className='min-w-0'>
-        Same payment as {previousName}?{' '}
-        <span className='text-xs text-muted-foreground'>
-          Paid {formatBankTransactionCompactDate(previousFirstDate)} –{' '}
-          {formatBankTransactionCompactDate(previousLastDate)}
-        </span>
-      </p>
-      <div className='flex gap-2'>
-        <Button
-          size='sm'
-          variant='outline'
-          className='max-sm:h-11 max-sm:flex-1'
-          disabled={busy}
-          onClick={() => answer('LINKED')}
-          aria-label={`Link with ${previousName}`}
-        >
-          Link
-        </Button>
-        <Button
-          size='sm'
-          variant='ghost'
-          className='max-sm:h-11 max-sm:flex-1'
-          disabled={busy}
-          onClick={() => answer('SEPARATE')}
-          aria-label={`Keep separate from ${previousName}`}
-        >
-          Keep separate
-        </Button>
-        {status}
-      </div>
-    </div>
   );
 }
 

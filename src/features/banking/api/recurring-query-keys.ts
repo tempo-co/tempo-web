@@ -4,4 +4,5 @@ export const recurringQueryKeys = {
   root: ['recurring-series'] as const,
   list: (direction: RecurringSeriesDirection, asOf: string) =>
     ['recurring-series', direction, asOf] as const,
+  summary: (asOf: string) => ['recurring-series', 'summary', asOf] as const,
 };

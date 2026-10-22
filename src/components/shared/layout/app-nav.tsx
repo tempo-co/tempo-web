@@ -1,5 +1,5 @@
 import {Link, useMatchRoute} from '@tanstack/react-router';
-import {ArrowLeftRight, Home, Landmark, LogOut, Repeat, Settings} from 'lucide-react';
+import {ArrowLeftRight, Home, Landmark, LogOut, Settings} from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import {cn} from '@/utils/cn';
 
 type NavItem = {
   label: string;
-  to: '/' | '/bank-connections' | '/bank-transactions' | '/recurring' | '/settings/account';
+  to: '/' | '/bank-connections' | '/bank-transactions' | '/settings/account';
   /** The route subtree that marks the item active. */
   match: string;
   icon: typeof Home;
@@ -30,7 +30,6 @@ const navItems: NavItem[] = [
     match: '/bank-transactions',
     icon: ArrowLeftRight,
   },
-  {label: 'Recurring', to: '/recurring', match: '/recurring', icon: Repeat},
 ];
 
 const tabItems: NavItem[] = [
