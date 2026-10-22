@@ -82,6 +82,15 @@ for (const viewport of [
     await page.goBack();
     await expect(dialog).toBeHidden();
     await expect(card(page)).toBeVisible();
+
+    // Closing it in the dialog leaves no extra Home entry behind: Back then leaves Home.
+    await card(page).getByRole('button', {name: 'See all recurring payments'}).click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(page).not.toHaveURL(/recurring=open/);
+    await page.goBack();
+    await expect(page).toHaveURL('about:blank');
     await page.goto('/recurring');
     await expect(page.getByRole('dialog', {name: 'Recurring payments'})).toBeHidden();
   });

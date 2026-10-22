@@ -1,4 +1,4 @@
-import {createFileRoute} from '@tanstack/react-router';
+import {createFileRoute, useCanGoBack, useRouter} from '@tanstack/react-router';
 import {zodValidator} from '@tanstack/zod-adapter';
 import {z} from 'zod';
 
@@ -25,6 +25,8 @@ export const Route = createFileRoute('/')({
 function Index() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const thisMonth = currentMonth();
   // Future months have no data yet, so they show the current month.
   const month = search.month && search.month < thisMonth ? search.month : thisMonth;
@@ -35,8 +37,10 @@ function Index() {
       <RecurringDialog
         open={search.recurring === 'open'}
         onOpenChange={(open) => {
-          if (!open)
-            void navigate({replace: true, search: (prev) => ({...prev, recurring: undefined})});
+          if (open) return;
+          // Opened from Home: step back over that entry. Opened from a link: there is nothing to step back to.
+          if (canGoBack) router.history.back();
+          else void navigate({replace: true, search: (prev) => ({...prev, recurring: undefined})});
         }}
       />
     </AppBodyLayout>
