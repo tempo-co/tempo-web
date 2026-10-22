@@ -247,6 +247,8 @@ for (const viewport of [
     const state = await mockRecurring(page);
     const previousKey = 'e5'.repeat(16);
     const currentKey = 'f6'.repeat(16);
+    // The joined series has its own key, which undo must keep using after the split.
+    const joinedKey = 'a7'.repeat(16);
     const previous = series({
       key: previousKey,
       name: 'Example Motion Ltd',
@@ -267,6 +269,7 @@ for (const viewport of [
     });
     const joined = series({
       ...current,
+      key: joinedKey,
       transactionCount: 7,
       firstDate: '2026-01-11',
       continuation: {
@@ -287,7 +290,7 @@ for (const viewport of [
     });
     await page.goto('/recurring');
 
-    await expect(row(page, currentKey)).toContainText(
+    await expect(row(page, joinedKey)).toContainText(
       'Includes earlier payments to Example Motion Ltd',
     );
     await expect(
@@ -306,8 +309,8 @@ for (const viewport of [
     ).toBeVisible();
 
     expect(writes).toEqual([
-      {key: currentKey, linked: false},
-      {key: currentKey, linked: true},
+      {key: joinedKey, linked: false},
+      {key: joinedKey, linked: true},
     ]);
   });
 }
