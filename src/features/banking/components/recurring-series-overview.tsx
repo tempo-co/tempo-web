@@ -194,8 +194,7 @@ function SeriesList({
 }
 
 function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrency: string | null}) {
-  const {update, pendingKey} = useUpdateRecurringSeries();
-  const busy = pendingKey === series.key;
+  const {update, isPending: busy} = useUpdateRecurringSeries();
   const showMonthly =
     series.monthlyEquivalent !== null &&
     (series.cadence !== 'MONTHLY' || series.currency !== baseCurrency);

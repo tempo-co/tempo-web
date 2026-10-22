@@ -9,10 +9,10 @@ type Change =
   | {kind: 'hidden'; key: string; hidden: boolean}
   | {kind: 'linked'; key: string; linked: boolean; previousName: string};
 
-const path = (change: Change) =>
+const request = (change: Change) =>
   change.kind === 'hidden'
-    ? [`/recurring-series/${change.key}/hidden`, {hidden: change.hidden}]
-    : [`/recurring-series/${change.key}/continuation`, {linked: change.linked}];
+    ? {url: `/recurring-series/${change.key}/hidden`, body: {hidden: change.hidden}}
+    : {url: `/recurring-series/${change.key}/continuation`, body: {linked: change.linked}};
 
 const inverse = (change: Change): Change =>
   change.kind === 'hidden'
@@ -33,10 +33,10 @@ function message(change: Change) {
  */
 export const useUpdateRecurringSeries = () => {
   const queryClient = useQueryClient();
-  const {mutateAsync, isPending, variables} = useMutation<void, HttpError, Change>({
+  const {mutateAsync, isPending} = useMutation<void, HttpError, Change>({
     mutationFn: async (change) => {
-      const [url, body] = path(change);
-      await api.patch<void>(url as string, JSON.stringify(body));
+      const {url, body} = request(change);
+      await api.patch<void>(url, JSON.stringify(body));
     },
     onSuccess: () => queryClient.invalidateQueries({queryKey: recurringQueryKeys.root}),
   });
@@ -57,6 +57,7 @@ export const useUpdateRecurringSeries = () => {
 
   return {
     update: (change: Change) => save(change, true),
-    pendingKey: isPending ? variables?.key : undefined,
+    // Each row has its own mutation, so pending is that row's change.
+    isPending,
   };
 };

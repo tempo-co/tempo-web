@@ -1,5 +1,4 @@
 import {Link} from '@tanstack/react-router';
-import {ChevronRight} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
@@ -8,7 +7,7 @@ import {useGetRecurringSummary} from '@/features/banking/api/use-get-recurring-s
 import {formatBankTransactionCompactDate} from '@/features/banking/utils/formatters';
 import {useLocalDate} from '@/hooks/use-local-date';
 
-import {formatMoney} from '../utils/money';
+import {formatMoney, toCents} from '../utils/money';
 
 /** Recurring bills and income a month, and what is due next; the full list is one tap away. */
 export function RecurringCard() {
@@ -19,14 +18,15 @@ export function RecurringCard() {
 
   return (
     <Card className='grid gap-4 p-5 sm:p-6' role='region' aria-label='Recurring payments'>
-      <header className='flex items-baseline justify-between gap-3'>
-        <h2 className='text-section-title'>Recurring</h2>
+      {/* The 44px link overhangs the title row so the title and content line up with other cards. */}
+      <header className='-my-2.5 flex flex-wrap items-center justify-between gap-x-2'>
+        <h2 className='text-card-title'>Recurring</h2>
         <Link
           to='/recurring'
-          className='-my-2 inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+          className='-mr-3 inline-flex min-h-11 items-center px-3 text-xs text-primary underline-offset-4 hover:bg-accent/50 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
           aria-label='See all recurring payments'
         >
-          See all <ChevronRight className='size-4' aria-hidden />
+          See all
         </Link>
       </header>
       {isError || !summary ? (
@@ -36,7 +36,7 @@ export function RecurringCard() {
             Try again
           </Button>
         </div>
-      ) : summary.upcoming.length === 0 && Number(summary.expenseMonthlyTotal) === 0 ? (
+      ) : summary.upcoming.length === 0 && toCents(summary.expenseMonthlyTotal) === 0 ? (
         <p className='text-sm text-muted-foreground'>No recurring payments found yet.</p>
       ) : (
         <>
@@ -46,8 +46,10 @@ export function RecurringCard() {
                 {formatMoney(summary.expenseMonthlyTotal, summary.baseCurrency)}
               </span>{' '}
               a month in bills
+              {summary.unconvertedCount > 0 &&
+                `, excluding ${summary.unconvertedCount} not converted yet`}
             </p>
-            {Number(summary.incomeMonthlyTotal) > 0 && (
+            {toCents(summary.incomeMonthlyTotal) > 0 && (
               <p className='text-sm text-muted-foreground'>
                 <span className='numeric font-medium text-foreground'>
                   {formatMoney(summary.incomeMonthlyTotal, summary.baseCurrency)}

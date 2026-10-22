@@ -103,3 +103,11 @@ test('says when nothing recurring is found yet', async ({page}) => {
   await page.goto('/');
   await expect(card(page)).toContainText('No recurring payments found yet');
 });
+
+test('says how many bills the total leaves out until they are converted', async ({page}) => {
+  await page.route('**/recurring-series/summary?**', (route) =>
+    fulfillJson(route, {...summary, unconvertedCount: 2}),
+  );
+  await page.goto('/');
+  await expect(card(page)).toContainText('€129.99 a month in bills, excluding 2 not converted yet');
+});
