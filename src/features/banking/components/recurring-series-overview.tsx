@@ -341,7 +341,7 @@ function RecentPayments({series}: {series: RecurringSeries}) {
             const unusual = index === 0 && series.flags.includes('HIGHER_THAN_USUAL');
             return (
               <li
-                key={payment.date}
+                key={`${payment.date}-${index}`}
                 data-unusual={unusual || undefined}
                 className={cn('flex justify-between gap-4', unusual && 'font-medium text-warning')}
               >
