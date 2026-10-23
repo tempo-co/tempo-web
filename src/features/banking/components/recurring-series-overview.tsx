@@ -1,6 +1,7 @@
 import {Link} from '@tanstack/react-router';
 import {format} from 'date-fns';
-import {MoreHorizontal, RefreshCw, Repeat} from 'lucide-react';
+import {ChevronDown, MoreHorizontal, RefreshCw, Repeat} from 'lucide-react';
+import {useState} from 'react';
 
 import {EmptyState} from '@/components/shared/layout/app-empty-state';
 import {Badge} from '@/components/ui/badge';
@@ -15,6 +16,7 @@ import {
 import {Skeleton} from '@/components/ui/skeleton';
 import {parseCalendarDate} from '@/features/dashboard/utils/drill-links';
 import {formatMoney} from '@/features/dashboard/utils/money';
+import {cn} from '@/utils/cn';
 import {savedDataStatus} from '@/utils/query-status';
 
 import {useGetRecurringSeries} from '../api/use-get-recurring-series';
@@ -210,13 +212,21 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
           >
             {series.name}
           </Link>
-          <p className='shrink-0 text-right numeric text-sm'>
-            {formatMoney(series.typicalAmount, series.currency)}
+          <p className='shrink-0 text-right text-sm'>
+            <span className='numeric'>
+              {series.amountRange && '≈ '}
+              {formatMoney(series.typicalAmount, series.currency)}
+            </span>
+            {series.amountRange && (
+              <span className='block numeric text-xs text-muted-foreground'>
+                {formatMoney(series.amountRange.low, series.currency)} –{' '}
+                {formatMoney(series.amountRange.high, series.currency)}
+              </span>
+            )}
           </p>
         </div>
         <p className='mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground'>
           <span>{RECURRING_CADENCE_LABELS[series.cadence]}</span>
-          {series.amountKind === 'VARIABLE' && <Badge variant='outline'>Variable amount</Badge>}
           {showMonthly && (
             <span>
               ≈{' '}
@@ -232,12 +242,18 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
               : `Next around ${formatBankTransactionCompactDate(series.nextExpectedDate)}`}
           </span>
           {series.flags.includes('LATE') && <Badge variant='secondary'>Late</Badge>}
+          {series.flags.includes('HIGHER_THAN_USUAL') && (
+            <Badge variant='outline' className='border-warning/60 text-warning'>
+              Higher than usual
+            </Badge>
+          )}
           {series.priceChange && (
             <Badge variant='secondary' className='numeric'>
               {formatPriceChange(series.priceChange, series.currency)}
             </Badge>
           )}
         </p>
+        {series.recentPayments.length > 0 && <RecentPayments series={series} />}
         {continuation && (
           <p className='mt-1 text-xs text-muted-foreground'>
             {continuation.linked
@@ -296,6 +312,49 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
         </DropdownMenu>
       )}
     </li>
+  );
+}
+
+/** A variable amount's recent payments, newest first, folded away until asked for. */
+function RecentPayments({series}: {series: RecurringSeries}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className='mt-1'>
+      <button
+        type='button'
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className='-mx-1 inline-flex min-h-8 items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-sm:min-h-11'
+      >
+        Recent payments
+        <ChevronDown
+          aria-hidden
+          className={cn('size-3.5 transition-transform', open && 'rotate-180')}
+        />
+      </button>
+      {open && (
+        <ul
+          aria-label={`Recent payments to ${series.name}`}
+          className='mt-1 grid max-w-xs gap-0.5 text-xs'
+        >
+          {[...series.recentPayments].reverse().map((payment, index) => {
+            const unusual = index === 0 && series.flags.includes('HIGHER_THAN_USUAL');
+            return (
+              <li
+                key={payment.date}
+                data-unusual={unusual || undefined}
+                className={cn('flex justify-between gap-4', unusual && 'font-medium text-warning')}
+              >
+                <span className='text-muted-foreground'>
+                  {formatBankTransactionCompactDate(payment.date)}
+                </span>
+                <span className='numeric'>{formatMoney(payment.amount, series.currency)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

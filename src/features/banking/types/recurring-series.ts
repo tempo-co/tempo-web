@@ -17,6 +17,8 @@ export type RecurringPriceChange = {
   since: string;
 };
 
+export type RecurringPayment = {date: string; amount: string};
+
 /** A detected series of payments. Amounts are positive two-decimal strings. */
 export type RecurringSeries = {
   key: string;
@@ -25,17 +27,24 @@ export type RecurringSeries = {
   cadence: RecurringCadence;
   amountKind: 'FIXED' | 'VARIABLE';
   currency: string;
-  /** The latest payment, or the one before it while the latest is a one-off. */
+  /** A fixed price, or the median of a variable amount's recent payments. */
   typicalAmount: string;
   latestAmount: string;
-  /** In the owner's base currency; null until every payment has a converted amount. */
+  /**
+   * This month's cost in the owner's base currency: the usual amount, or what a variable monthly bill was paid this
+   * month. Null until every payment has a converted amount.
+   */
   monthlyEquivalent: string | null;
+  /** A variable amount's lowest and highest recent payment. */
+  amountRange: {low: string; high: string} | null;
+  /** A variable amount's recent payments, oldest first; empty for a fixed price. */
+  recentPayments: RecurringPayment[];
   transactionCount: number;
   firstDate: string;
   lastDate: string;
   nextExpectedDate: string;
   status: 'ACTIVE' | 'ENDED';
-  flags: Array<'LATE'>;
+  flags: Array<'LATE' | 'HIGHER_THAN_USUAL'>;
   priceChange: RecurringPriceChange | null;
   /** Marked as not recurring by the owner; left out of totals. */
   hidden: boolean;
@@ -57,7 +66,7 @@ export type RecurringSeriesLists = {
 
 export type RecurringUpcomingPayment = Pick<
   RecurringSeries,
-  'key' | 'name' | 'direction' | 'nextExpectedDate' | 'typicalAmount' | 'currency'
+  'key' | 'name' | 'direction' | 'nextExpectedDate' | 'typicalAmount' | 'amountKind' | 'currency'
 >;
 
 export type RecurringSummary = {

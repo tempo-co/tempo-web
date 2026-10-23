@@ -41,6 +41,8 @@ function series(overrides: Partial<RecurringSeries> & Pick<RecurringSeries, 'key
     priceChange: null,
     hidden: false,
     continuation: null,
+    amountRange: null,
+    recentPayments: [],
     ...overrides,
   } satisfies RecurringSeries;
 }
@@ -82,10 +84,19 @@ async function mockRecurring(page: Page) {
         key: ENERGY_KEY,
         name: 'Example Energy',
         amountKind: 'VARIABLE',
-        typicalAmount: '85.00',
-        latestAmount: '85.00',
+        typicalAmount: '78.50',
+        latestAmount: '160.00',
         monthlyEquivalent: '85.00',
-        flags: ['LATE'],
+        amountRange: {low: '48.00', high: '160.00'},
+        recentPayments: [
+          {date: '2026-04-05', amount: '61.00'},
+          {date: '2026-05-05', amount: '95.00'},
+          {date: '2026-06-05', amount: '48.00'},
+          {date: '2026-07-05', amount: '80.00'},
+          {date: '2026-08-05', amount: '77.00'},
+          {date: '2026-09-05', amount: '160.00'},
+        ],
+        flags: ['LATE', 'HIGHER_THAN_USUAL'],
       }),
       series({key: OLD_KEY, name: 'Example Old Plan', status: 'ENDED', lastDate: '2026-03-03'}),
       series({
@@ -217,11 +228,31 @@ for (const viewport of [
     await expect(row(page, STREAMING_KEY)).toContainText('+€2.00 since Aug');
     await expect(row(page, STREAMING_KEY)).not.toContainText('Price went up');
     await expect(row(page, PHONE_KEY)).toContainText('−€3.50 since Jan');
-    await expect(row(page, ENERGY_KEY)).toContainText('Variable amount');
-    // The latest payment is shown as is, without an "about" sign.
-    await expect(row(page, ENERGY_KEY)).toContainText('€85.00');
-    await expect(row(page, ENERGY_KEY)).not.toContainText('~');
+    // A varying bill shows its usual amount as an estimate, with its range, and flags a high latest payment.
+    await expect(row(page, ENERGY_KEY)).toContainText('≈ €78.50');
+    await expect(row(page, ENERGY_KEY)).toContainText('€48.00 – €160.00');
+    await expect(row(page, ENERGY_KEY)).toContainText('Higher than usual');
     await expect(row(page, ENERGY_KEY)).toContainText('Late');
+    await expect(row(page, ENERGY_KEY)).not.toContainText('Variable amount');
+    // Its recent payments open on request.
+    const history = row(page, ENERGY_KEY).getByRole('button', {name: 'Recent payments'});
+    await expect(history).toHaveAttribute('aria-expanded', 'false');
+    await history.click();
+    await expect(history).toHaveAttribute('aria-expanded', 'true');
+    const payments = row(page, ENERGY_KEY).getByRole('list', {
+      name: 'Recent payments to Example Energy',
+    });
+    await expect(payments.getByRole('listitem')).toHaveCount(6);
+    // Newest first.
+    await expect(payments.getByRole('listitem').first()).toContainText('€160.00');
+    // The payment that made it higher than usual stands out.
+    await expect(payments.getByRole('listitem').first()).toHaveAttribute('data-unusual', 'true');
+    await expect(payments.getByRole('listitem').nth(1)).not.toHaveAttribute('data-unusual');
+    await expect(payments.getByRole('listitem').last()).toContainText('€61.00');
+    // A fixed price stays exact: no estimate sign, range or history.
+    await expect(row(page, GYM_KEY)).toContainText('€30.00');
+    await expect(row(page, GYM_KEY)).not.toContainText('≈');
+    await expect(row(page, GYM_KEY).getByRole('button', {name: 'Recent payments'})).toHaveCount(0);
     // Ended series stay folded away until asked for.
     await expect(row(page, OLD_KEY)).toBeHidden();
     await page.getByText('Ended (1)').click();

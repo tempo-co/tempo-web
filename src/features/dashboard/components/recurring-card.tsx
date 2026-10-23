@@ -71,6 +71,7 @@ export function RecurringCard() {
                     </span>
                     <span className='min-w-0 flex-1 truncate'>{payment.name}</span>
                     <span className='shrink-0 numeric'>
+                      {payment.amountKind === 'VARIABLE' && '≈ '}
                       {payment.direction === 'INCOME' && '+'}
                       {formatMoney(payment.typicalAmount, payment.currency)}
                     </span>

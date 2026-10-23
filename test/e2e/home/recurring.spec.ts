@@ -22,14 +22,16 @@ const summary: RecurringSummary = {
       direction: 'EXPENSE',
       nextExpectedDate: '2026-10-03',
       typicalAmount: '30.00',
+      amountKind: 'FIXED',
       currency: 'EUR',
     },
     {
       key: 'b'.repeat(32),
-      name: 'Example Streaming',
+      name: 'Example Energy',
       direction: 'EXPENSE',
       nextExpectedDate: '2026-10-08',
-      typicalAmount: '14.99',
+      typicalAmount: '78.50',
+      amountKind: 'VARIABLE',
       currency: 'EUR',
     },
     {
@@ -38,6 +40,7 @@ const summary: RecurringSummary = {
       direction: 'INCOME',
       nextExpectedDate: '2026-10-25',
       typicalAmount: '2500.00',
+      amountKind: 'FIXED',
       currency: 'EUR',
     },
   ],
@@ -70,6 +73,9 @@ for (const viewport of [
     await expect(upcoming.nth(0)).toContainText('Example Gym');
     await expect(upcoming.nth(0)).toContainText('3 Oct');
     await expect(upcoming.nth(0)).toContainText('€30.00');
+    await expect(upcoming.nth(0)).not.toContainText('≈');
+    // A varying bill's next payment is an estimate.
+    await expect(upcoming.nth(1)).toContainText('≈ €78.50');
     await expect(upcoming.nth(2)).toContainText('+€2,500.00');
     expect(dates).toEqual(['2026-10-01']);
     await expectNoHorizontalOverflow(page);
