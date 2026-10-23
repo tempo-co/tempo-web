@@ -1,5 +1,5 @@
 import {zodResolver} from '@hookform/resolvers/zod';
-import {Check, ChevronRight, Copy, Loader} from 'lucide-react';
+import {Check, Copy, Loader} from 'lucide-react';
 import {useEffect, useRef, useState} from 'react';
 import {useForm} from 'react-hook-form';
 
@@ -40,27 +40,6 @@ import {
   createPersonalAccessTokenDtoSchema,
 } from '../../types/create-personal-access-token.dto';
 
-// The client runs where the user configures it; only the API base URL comes from this app.
-function apiBaseUrl() {
-  return new URL(import.meta.env.VITE_API_URL, window.location.origin).href.replace(/\/+$/, '');
-}
-
-function mcpClientConfig() {
-  return JSON.stringify(
-    {
-      mcpServers: {
-        tempo: {
-          command: 'node',
-          args: ['/path/to/tempo-api/mcp/dist/stdio.js'],
-          env: {TEMPO_API_URL: apiBaseUrl(), TEMPO_API_TOKEN: '<your access token>'},
-        },
-      },
-    },
-    null,
-    2,
-  );
-}
-
 type CreateTokenDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -78,31 +57,29 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
     defaultValues: {name: '', expiresInDays: 90},
   });
 
-  const openRef = useRef(open);
-  useEffect(() => {
-    openRef.current = open;
-  }, [open]);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(copiedTimer.current), []);
 
   const resetDialog = () => {
     setSecret(undefined);
     setCopied(false);
     setCopyError(false);
-    setConfigCopied(false);
     create.reset();
     form.reset({name: '', expiresInDays: 90});
   };
 
+  // Every open starts clean, however it was opened; a close keeps its content until then, so a
+  // closing reveal does not flash the create form. The secret leaves memory on the next open or unmount.
+  useEffect(() => {
+    if (open) resetDialog();
+    // Runs only on the open transition; resetDialog is stable in what it clears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (create.isPending) return;
-    if (nextOpen) resetDialog();
     onOpenChange(nextOpen);
-    if (nextOpen) return;
-    // Clear after the close animation, so a closing reveal does not flash the create form,
-    // and drop the secret from memory unless the dialog was reopened in the meantime.
-    setTimeout(() => {
-      if (!openRef.current) resetDialog();
-      onClosed?.();
-    }, 250);
+    if (!nextOpen) setTimeout(() => onClosed?.(), 250);
   };
 
   const submit = async (dto: CreatePersonalAccessTokenDto) => {
@@ -113,22 +90,15 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
     }
   };
 
-  const [configCopied, setConfigCopied] = useState(false);
-  const copyConfig = async () => {
-    try {
-      await navigator.clipboard.writeText(mcpClientConfig());
-      setConfigCopied(true);
-    } catch {
-      setConfigCopied(false);
-    }
-  };
-
   const copy = async () => {
     if (!secret) return;
     try {
       await navigator.clipboard.writeText(secret);
       setCopied(true);
       setCopyError(false);
+      // Confirm briefly, then return to the action so it never looks stuck.
+      clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopyError(true);
     }
@@ -136,7 +106,7 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
 
   return (
     <ResponsiveDialog open={open} onOpenChange={handleOpenChange}>
-      <ResponsiveDialogContent className='md:max-h-[calc(100svh-2rem)] md:max-w-132 md:overflow-y-auto'>
+      <ResponsiveDialogContent className='md:max-w-132'>
         <ResponsiveDialogHeader className='text-start'>
           <ResponsiveDialogTitle>
             {secret ? 'Copy your access token' : 'Create access token'}
@@ -182,38 +152,6 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
                   </p>
                 )}
               </div>
-              <details className='group border-t pt-4'>
-                <summary className='-mx-2 flex min-h-11 cursor-pointer list-none items-center gap-2 px-2 text-sm font-medium hover:bg-accent/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden'>
-                  <ChevronRight
-                    className='size-4 text-foreground transition-transform group-open:rotate-90 motion-reduce:transition-none'
-                    aria-hidden='true'
-                  />
-                  Connect an MCP client
-                </summary>
-                <div className='mt-2 space-y-3 text-sm text-muted-foreground'>
-                  <p>
-                    Add this server to your MCP client&apos;s configuration. Replace the path with
-                    where the Tempo MCP server is installed, and keep the token out of shared files.
-                  </p>
-                  <div className='flex items-start gap-2 border bg-muted/40 p-3'>
-                    {/* Lines wrap instead of scrolling, so the dialog never shows a scrollbar. */}
-                    <pre
-                      data-testid='mcp-client-config'
-                      className='min-w-0 flex-1 font-mono text-xs leading-5 wrap-anywhere whitespace-pre-wrap text-foreground'
-                    >
-                      {mcpClientConfig()}
-                    </pre>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => void copyConfig()}
-                      className='shrink-0 max-sm:h-11'
-                    >
-                      {configCopied ? 'Copied' : 'Copy'}
-                    </Button>
-                  </div>
-                </div>
-              </details>
             </ResponsiveDialogBody>
             <ResponsiveDialogFooter>
               <ResponsiveDialogClose asChild>

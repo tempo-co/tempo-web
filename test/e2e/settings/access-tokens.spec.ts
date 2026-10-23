@@ -148,21 +148,10 @@ for (const width of [1440, 320]) {
     await ringless();
     await expect(dialog.getByRole('button', {name: 'Copied', exact: true})).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(secret);
-    await dialog.getByText('Connect an MCP client', {exact: true}).click();
-    const config = dialog.getByTestId('mcp-client-config');
-    await expect(config).toContainText('TEMPO_API_TOKEN');
-    await expect(config).toContainText('TEMPO_API_URL');
-    await expect(config).not.toContainText(secret);
-    // The expanded setup fits: nothing inside the dialog scrolls on its own.
-    const scrollers = await dialog.evaluate((root) =>
-      [root, ...root.querySelectorAll('*')]
-        .filter(
-          (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
-        )
-        .filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflow))
-        .map((el) => el.tagName),
-    );
-    expect(scrollers).toEqual([]);
+    // The confirmation is brief, so the action is ready again for another copy.
+    await expect(dialog.getByRole('button', {name: 'Copy token', exact: true})).toBeVisible({
+      timeout: 4000,
+    });
     const storage = await page.evaluate(() => ({
       local: {...localStorage},
       session: {...sessionStorage},
