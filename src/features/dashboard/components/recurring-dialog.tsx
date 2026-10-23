@@ -25,7 +25,7 @@ export function RecurringDialog({
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent
         aria-label='Recurring payments'
-        className='flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-h-[90vh] sm:max-w-3xl [&>button:last-child]:hidden'
+        className='flex h-[min(90dvh,56rem)] max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-h-[90vh] sm:max-w-3xl [&>button:last-child]:hidden'
       >
         <ResponsiveDialogClose
           aria-label='Close recurring payments'

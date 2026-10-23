@@ -522,3 +522,37 @@ test('says so when nothing recurring is found and when loading fails', async ({p
   await page.getByRole('button', {name: 'Try again'}).click();
   await expect(page.getByText('No recurring payments found yet')).toBeVisible();
 });
+
+for (const viewport of [
+  {width: 1280, height: 800},
+  {width: 390, height: 844},
+]) {
+  test(`scrolls a long list inside the dialog at ${viewport.width}px`, async ({page}) => {
+    await page.setViewportSize(viewport);
+    await mockRecurring(page);
+    const many = Array.from({length: 30}, (_, index) =>
+      series({key: index.toString(16).padStart(32, 'c'), name: `Example Bill ${index + 1}`}),
+    );
+    await page.route('**/recurring-series?**', (route) => fulfillJson(route, listsOf(many)));
+    await page.goto('/?recurring=open');
+
+    const dialog = page.getByRole('dialog', {name: 'Recurring payments'});
+    const last = row(page, many[many.length - 1].key);
+    await expect(row(page, many[0].key)).toBeInViewport();
+    await expect(last).not.toBeInViewport();
+    // The dialog itself stays on screen; only its list moves, by wheel or swipe rather than from code.
+    // Wait for the sheet to finish sliding in before measuring it.
+    await expect
+      .poll(async () => {
+        const {y, height} = (await dialog.boundingBox())!;
+        return Math.round(y + height);
+      })
+      .toBeLessThanOrEqual(viewport.height + 1);
+    const box = (await dialog.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    for (let step = 0; step < 10; step++) await page.mouse.wheel(0, 600);
+    await expect(last).toBeInViewport();
+  });
+}
