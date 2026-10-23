@@ -20,6 +20,11 @@ test('navigates between pages from the phone tab bar', async ({page}) => {
   await expect(page.getByRole('navigation', {name: 'Primary'})).toHaveCount(1);
   // Recurring payments live on Home, not in a tab of their own.
   await expect(tabBar.getByRole('link', {name: 'Recurring'})).toHaveCount(0);
+  // The tabs share the whole bar, with no empty slot left over.
+  const tabs = tabBar.getByRole('link');
+  const last = await boxOf(tabs.last());
+  const bar = await boxOf(tabBar);
+  expect(last.x + last.width).toBeGreaterThanOrEqual(bar.x + bar.width - 1);
 
   for (const {label, url} of destinations) {
     const tab = tabBar.getByRole('link', {name: label});
