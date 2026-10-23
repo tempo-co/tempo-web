@@ -37,7 +37,7 @@ export function useRevokePersonalAccessToken() {
       await api.delete(`${RESOURCE}/${id}`);
     },
     onSuccess: (_data, id) => {
-      toast.success('API token revoked.');
+      toast.success('Access token revoked.');
       queryClient.setQueryData<PersonalAccessToken[]>(TOKENS_QUERY_KEY, (tokens) =>
         tokens?.filter((token) => token.id !== id),
       );

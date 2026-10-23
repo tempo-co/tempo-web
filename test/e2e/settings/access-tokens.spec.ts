@@ -89,8 +89,10 @@ for (const width of [1440, 320]) {
       tokens = [];
       await route.fulfill({status: 204});
     });
-    await page.goto('/settings/api-tokens');
-    await expect(page.getByText('No API tokens yet.', {exact: true})).toBeVisible();
+    await page.goto('/settings/integrations');
+    await expect(page.getByText('No access tokens yet.', {exact: true})).toBeVisible();
+    // Empty: the empty state owns the only create action.
+    await expect(page.getByRole('button', {name: 'Create token', exact: true})).toHaveCount(1);
     await page.getByRole('button', {name: 'Create token', exact: true}).click();
     const dialog = page.getByRole('dialog');
     const expectPhoneActions = async () => {
@@ -105,12 +107,30 @@ for (const width of [1440, 320]) {
     await expectPhoneActions();
     await dialog.getByLabel('Name', {exact: true}).fill(`  ${tokenMetadata.name}  `);
     await dialog.getByRole('button', {name: 'Create token', exact: true}).click();
-    await expect(dialog.getByLabel('API token', {exact: true})).toHaveValue(secret);
+    await expect(dialog.getByLabel('Access token', {exact: true})).toHaveValue(secret);
     await expectPhoneActions();
     await expect(dialog).toContainText('only shown once');
-    await dialog.getByRole('button', {name: 'Copy token', exact: true}).click();
+    const field = dialog.getByLabel('Access token', {exact: true});
+    const copyButton = dialog.getByRole('button', {name: 'Copy token', exact: true});
+    // One line, monospace, with copy inside the field's right edge; Done is the footer's only action.
+    expect(await field.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/mono/i);
+    const [fieldBox, copyBox] = await Promise.all([field.boundingBox(), copyButton.boundingBox()]);
+    expect(fieldBox!.height).toBeLessThanOrEqual(48);
+    expect(copyBox!.x).toBeGreaterThan(fieldBox!.x + fieldBox!.width - 1);
+    expect(copyBox!.y).toBeGreaterThanOrEqual(fieldBox!.y - 1);
+    expect(copyBox!.y + copyBox!.height).toBeLessThanOrEqual(fieldBox!.y + fieldBox!.height + 1);
+    // Focusing the field selects the whole token for keyboard copy.
+    await field.focus();
+    expect(
+      await field.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd]),
+    ).toEqual([0, secret.length]);
+    await copyButton.click();
     await expect(dialog.getByRole('button', {name: 'Copied', exact: true})).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(secret);
+    await dialog.getByText('Set up an MCP client', {exact: true}).click();
+    await expect(dialog.getByTestId('mcp-client-config')).toContainText('TEMPO_API_TOKEN');
+    await expect(dialog.getByTestId('mcp-client-config')).toContainText('TEMPO_API_URL');
+    await expect(dialog.getByTestId('mcp-client-config')).not.toContainText(secret);
     const storage = await page.evaluate(() => ({
       local: {...localStorage},
       session: {...sessionStorage},
@@ -120,28 +140,31 @@ for (const width of [1440, 320]) {
     await expectNoHorizontalOverflow(page);
     await dialog.getByRole('button', {name: 'Done', exact: true}).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole('button', {name: 'Create token', exact: true})).toBeFocused();
-    const row = page.getByTestId('api-token-row');
+    const row = page.getByTestId('access-token-row');
     await expect(row).toContainText(tokenMetadata.name);
     await expect(row).toContainText(tokenMetadata.prefix);
-    await expect(row).toContainText('Created');
-    await expect(row).toContainText('Never used');
+    await expect(row.getByTestId('access-token-usage')).toHaveText('Created 2 Jan 2026·Never used');
+    // With tokens listed, creation moves to the section header, above the list.
+    const headerCreate = page.getByRole('button', {name: 'Create token', exact: true});
+    await expect(headerCreate).toHaveCount(1);
+    expect((await headerCreate.boundingBox())!.y).toBeLessThan((await row.boundingBox())!.y);
+    await expect(headerCreate).toBeFocused();
     await expect(page.locator('body')).not.toContainText(secret);
     await page.reload();
     await expect(row).toContainText(tokenMetadata.name);
     await expect(page.locator('body')).not.toContainText(secret);
-    await expect(page.getByLabel('API token', {exact: true})).toHaveCount(0);
-    await row.getByRole('button', {name: 'Revoke', exact: true}).click();
+    await expect(page.getByLabel('Access token', {exact: true})).toHaveCount(0);
+    await row.getByRole('button', {name: /^Revoke /}).click();
     await expect(dialog).toContainText(tokenMetadata.name);
     await expectPhoneActions();
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     expect(revokes).toBe(0);
-    await row.getByRole('button', {name: 'Revoke', exact: true}).click();
+    await row.getByRole('button', {name: /^Revoke /}).click();
     await dialog.getByRole('button', {name: 'Revoke token', exact: true}).click();
     await expect(row).toHaveCount(0);
-    await expect(page.getByText('No API tokens yet.', {exact: true})).toBeVisible();
+    await expect(page.getByText('No access tokens yet.', {exact: true})).toBeVisible();
     await page.reload();
-    await expect(page.getByText('No API tokens yet.', {exact: true})).toBeVisible();
+    await expect(page.getByText('No access tokens yet.', {exact: true})).toBeVisible();
     expect(creates).toBe(1);
     expect(revokes).toBe(1);
     await expectNoHorizontalOverflow(page);
@@ -172,7 +195,7 @@ test('validates names, keeps creation open while pending, and offers manual copy
       },
     });
   });
-  await page.goto('/settings/api-tokens');
+  await page.goto('/settings/integrations');
   const trigger = page.getByRole('button', {name: 'Create token', exact: true});
   await trigger.click();
   const dialog = page.getByRole('dialog');
@@ -192,16 +215,16 @@ test('validates names, keeps creation open while pending, and offers manual copy
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
   release();
-  await expect(dialog.getByLabel('API token', {exact: true})).toHaveValue(secret);
+  await expect(dialog.getByLabel('Access token', {exact: true})).toHaveValue(secret);
   await dialog.getByRole('button', {name: 'Copy token', exact: true}).click();
   await expect(dialog.getByRole('alert')).toContainText('copy it manually');
-  await expect(dialog.getByLabel('API token', {exact: true})).toHaveValue(secret);
+  await expect(dialog.getByLabel('Access token', {exact: true})).toHaveValue(secret);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   releaseRefresh();
   await trigger.click();
   await expect(name).toHaveValue('');
-  await expect(dialog.getByLabel('API token', {exact: true})).toHaveCount(0);
+  await expect(dialog.getByLabel('Access token', {exact: true})).toHaveCount(0);
   await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
   expect(creates).toBe(1);
 });
@@ -216,7 +239,7 @@ test('a failed creation preserves the name for retry and clears the error when d
       ? route.fulfill({status: 400, json: {message: 'Synthetic failure'}})
       : route.fulfill({status: 201, json: {...tokenMetadata, token: secret}});
   });
-  await page.goto('/settings/api-tokens');
+  await page.goto('/settings/integrations');
   const trigger = page.getByRole('button', {name: 'Create token', exact: true});
   await trigger.click();
   const dialog = page.getByRole('dialog');
@@ -231,7 +254,7 @@ test('a failed creation preserves the name for retry and clears the error when d
   fail = false;
   await dialog.getByLabel('Name', {exact: true}).fill(tokenMetadata.name);
   await dialog.getByRole('button', {name: 'Create token', exact: true}).click();
-  await expect(dialog.getByLabel('API token', {exact: true})).toHaveValue(secret);
+  await expect(dialog.getByLabel('Access token', {exact: true})).toHaveValue(secret);
 });
 
 test('retries a failed list load and retains a token until revocation succeeds', async ({page}) => {
@@ -257,14 +280,14 @@ test('retries a failed list load and retains a token until revocation succeeds',
     return route.fulfill({status: 204});
   });
   await page.setViewportSize({width: 320, height: 900});
-  await page.goto('/settings/api-tokens');
-  await expect(page.getByText('API tokens could not be loaded.', {exact: true})).toBeVisible();
+  await page.goto('/settings/integrations');
+  await expect(page.getByText('Access tokens could not be loaded.', {exact: true})).toBeVisible();
   loadFails = false;
   await page.getByRole('button', {name: 'Try again', exact: true}).click();
-  const row = page.getByTestId('api-token-row');
-  await expect(row).toContainText('Last used');
+  const row = page.getByTestId('access-token-row');
+  await expect(row).toContainText(/Used .+ ago/);
   await expectNoHorizontalOverflow(page);
-  await row.getByRole('button', {name: 'Revoke', exact: true}).focus();
+  await row.getByRole('button', {name: /^Revoke /}).focus();
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', {name: 'Revoke token', exact: true}).click();
@@ -283,9 +306,9 @@ test('reports a revocation that fails after its confirmation was closed', async 
     await held;
     await route.fulfill({status: 409, json: {message: 'Synthetic failure'}});
   });
-  await page.goto('/settings/api-tokens');
-  const row = page.getByTestId('api-token-row');
-  await row.getByRole('button', {name: 'Revoke', exact: true}).click();
+  await page.goto('/settings/integrations');
+  const row = page.getByTestId('access-token-row');
+  await row.getByRole('button', {name: /^Revoke /}).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', {name: 'Revoke token', exact: true}).click();
   await expect(dialog.getByRole('button', {name: 'Revoking…', exact: true})).toBeDisabled();

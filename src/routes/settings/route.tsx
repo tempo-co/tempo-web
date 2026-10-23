@@ -15,7 +15,7 @@ const sections = [
   {label: 'Account', route: '/settings/account'},
   {label: 'Security', route: '/settings/security'},
   {label: 'Appearance', route: '/settings/appearance'},
-  {label: 'API tokens', route: '/settings/api-tokens'},
+  {label: 'Integrations', route: '/settings/integrations'},
 ] as const;
 
 function SettingsIndex() {

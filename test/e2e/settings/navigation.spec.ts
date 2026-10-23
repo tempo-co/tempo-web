@@ -25,7 +25,7 @@ test.describe('Settings navigation', () => {
       {path: 'account', label: 'Account'},
       {path: 'security', label: 'Security'},
       {path: 'appearance', label: 'Appearance'},
-      {path: 'api-tokens', label: 'API tokens'},
+      {path: 'integrations', label: 'Integrations'},
     ];
 
     for (const route of routes) {
@@ -54,14 +54,14 @@ test.describe('Settings navigation', () => {
         range.selectNodeContents(link);
         return range.getBoundingClientRect().x;
       }),
-      boxOf(sections.getByRole('link', {name: 'API tokens'})),
+      boxOf(sections.getByRole('link', {name: 'Integrations'})),
     ]);
     expect(lastTab.x + lastTab.width).toBeLessThanOrEqual(nav.x + nav.width);
     expect(Math.abs(firstLabel - title.x)).toBeLessThan(1);
     await expectNoHorizontalOverflow(page);
 
-    await sections.getByRole('link', {name: 'API tokens'}).click();
-    await expect(page).toHaveURL(/\/settings\/api-tokens$/);
-    await expect(sections.locator('a[aria-current="page"]')).toHaveText('API tokens');
+    await sections.getByRole('link', {name: 'Integrations'}).click();
+    await expect(page).toHaveURL(/\/settings\/integrations$/);
+    await expect(sections.locator('a[aria-current="page"]')).toHaveText('Integrations');
   });
 });

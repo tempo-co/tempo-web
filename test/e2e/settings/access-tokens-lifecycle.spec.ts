@@ -9,9 +9,9 @@ test('a signed-in account creates a one-time token and revokes its read-only acc
   freshAccount,
 }) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.goto('/settings/api-tokens');
+  await page.goto('/settings/integrations');
   await expect(page.getByTestId('current-account-email')).toHaveText(freshAccount.email);
-  await expect(page.getByText('No API tokens yet.', {exact: true})).toBeVisible();
+  await expect(page.getByText('No access tokens yet.', {exact: true})).toBeVisible();
   await page.getByRole('button', {name: 'Create token', exact: true}).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name', {exact: true}).fill('Example API integration');
@@ -26,7 +26,7 @@ test('a signed-in account creates a one-time token and revokes its read-only acc
   const metadata = (await created.json()) as CreatedPersonalAccessToken;
   const secret = metadata.token;
   expect(secret).toBeTruthy();
-  await expect(dialog.getByLabel('API token', {exact: true})).toHaveValue(secret);
+  await expect(dialog.getByLabel('Access token', {exact: true})).toHaveValue(secret);
   await dialog.getByRole('button', {name: 'Copy token', exact: true}).click();
   await expect(dialog.getByRole('button', {name: 'Copied', exact: true})).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(secret);
@@ -36,13 +36,13 @@ test('a signed-in account creates a one-time token and revokes its read-only acc
   ).toBe(200);
   await dialog.getByRole('button', {name: 'Done', exact: true}).click();
   await expect(dialog).toBeHidden();
-  const row = page.getByTestId('api-token-row');
+  const row = page.getByTestId('access-token-row');
   await expect(row).toContainText('Example API integration');
   await expect(row).toContainText(metadata.prefix);
   await expect(page.locator('body')).not.toContainText(secret);
   await page.reload();
   await expect(row).toContainText('Example API integration');
-  await expect(page.getByLabel('API token', {exact: true})).toHaveCount(0);
+  await expect(page.getByLabel('Access token', {exact: true})).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText(secret);
   expect(
     JSON.stringify(await page.evaluate(() => ({...localStorage, ...sessionStorage}))),
@@ -53,7 +53,7 @@ test('a signed-in account creates a one-time token and revokes its read-only acc
     expect.objectContaining({id: metadata.id, scopes: ['read']}),
   ]);
   expect(await listed.text()).not.toContain(secret);
-  await row.getByRole('button', {name: 'Revoke', exact: true}).click();
+  await row.getByRole('button', {name: /^Revoke /}).click();
   const revokedResponse = page.waitForResponse(
     (response) =>
       response.url() === `${API_URL}/personal-access-tokens/${metadata.id}` &&
@@ -63,7 +63,7 @@ test('a signed-in account creates a one-time token and revokes its read-only acc
   expect((await revokedResponse).status()).toBe(204);
   await expect(row).toHaveCount(0);
   await page.reload();
-  await expect(page.getByText('No API tokens yet.', {exact: true})).toBeVisible();
+  await expect(page.getByText('No access tokens yet.', {exact: true})).toBeVisible();
   expect(await (await page.request.get(`${API_URL}/personal-access-tokens`)).json()).toEqual([]);
   expect(
     (await page.request.get(`${API_URL}/bank-connections`, {headers: bearerHeaders})).status(),

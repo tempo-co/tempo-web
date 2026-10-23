@@ -37,16 +37,21 @@ export function RevokeTokenDialog({token}: {token: PersonalAccessToken}) {
       }}
     >
       <ResponsiveDialogTrigger asChild>
-        <Button variant='outline' size='sm' className='min-w-20 max-sm:h-11'>
+        <Button
+          variant='outline'
+          size='sm'
+          aria-label={`Revoke ${token.name}`}
+          className='min-w-20 max-sm:h-11'
+        >
           Revoke
         </Button>
       </ResponsiveDialogTrigger>
       <ResponsiveDialogContent className='md:max-w-132'>
         <ResponsiveDialogHeader className='text-start'>
-          <ResponsiveDialogTitle>Revoke API token</ResponsiveDialogTitle>
+          <ResponsiveDialogTitle>Revoke access token</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
-            Revoke <span className='wrap-anywhere text-foreground'>{token.name}</span>? Any
-            integration using this token will lose access immediately.
+            Revoke <span className='wrap-anywhere text-foreground'>{token.name}</span>? Any client
+            using this token will lose access immediately.
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         {revoke.isError && (

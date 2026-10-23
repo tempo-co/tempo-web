@@ -65,7 +65,7 @@ test.describe.serial('Account Settings: Sessions', () => {
 
     await securitySettingsPage.revokeAllButton.click();
     await expect(
-      page1.getByRole('dialog').getByText('This also revokes all API tokens.'),
+      page1.getByRole('dialog').getByText('This also revokes all access tokens.'),
     ).toBeVisible();
     await securitySettingsPage.revokeAllButtonConfirm.click();
 
