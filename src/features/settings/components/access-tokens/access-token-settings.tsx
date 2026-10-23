@@ -5,6 +5,7 @@ import {useRef, useState} from 'react';
 import {EmptyState} from '@/components/shared/layout/app-empty-state';
 import {Button} from '@/components/ui/button';
 import {Skeleton} from '@/components/ui/skeleton';
+import {cn} from '@/utils/cn';
 
 import {usePersonalAccessTokens} from '../../api/use-personal-access-tokens';
 import {PersonalAccessToken} from '../../types/personal-access-token';
@@ -91,17 +92,21 @@ function AccessTokenRow({token}: {token: PersonalAccessToken}) {
         <p className='mt-0.5 font-mono text-xs wrap-anywhere text-muted-foreground'>
           {token.prefix}…
         </p>
-        <p data-testid='access-token-usage' className='mt-0.5 text-xs text-muted-foreground'>
-          {/* Each part stays whole, so a narrow row breaks between parts, never inside a date. */}
-          <span className='whitespace-nowrap'>Created {formatDay(token.createdAt)}</span>
-          <span aria-hidden='true' className='mx-1.5'>
-            ·
+        {/* A timeline: created, last used, expires. One line with dots on wider screens; on phones
+            each part gets its own line, so nothing wraps mid-part or leaves a dangling dot. */}
+        <p className='mt-0.5 text-xs text-muted-foreground'>
+          <span data-testid='access-token-usage'>
+            <span className='whitespace-nowrap max-sm:block'>
+              Created {formatDay(token.createdAt)}
+            </span>
+            <Dot className='max-sm:hidden' />
+            <span className='whitespace-nowrap max-sm:mt-0.5 max-sm:block'>
+              {token.lastUsedAt ? `Last used ${lastUsed(token.lastUsedAt)}` : 'Never used'}
+            </span>
           </span>
-          <span className='whitespace-nowrap'>
-            {token.lastUsedAt ? `Last used ${lastUsed(token.lastUsedAt)}` : 'Never used'}
-          </span>
+          <Dot className='max-sm:hidden' />
+          <TokenExpiry expiresAt={token.expiresAt} />
         </p>
-        <TokenExpiry expiresAt={token.expiresAt} />
       </div>
       <div className='shrink-0'>
         <RevokeTokenDialog token={token} />
@@ -119,23 +124,24 @@ function lastUsed(value: string) {
   return formatDay(value);
 }
 
-function TokenExpiry({expiresAt}: {expiresAt: string | null}) {
-  if (!expiresAt) {
-    return (
-      <p data-testid='access-token-expiry' className='mt-0.5 text-xs text-muted-foreground'>
-        No expiration
-      </p>
-    );
-  }
-  const expired = isPast(new Date(expiresAt));
+function Dot({className}: {className?: string}) {
   return (
-    <p
+    <span aria-hidden='true' className={cn('mx-1.5', className)}>
+      ·
+    </span>
+  );
+}
+
+function TokenExpiry({expiresAt}: {expiresAt: string | null}) {
+  const expired = expiresAt !== null && isPast(new Date(expiresAt));
+  return (
+    <span
       data-testid='access-token-expiry'
-      className={
-        expired ? 'mt-0.5 text-xs text-destructive' : 'mt-0.5 text-xs text-muted-foreground'
-      }
+      className={cn('whitespace-nowrap max-sm:mt-0.5 max-sm:block', expired && 'text-destructive')}
     >
-      {expired ? 'Expired' : 'Expires'} {formatDay(expiresAt)}
-    </p>
+      {expiresAt === null
+        ? 'No expiration'
+        : `${expired ? 'Expired' : 'Expires'} ${formatDay(expiresAt)}`}
+    </span>
   );
 }

@@ -68,6 +68,8 @@ for (const width of [1440, 320]) {
   test(`creates, copies and dismisses a one-time token, then revokes its access (${width}px)`, async ({
     page,
   }) => {
+    // The whole create, copy, revoke journey, including the 2 s copy confirmation.
+    test.setTimeout(20_000);
     await page.setViewportSize({width, height: 900});
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     let tokens: (typeof tokenMetadata)[] = [];
@@ -164,8 +166,17 @@ for (const width of [1440, 320]) {
     const row = page.getByTestId('access-token-row');
     await expect(row).toContainText(tokenMetadata.name);
     await expect(row).toContainText(tokenMetadata.prefix);
-    await expect(row.getByTestId('access-token-usage')).toHaveText('Created 2 Jan 2026·Never used');
+    await expect(row.getByTestId('access-token-usage')).toHaveText(
+      /^Created 2 Jan 2026·?Never used$/,
+    );
     await expect(row.getByTestId('access-token-expiry')).toHaveText('Expires 2 Jan 2027');
+    // Wide screens keep the timeline on one line; phones stack each part.
+    const [usageBox, expiryBox] = await Promise.all([
+      row.getByTestId('access-token-usage').boundingBox(),
+      row.getByTestId('access-token-expiry').boundingBox(),
+    ]);
+    if (width >= 768) expect(Math.abs(expiryBox!.y - usageBox!.y)).toBeLessThan(2);
+    else expect(expiryBox!.y).toBeGreaterThan(usageBox!.y + usageBox!.height - 1);
     // With tokens listed, creation moves to the section header, above the list.
     const headerCreate = page.getByRole('button', {name: 'Create token', exact: true});
     await expect(headerCreate).toHaveCount(1);
@@ -316,7 +327,7 @@ test('retries a failed list load and retains a token until revocation succeeds',
   await page.getByRole('button', {name: 'Try again', exact: true}).click();
   const rows = page.getByTestId('access-token-row');
   await expect(rows.nth(0).getByTestId('access-token-usage')).toHaveText(
-    'Created 2 Jan 2026·Last used 3 Jan 2026',
+    /^Created 2 Jan 2026·?Last used 3 Jan 2026$/,
   );
   await expect(rows.nth(0).getByTestId('access-token-expiry')).toHaveText('Expired 1 Feb 2026');
   await expect(rows.nth(1).getByTestId('access-token-usage')).toContainText('Last used today');
