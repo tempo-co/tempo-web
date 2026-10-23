@@ -3,11 +3,12 @@ export type RecurringCadence = (typeof RECURRING_CADENCES)[number];
 
 export type RecurringSeriesDirection = 'EXPENSE' | 'INCOME';
 
-/** The earlier history a series was joined with because it continues it. */
+/** The earlier history a series continues: joined with it, or kept apart because the owner unlinked them. */
 export type RecurringContinuation = {
   previousName: string;
   previousFirstDate: string;
   previousLastDate: string;
+  linked: boolean;
 };
 
 /** A fixed price's recent change: `amount` is signed, `since` is the first payment at the new price. */

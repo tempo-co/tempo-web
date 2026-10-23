@@ -240,7 +240,9 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
         </p>
         {continuation && (
           <p className='mt-1 text-xs text-muted-foreground'>
-            Includes earlier payments to {continuation.previousName}.
+            {continuation.linked
+              ? `Includes earlier payments to ${continuation.previousName}.`
+              : `Kept apart from ${continuation.previousName}.`}
           </p>
         )}
       </div>
@@ -280,12 +282,14 @@ function SeriesRow({series, baseCurrency}: {series: RecurringSeries; baseCurrenc
                   void update({
                     kind: 'linked',
                     key: series.key,
-                    linked: false,
+                    linked: !continuation.linked,
                     previousName: continuation.previousName,
                   })
                 }
               >
-                Unlink {continuation.previousName}
+                {continuation.linked
+                  ? `Unlink ${continuation.previousName}`
+                  : `Link with ${continuation.previousName}`}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>

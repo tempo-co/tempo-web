@@ -290,8 +290,10 @@ for (const viewport of [
         previousName: 'Example Motion Ltd',
         previousFirstDate: '2026-01-11',
         previousLastDate: '2026-03-11',
+        linked: true,
       },
     });
+    const apart = series({...current, continuation: {...joined.continuation!, linked: false}});
     state.expenses = [joined];
     const writes: Array<{key: string; linked: boolean}> = [];
     await page.route('**/recurring-series/*/continuation', (route) => {
@@ -299,7 +301,7 @@ for (const viewport of [
       const key = parts[parts.length - 2];
       const {linked} = route.request().postDataJSON() as {linked: boolean};
       writes.push({key, linked});
-      state.expenses = linked ? [joined] : [current, previous];
+      state.expenses = linked ? [joined] : [apart, previous];
       return route.fulfill({status: 204});
     });
     await page.goto('/?recurring=open');
@@ -322,9 +324,23 @@ for (const viewport of [
       page.getByRole('link', {name: 'Example Motion Exampletown, 7 payments'}),
     ).toBeVisible();
 
+    // Without the toast, the newer history still offers to link them again.
+    await chooseFromRowMenu(page, 'Example Motion Exampletown', 'Unlink Example Motion Ltd');
+    await expect(
+      page.getByRole('link', {name: 'Example Motion Exampletown, 4 payments'}),
+    ).toBeVisible();
+    await expect(row(page, currentKey)).toContainText('Kept apart from Example Motion Ltd');
+    await chooseFromRowMenu(page, 'Example Motion Exampletown', 'Link with Example Motion Ltd');
+    await expect(page.getByText('Linked with Example Motion Ltd again.').last()).toBeVisible();
+    await expect(
+      page.getByRole('link', {name: 'Example Motion Exampletown, 7 payments'}),
+    ).toBeVisible();
+
     expect(writes).toEqual([
       {key: joinedKey, linked: false},
       {key: joinedKey, linked: true},
+      {key: joinedKey, linked: false},
+      {key: currentKey, linked: true},
     ]);
   });
 }

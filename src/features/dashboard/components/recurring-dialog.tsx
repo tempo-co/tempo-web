@@ -39,7 +39,7 @@ export function RecurringDialog({
             Recurring payments
           </ResponsiveDialogTitle>
           <ResponsiveDialogDescription className='mt-1 md:mt-0'>
-            Bills and income Tempo found in your history.
+            Bills and income found in your history.
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         <ScrollArea type='always' className='min-h-0 flex-1'>
