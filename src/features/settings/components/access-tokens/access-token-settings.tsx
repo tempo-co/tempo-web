@@ -24,7 +24,7 @@ export function AccessTokenSettings() {
     <SettingsGroup
       id='access-tokens-heading'
       title='Access tokens'
-      description='Access tokens let MCP clients, such as AI assistants, read your Tempo data. Tokens are read-only.'
+      description='Access tokens let MCP clients, such as AI assistants, read your Tempo data.'
       action={
         hasTokens && (
           <Button
