@@ -4,7 +4,15 @@ import {useEffect, useRef, useState} from 'react';
 import {useForm} from 'react-hook-form';
 
 import {Button} from '@/components/ui/button';
-import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {
@@ -17,10 +25,18 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import {useCreatePersonalAccessToken} from '../../api/use-personal-access-tokens';
 import {
   CreatePersonalAccessTokenDto,
+  TOKEN_LIFETIMES,
   createPersonalAccessTokenDtoSchema,
 } from '../../types/create-personal-access-token.dto';
 
@@ -59,7 +75,7 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
   const create = useCreatePersonalAccessToken(setSecret);
   const form = useForm<CreatePersonalAccessTokenDto>({
     resolver: zodResolver(createPersonalAccessTokenDtoSchema),
-    defaultValues: {name: ''},
+    defaultValues: {name: '', expiresInDays: 90},
   });
 
   const openRef = useRef(open);
@@ -73,7 +89,7 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
     setCopyError(false);
     setConfigCopied(false);
     create.reset();
-    form.reset({name: ''});
+    form.reset({name: '', expiresInDays: 90});
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -120,24 +136,24 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
 
   return (
     <ResponsiveDialog open={open} onOpenChange={handleOpenChange}>
-      <ResponsiveDialogContent className='md:max-w-132'>
+      <ResponsiveDialogContent className='md:max-h-[calc(100svh-2rem)] md:max-w-132 md:overflow-y-auto'>
         <ResponsiveDialogHeader className='text-start'>
           <ResponsiveDialogTitle>
             {secret ? 'Copy your access token' : 'Create access token'}
           </ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
             {secret
-              ? 'It is only shown once. Store it in your MCP client now.'
-              : 'Name it after the client that will use it, so you know which token to revoke.'}
+              ? "Make sure to copy your access token now. You won't be able to see it again."
+              : 'Create a read-only token for an MCP client.'}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         {secret ? (
           <>
-            <ResponsiveDialogBody className='max-h-[60svh] space-y-5 overflow-y-auto md:max-h-[65svh]'>
+            <ResponsiveDialogBody className='space-y-5'>
               <div className='space-y-2'>
                 <Label htmlFor='created-access-token'>Access token</Label>
-                {/* Copy sits in the field's own border, so the token runs up to a divider, not under a button. */}
-                <div className='flex h-11 border bg-background focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring max-sm:h-12'>
+                {/* Copy sits inside the field's border; focusing the field selects the whole token. */}
+                <div className='flex h-11 border bg-background max-sm:h-12'>
                   <input
                     id='created-access-token'
                     readOnly
@@ -172,18 +188,18 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
                     className='size-4 text-foreground transition-transform group-open:rotate-90 motion-reduce:transition-none'
                     aria-hidden='true'
                   />
-                  Set up an MCP client
+                  Connect an MCP client
                 </summary>
                 <div className='mt-2 space-y-3 text-sm text-muted-foreground'>
                   <p>
-                    Add this to your client&apos;s MCP servers and point <code>args</code> at your
-                    Tempo checkout. Put the token in the client&apos;s secret store, not in a shared
-                    config file.
+                    Add this server to your MCP client&apos;s configuration. Replace the path with
+                    where the Tempo MCP server is installed, and keep the token out of shared files.
                   </p>
-                  <div className='relative border bg-muted/40'>
+                  <div className='flex items-start gap-2 border bg-muted/40 p-3'>
+                    {/* Lines wrap instead of scrolling, so the dialog never shows a scrollbar. */}
                     <pre
                       data-testid='mcp-client-config'
-                      className='overflow-x-auto p-3 pr-24 font-mono text-xs leading-5 text-foreground'
+                      className='min-w-0 flex-1 font-mono text-xs leading-5 wrap-anywhere whitespace-pre-wrap text-foreground'
                     >
                       {mcpClientConfig()}
                     </pre>
@@ -191,7 +207,7 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
                       variant='outline'
                       size='sm'
                       onClick={() => void copyConfig()}
-                      className='absolute top-2 right-2 max-sm:h-11'
+                      className='shrink-0 max-sm:h-11'
                     >
                       {configCopied ? 'Copied' : 'Copy'}
                     </Button>
@@ -216,13 +232,44 @@ export function CreateTokenDialog({open, onOpenChange, onClosed}: CreateTokenDia
                     <FormItem>
                       <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          autoComplete='off'
-                          placeholder='Hermes'
-                          disabled={create.isPending}
-                        />
+                        <Input {...field} autoComplete='off' disabled={create.isPending} />
                       </FormControl>
+                      <FormDescription>
+                        A name to recognise this token by, such as the device or app using it.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='expiresInDays'
+                  render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Expiration</FormLabel>
+                      <Select
+                        disabled={create.isPending}
+                        value={String(field.value ?? 'never')}
+                        onValueChange={(value) =>
+                          field.onChange(
+                            TOKEN_LIFETIMES.find((lifetime) => lifetime.value === value)?.days ??
+                              null,
+                          )
+                        }
+                      >
+                        <FormControl>
+                          <SelectTrigger className='max-sm:h-11'>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {TOKEN_LIFETIMES.map((lifetime) => (
+                            <SelectItem key={lifetime.value} value={lifetime.value}>
+                              {lifetime.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

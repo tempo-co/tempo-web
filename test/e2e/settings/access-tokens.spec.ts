@@ -15,6 +15,7 @@ const tokenMetadata = {
   scopes: ['read'],
   createdAt: '2026-01-02T12:00:00.000Z',
   lastUsedAt: null,
+  expiresAt: '2027-01-02T12:00:00.000Z',
 };
 const secret = 'tempo_pat_example_synthetic_secret_not_a_real_token';
 
@@ -76,7 +77,10 @@ for (const width of [1440, 320]) {
       if (route.request().isNavigationRequest()) return route.fallback();
       if (route.request().method() === 'POST') {
         creates++;
-        expect(route.request().postDataJSON()).toEqual({name: tokenMetadata.name});
+        expect(route.request().postDataJSON()).toEqual({
+          name: tokenMetadata.name,
+          expiresInDays: 365,
+        });
         tokens = [tokenMetadata];
         return route.fulfill({status: 201, json: {...tokenMetadata, token: secret}});
       }
@@ -106,10 +110,21 @@ for (const width of [1440, 320]) {
     };
     await expectPhoneActions();
     await dialog.getByLabel('Name', {exact: true}).fill(`  ${tokenMetadata.name}  `);
+    // Tokens default to 90 days; the creator can pick another lifetime.
+    const expiration = dialog.getByRole('combobox', {name: 'Expiration'});
+    await expect(expiration).toHaveText('90 days');
+    await expiration.click();
+    await expect(page.getByRole('option')).toHaveText([
+      '30 days',
+      '90 days',
+      '1 year',
+      'No expiration',
+    ]);
+    await page.getByRole('option', {name: '1 year', exact: true}).click();
     await dialog.getByRole('button', {name: 'Create token', exact: true}).click();
     await expect(dialog.getByLabel('Access token', {exact: true})).toHaveValue(secret);
     await expectPhoneActions();
-    await expect(dialog).toContainText('only shown once');
+    await expect(dialog).toContainText("You won't be able to see it again.");
     const field = dialog.getByLabel('Access token', {exact: true});
     const copyButton = dialog.getByRole('button', {name: 'Copy token', exact: true});
     // One line, monospace, with copy inside the field's right edge; Done is the footer's only action.
@@ -124,13 +139,30 @@ for (const width of [1440, 320]) {
     expect(
       await field.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd]),
     ).toEqual([0, secret.length]);
+    // Neither selecting the token nor clicking copy draws a ring around the field.
+    const fieldFrame = field.locator('xpath=..');
+    const ringless = async () =>
+      expect(await fieldFrame.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('none');
+    await ringless();
     await copyButton.click();
+    await ringless();
     await expect(dialog.getByRole('button', {name: 'Copied', exact: true})).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(secret);
-    await dialog.getByText('Set up an MCP client', {exact: true}).click();
-    await expect(dialog.getByTestId('mcp-client-config')).toContainText('TEMPO_API_TOKEN');
-    await expect(dialog.getByTestId('mcp-client-config')).toContainText('TEMPO_API_URL');
-    await expect(dialog.getByTestId('mcp-client-config')).not.toContainText(secret);
+    await dialog.getByText('Connect an MCP client', {exact: true}).click();
+    const config = dialog.getByTestId('mcp-client-config');
+    await expect(config).toContainText('TEMPO_API_TOKEN');
+    await expect(config).toContainText('TEMPO_API_URL');
+    await expect(config).not.toContainText(secret);
+    // The expanded setup fits: nothing inside the dialog scrolls on its own.
+    const scrollers = await dialog.evaluate((root) =>
+      [root, ...root.querySelectorAll('*')]
+        .filter(
+          (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+        )
+        .filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflow))
+        .map((el) => el.tagName),
+    );
+    expect(scrollers).toEqual([]);
     const storage = await page.evaluate(() => ({
       local: {...localStorage},
       session: {...sessionStorage},
@@ -144,6 +176,7 @@ for (const width of [1440, 320]) {
     await expect(row).toContainText(tokenMetadata.name);
     await expect(row).toContainText(tokenMetadata.prefix);
     await expect(row.getByTestId('access-token-usage')).toHaveText('Created 2 Jan 2026·Never used');
+    await expect(row.getByTestId('access-token-expiry')).toHaveText('Expires 2 Jan 2027');
     // With tokens listed, creation moves to the section header, above the list.
     const headerCreate = page.getByRole('button', {name: 'Create token', exact: true});
     await expect(headerCreate).toHaveCount(1);
@@ -267,6 +300,14 @@ test('retries a failed list load and retains a token until revocation succeeds',
         .repeat(2)
         .slice(0, 100),
       lastUsedAt: '2026-01-03T12:30:00.000Z',
+      expiresAt: '2026-02-01T12:00:00.000Z',
+    },
+    {
+      ...tokenMetadata,
+      id: '00000000-0000-4000-8000-000000000003',
+      name: 'Example used today',
+      lastUsedAt: new Date().toISOString(),
+      expiresAt: null,
     },
   ];
   await page.route('**/personal-access-tokens', (route) =>
@@ -276,7 +317,7 @@ test('retries a failed list load and retains a token until revocation succeeds',
   );
   await page.route('**/personal-access-tokens/*', (route) => {
     if (revokeFails) return route.fulfill({status: 409, json: {message: 'Synthetic conflict'}});
-    tokens = [];
+    tokens = tokens.slice(1);
     return route.fulfill({status: 204});
   });
   await page.setViewportSize({width: 320, height: 900});
@@ -284,8 +325,14 @@ test('retries a failed list load and retains a token until revocation succeeds',
   await expect(page.getByText('Access tokens could not be loaded.', {exact: true})).toBeVisible();
   loadFails = false;
   await page.getByRole('button', {name: 'Try again', exact: true}).click();
-  const row = page.getByTestId('access-token-row');
-  await expect(row).toContainText(/Used .+ ago/);
+  const rows = page.getByTestId('access-token-row');
+  await expect(rows.nth(0).getByTestId('access-token-usage')).toHaveText(
+    'Created 2 Jan 2026·Last used 3 Jan 2026',
+  );
+  await expect(rows.nth(0).getByTestId('access-token-expiry')).toHaveText('Expired 1 Feb 2026');
+  await expect(rows.nth(1).getByTestId('access-token-usage')).toContainText('Last used today');
+  await expect(rows.nth(1).getByTestId('access-token-expiry')).toHaveText('No expiration');
+  const row = rows.filter({hasText: 'deliberately long synthetic name'});
   await expectNoHorizontalOverflow(page);
   await row.getByRole('button', {name: /^Revoke /}).focus();
   await page.keyboard.press('Enter');

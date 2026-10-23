@@ -7,6 +7,8 @@ export const personalAccessTokenSchema = z.object({
   scopes: z.array(z.literal('read')),
   createdAt: z.string(),
   lastUsedAt: z.string().nullable(),
+  /** Null when the token never expires. */
+  expiresAt: z.string().nullable(),
 });
 
 export type PersonalAccessToken = z.infer<typeof personalAccessTokenSchema>;

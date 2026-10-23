@@ -1,4 +1,4 @@
-import {format, formatDistanceToNowStrict} from 'date-fns';
+import {format, isPast, isToday, isYesterday} from 'date-fns';
 import {KeyRound, Plus} from 'lucide-react';
 import {useRef, useState} from 'react';
 
@@ -24,7 +24,7 @@ export function AccessTokenSettings() {
     <SettingsGroup
       id='access-tokens-heading'
       title='Access tokens'
-      description='Let an AI assistant read your Tempo data through MCP. Tokens are read-only and never expire, so revoke any you no longer use.'
+      description='Access tokens let MCP clients, such as AI assistants, read your Tempo data. Tokens are read-only.'
       action={
         hasTokens && (
           <Button
@@ -57,7 +57,7 @@ export function AccessTokenSettings() {
         <EmptyState
           icon={KeyRound}
           title='No access tokens yet.'
-          description='Create a token to connect an MCP client such as Hermes or Claude.'
+          description='Create a token to connect an MCP client.'
         >
           <Button ref={emptyCreate} onClick={() => setCreating(true)} className='max-sm:h-11'>
             Create token
@@ -91,24 +91,51 @@ function AccessTokenRow({token}: {token: PersonalAccessToken}) {
         <p className='mt-0.5 font-mono text-xs wrap-anywhere text-muted-foreground'>
           {token.prefix}…
         </p>
-        {/* Short dates keep "Created · Last used" on one line even beside the Revoke button. */}
         <p data-testid='access-token-usage' className='mt-0.5 text-xs text-muted-foreground'>
-          Created {format(new Date(token.createdAt), 'd MMM yyyy')}
+          {/* Each part stays whole, so a narrow row breaks between parts, never inside a date. */}
+          <span className='whitespace-nowrap'>Created {formatDay(token.createdAt)}</span>
           <span aria-hidden='true' className='mx-1.5'>
             ·
           </span>
-          {token.lastUsedAt ? (
-            <span title={format(new Date(token.lastUsedAt), 'd MMM yyyy, HH:mm')}>
-              Used {formatDistanceToNowStrict(new Date(token.lastUsedAt), {addSuffix: true})}
-            </span>
-          ) : (
-            'Never used'
-          )}
+          <span className='whitespace-nowrap'>
+            {token.lastUsedAt ? `Last used ${lastUsed(token.lastUsedAt)}` : 'Never used'}
+          </span>
         </p>
+        <TokenExpiry expiresAt={token.expiresAt} />
       </div>
       <div className='shrink-0'>
         <RevokeTokenDialog token={token} />
       </div>
     </div>
+  );
+}
+
+const formatDay = (value: string) => format(new Date(value), 'd MMM yyyy');
+
+function lastUsed(value: string) {
+  const date = new Date(value);
+  if (isToday(date)) return 'today';
+  if (isYesterday(date)) return 'yesterday';
+  return formatDay(value);
+}
+
+function TokenExpiry({expiresAt}: {expiresAt: string | null}) {
+  if (!expiresAt) {
+    return (
+      <p data-testid='access-token-expiry' className='mt-0.5 text-xs text-muted-foreground'>
+        No expiration
+      </p>
+    );
+  }
+  const expired = isPast(new Date(expiresAt));
+  return (
+    <p
+      data-testid='access-token-expiry'
+      className={
+        expired ? 'mt-0.5 text-xs text-destructive' : 'mt-0.5 text-xs text-muted-foreground'
+      }
+    >
+      {expired ? 'Expired' : 'Expires'} {formatDay(expiresAt)}
+    </p>
   );
 }
