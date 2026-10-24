@@ -119,6 +119,14 @@ async function mockMerchantLogos(page: Page) {
   await mockBankConnections(page, [connection]);
   await mockJson(page, '**/bank-connections/aspsps', []);
   await mockJson(page, '**/bank-transactions/summary**', septemberSummary);
+  await mockJson(page, '**/recurring-series/summary?**', {
+    expenseMonthlyTotal: '0.00',
+    incomeMonthlyTotal: '0.00',
+    upcoming: [],
+    expenseUnconvertedCount: 0,
+    incomeUnconvertedCount: 0,
+    baseCurrency: 'EUR',
+  });
   await mockCashFlow(page);
   await mockBalanceTrend(page);
   await mockJson(page, '**/bank-transactions/review-counts', {
